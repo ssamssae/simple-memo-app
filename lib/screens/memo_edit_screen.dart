@@ -33,11 +33,11 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     final content = _contentController.text.trim();
     if (content.isEmpty) return null;
 
-    if (_isEditing) {
-      final memo = widget.memo!;
-      memo.content = content;
-      memo.updatedAt = DateTime.now();
-      return memo;
+    if (_isEditing && widget.memo != null) {
+      return widget.memo!.copyWith(
+        content: content,
+        updatedAt: DateTime.now(),
+      );
     } else {
       return Memo.create(content: content);
     }
@@ -80,6 +80,11 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
             decoration: const InputDecoration(
               hintText: '내용을 입력하세요...',
               border: InputBorder.none,
+            ),
+            style: const TextStyle(
+              fontSize: 16,
+              height: 1.6,
+              letterSpacing: 0.2,
             ),
             maxLines: null,
             expands: true,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/memo.dart';
 import '../services/memo_storage.dart';
 import 'memo_edit_screen.dart';
@@ -11,9 +12,13 @@ class MemoListScreen extends StatefulWidget {
 }
 
 class _MemoListScreenState extends State<MemoListScreen> {
+  // [요구사항 1] 단일 리스트로만 관리. 즐겨찾기가 앞, 일반이 뒤 순서 유지.
   List<Memo> _memos = [];
   bool _isLoading = true;
   final ValueNotifier<int> _closeSwipeNotifier = ValueNotifier(0);
+  bool _buttonTapped = false;
+  Offset? _pointerDownPos;
+  static const _tapTolerance = 15.0;
 
   @override
   void initState() {
@@ -27,12 +32,30 @@ class _MemoListScreenState extends State<MemoListScreen> {
     super.dispose();
   }
 
+  // [요구사항 8] 즐겨찾기=항상 위, 일반=아래. .where()는 원래 순서 유지(stable).
+  void _ensureGroupOrder() {
+    final favs = _memos.where((m) => m.isFavorite).toList();
+    final normals = _memos.where((m) => !m.isFavorite).toList();
+    _memos = [...favs, ...normals];
+  }
+
   Future<void> _loadMemos() async {
-    final memos = await MemoStorage.loadMemos();
-    setState(() {
-      _memos = memos;
-      _isLoading = false;
-    });
+    try {
+      final memos = await MemoStorage.loadMemos();
+      if (!mounted) return;
+      setState(() {
+        _memos = memos;
+        _ensureGroupOrder();
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('[_loadMemos] $e');
+      if (!mounted) return;
+      setState(() {
+        _memos = [];
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _saveMemos() async {
@@ -43,6 +66,12 @@ class _MemoListScreenState extends State<MemoListScreen> {
     _closeSwipeNotifier.value++;
   }
 
+  void _onButtonTapped() {
+    _buttonTapped = true;
+  }
+
+  // --- 메모 CRUD (모두 id 기반) ---
+
   Future<void> _addMemo() async {
     _closeAllSwipes();
     final result = await Navigator.push<Memo>(
@@ -51,13 +80,25 @@ class _MemoListScreenState extends State<MemoListScreen> {
     );
     if (result != null) {
       setState(() {
-        _memos.insert(0, result);
+        // 새 메모는 일반 그룹 맨 위 = 즐겨찾기 뒤 첫 번째
+        final firstNormalIndex =
+            _memos.indexWhere((m) => !m.isFavorite);
+        if (firstNormalIndex == -1) {
+          _memos.add(result); // 전부 즐겨찾기면 맨 뒤에
+        } else {
+          _memos.insert(firstNormalIndex, result);
+        }
       });
       await _saveMemos();
     }
   }
 
-  Future<void> _editMemo(int index) async {
+  // [요구사항 5] id 기준으로 찾아서 처리
+  Future<void> _editMemo(String memoId) async {
+    _closeAllSwipes();
+    final index = _memos.indexWhere((m) => m.id == memoId);
+    if (index == -1) return;
+
     final result = await Navigator.push<Memo>(
       context,
       MaterialPageRoute(builder: (_) => MemoEditScreen(memo: _memos[index])),
@@ -70,8 +111,11 @@ class _MemoListScreenState extends State<MemoListScreen> {
     }
   }
 
-  Future<void> _deleteMemo(int index) async {
+  Future<void> _deleteMemo(String memoId) async {
+    final index = _memos.indexWhere((m) => m.id == memoId);
+    if (index == -1) return;
     final memo = _memos[index];
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -91,36 +135,143 @@ class _MemoListScreenState extends State<MemoListScreen> {
       ),
     );
     if (confirmed == true) {
-      setState(() => _memos.removeAt(index));
+      setState(() => _memos.removeWhere((m) => m.id == memoId));
       await _saveMemos();
     }
   }
 
-  void _toggleFavorite(int index) {
+  // [요구사항 5] copyWith로 isFavorite만 변경, insert/remove 안 함.
+  // _ensureGroupOrder()로 그룹 재배치 (stable).
+  void _toggleFavorite(String memoId) {
     setState(() {
-      _memos[index].isFavorite = !_memos[index].isFavorite;
+      _memos = _memos.map((m) {
+        if (m.id == memoId) {
+          return m.copyWith(isFavorite: !m.isFavorite);
+        }
+        return m;
+      }).toList();
+      _ensureGroupOrder();
     });
     _saveMemos();
   }
 
-  void _onReorder(int oldIndex, int newIndex) {
+  // [요구사항 7] 각 그룹 내부에서만 reorder.
+  // _memos에서 해당 그룹의 원본 인덱스를 찾아 직접 조작.
+  void _onReorderFav(int oldIndex, int newIndex) {
     _closeAllSwipes();
+    if (newIndex > oldIndex) newIndex--;
+
+    // _memos 내 즐겨찾기 항목들의 원본 인덱스 목록
+    final favOriginalIndices = <int>[];
+    for (int i = 0; i < _memos.length; i++) {
+      if (_memos[i].isFavorite) favOriginalIndices.add(i);
+    }
+
+    final movedMemo = _memos[favOriginalIndices[oldIndex]];
     setState(() {
-      if (newIndex > oldIndex) newIndex--;
-      final memo = _memos.removeAt(oldIndex);
-      _memos.insert(newIndex, memo);
+      _memos.removeAt(favOriginalIndices[oldIndex]);
+      // 삭제 후 인덱스 재계산
+      final newOriginalIndices = <int>[];
+      for (int i = 0; i < _memos.length; i++) {
+        if (_memos[i].isFavorite) newOriginalIndices.add(i);
+      }
+      final insertAt = newIndex < newOriginalIndices.length
+          ? newOriginalIndices[newIndex]
+          : (_memos.isEmpty
+              ? 0
+              : (newOriginalIndices.isEmpty
+                  ? 0
+                  : newOriginalIndices.last + 1));
+      _memos.insert(insertAt, movedMemo);
+    });
+    _saveMemos();
+  }
+
+  void _onReorderNormal(int oldIndex, int newIndex) {
+    _closeAllSwipes();
+    if (newIndex > oldIndex) newIndex--;
+
+    final normalOriginalIndices = <int>[];
+    for (int i = 0; i < _memos.length; i++) {
+      if (!_memos[i].isFavorite) normalOriginalIndices.add(i);
+    }
+
+    final movedMemo = _memos[normalOriginalIndices[oldIndex]];
+    setState(() {
+      _memos.removeAt(normalOriginalIndices[oldIndex]);
+      final newOriginalIndices = <int>[];
+      for (int i = 0; i < _memos.length; i++) {
+        if (!_memos[i].isFavorite) newOriginalIndices.add(i);
+      }
+      final insertAt = newIndex < newOriginalIndices.length
+          ? newOriginalIndices[newIndex]
+          : (_memos.isEmpty
+              ? 0
+              : (newOriginalIndices.isEmpty
+                  ? _memos.length
+                  : newOriginalIndices.last + 1));
+      _memos.insert(insertAt, movedMemo);
     });
     _saveMemos();
   }
 
   @override
   Widget build(BuildContext context) {
+    // [요구사항 3] build 시점에 필터링
+    final favorites = _memos.where((m) => m.isFavorite).toList();
+    final normals = _memos.where((m) => !m.isFavorite).toList();
+
     return Listener(
-      onPointerDown: (_) => _closeAllSwipes(),
+      onPointerDown: (event) {
+        _buttonTapped = false;
+        _pointerDownPos = event.position;
+      },
+      onPointerUp: (event) {
+        final downPos = _pointerDownPos;
+        if (downPos == null) return;
+        final distance = (event.position - downPos).distance;
+        if (distance < _tapTolerance && !_buttonTapped) {
+          Future.delayed(Duration.zero, () {
+            if (mounted) _closeAllSwipes();
+          });
+        }
+        _pointerDownPos = null;
+      },
       behavior: HitTestBehavior.translucent,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('메모장'),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: GestureDetector(
+                onTap: () {
+                  launchUrl(
+                    Uri.parse('https://ssamssae.github.io/daejong-page'),
+                    mode: LaunchMode.externalApplication,
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.favorite, size: 12, color: Colors.amber.shade300),
+                      const SizedBox(width: 4),
+                      Text(
+                        '응원',
+                        style: TextStyle(color: Colors.amber.shade300, fontSize: 11, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -132,29 +283,101 @@ class _MemoListScreenState extends State<MemoListScreen> {
                       style: TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                   )
-                : ReorderableListView.builder(
-                    itemCount: _memos.length,
-                    onReorder: _onReorder,
-                    buildDefaultDragHandles: false,
-                    proxyDecorator: (child, index, animation) {
-                      return Material(
-                        elevation: 4,
-                        borderRadius: BorderRadius.circular(12),
-                        child: child,
-                      );
-                    },
-                    itemBuilder: (context, index) {
-                      final memo = _memos[index];
-                      return _MemoSwipeItem(
-                        key: Key(memo.id),
-                        memo: memo,
-                        index: index,
-                        closeNotifier: _closeSwipeNotifier,
-                        onTap: () => _editMemo(index),
-                        onDelete: () => _deleteMemo(index),
-                        onToggleFavorite: () => _toggleFavorite(index),
-                      );
-                    },
+                // [요구사항 4] 두 개의 독립된 섹션
+                : SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // --- 즐겨찾기 섹션 ---
+                        if (favorites.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                            child: Text(
+                              '즐겨찾기',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.amber.shade300,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          ReorderableListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: favorites.length,
+                            onReorder: _onReorderFav,
+                            buildDefaultDragHandles: false,
+                            proxyDecorator: (child, index, animation) {
+                              return Material(
+                                elevation: 4,
+                                borderRadius: BorderRadius.circular(12),
+                                child: child,
+                              );
+                            },
+                            itemBuilder: (context, index) {
+                              final memo = favorites[index];
+                              // [요구사항 6] ValueKey(memo.id)
+                              return _MemoSwipeItem(
+                                key: ValueKey(memo.id),
+                                memo: memo,
+                                index: index,
+                                closeNotifier: _closeSwipeNotifier,
+                                onTap: () => _editMemo(memo.id),
+                                onDelete: () => _deleteMemo(memo.id),
+                                onToggleFavorite: () =>
+                                    _toggleFavorite(memo.id),
+                                onButtonTapped: _onButtonTapped,
+                              );
+                            },
+                          ),
+                        ],
+                        // --- 일반 메모 섹션 ---
+                        if (normals.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                            child: Text(
+                              '메모',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade500,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          ReorderableListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: normals.length,
+                            onReorder: _onReorderNormal,
+                            buildDefaultDragHandles: false,
+                            proxyDecorator: (child, index, animation) {
+                              return Material(
+                                elevation: 4,
+                                borderRadius: BorderRadius.circular(12),
+                                child: child,
+                              );
+                            },
+                            itemBuilder: (context, index) {
+                              final memo = normals[index];
+                              return _MemoSwipeItem(
+                                key: ValueKey(memo.id),
+                                memo: memo,
+                                index: index,
+                                closeNotifier: _closeSwipeNotifier,
+                                onTap: () => _editMemo(memo.id),
+                                onDelete: () => _deleteMemo(memo.id),
+                                onToggleFavorite: () =>
+                                    _toggleFavorite(memo.id),
+                                onButtonTapped: _onButtonTapped,
+                              );
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
         floatingActionButton: FloatingActionButton(
           onPressed: _addMemo,
@@ -166,6 +389,8 @@ class _MemoListScreenState extends State<MemoListScreen> {
   }
 }
 
+// --- 스와이프 아이템 위젯 (변경 없음) ---
+
 class _MemoSwipeItem extends StatefulWidget {
   final Memo memo;
   final int index;
@@ -173,6 +398,7 @@ class _MemoSwipeItem extends StatefulWidget {
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final VoidCallback onToggleFavorite;
+  final VoidCallback onButtonTapped;
 
   const _MemoSwipeItem({
     super.key,
@@ -182,6 +408,7 @@ class _MemoSwipeItem extends StatefulWidget {
     required this.onTap,
     required this.onDelete,
     required this.onToggleFavorite,
+    required this.onButtonTapped,
   });
 
   @override
@@ -191,7 +418,6 @@ class _MemoSwipeItem extends StatefulWidget {
 class _MemoSwipeItemState extends State<_MemoSwipeItem> {
   double _dragOffset = 0;
   bool _isSnapped = false;
-  bool _isDragging = false;
   static const _actionWidth = 80.0;
 
   @override
@@ -207,7 +433,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
   }
 
   void _onCloseRequested() {
-    if (_isSnapped && !_isDragging) {
+    if (_isSnapped) {
       setState(() {
         _dragOffset = 0;
         _isSnapped = false;
@@ -215,11 +441,8 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
     }
   }
 
-  void _onHorizontalDragStart(DragStartDetails details) {
-    _isDragging = true;
-  }
-
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    if (_isSnapped) return;
     setState(() {
       _dragOffset += details.delta.dx;
       _dragOffset = _dragOffset.clamp(-_actionWidth, _actionWidth);
@@ -227,7 +450,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
-    _isDragging = false;
+    if (_isSnapped) return;
     setState(() {
       if (_dragOffset < -_actionWidth * 0.4) {
         _dragOffset = -_actionWidth;
@@ -253,112 +476,130 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // 즐겨찾기 버튼 (오른쪽으로 스와이프 시 왼쪽에 노출)
         if (_dragOffset > 0)
           Positioned.fill(
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.yellow[700],
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.centerLeft,
               padding: const EdgeInsets.only(left: 12),
-              child: GestureDetector(
-                onTap: () {
-                  widget.onToggleFavorite();
-                  _resetSwipe();
-                },
-                child: Container(
-                  width: _actionWidth - 12,
-                  alignment: Alignment.center,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        widget.memo.isFavorite
-                            ? Icons.star_outline
-                            : Icons.star,
-                        color: Colors.white,
-                        size: 26,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        widget.memo.isFavorite ? '해제' : '즐겨찾기',
-                        style: const TextStyle(
+              child: Listener(
+                onPointerDown: (_) => widget.onButtonTapped(),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    widget.onToggleFavorite();
+                    _resetSwipe();
+                  },
+                  child: Container(
+                    width: _actionWidth - 12,
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          widget.memo.isFavorite
+                              ? Icons.star_outline
+                              : Icons.star,
                           color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
+                          size: 26,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.memo.isFavorite ? '해제' : '즐겨찾기',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        // 삭제 버튼 (왼쪽으로 스와이프 시 오른쪽에 노출)
         if (_dragOffset < 0)
           Positioned.fill(
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.orange[800],
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.only(right: 12),
-              child: GestureDetector(
-                onTap: () {
-                  _resetSwipe();
-                  widget.onDelete();
-                },
-                child: Container(
-                  width: _actionWidth - 12,
-                  alignment: Alignment.center,
-                  child: const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.delete, color: Colors.white, size: 26),
-                      SizedBox(height: 2),
-                      Text(
-                        '삭제',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
+              child: Listener(
+                onPointerDown: (_) => widget.onButtonTapped(),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    _resetSwipe();
+                    widget.onDelete();
+                  },
+                  child: Container(
+                    width: _actionWidth - 12,
+                    alignment: Alignment.center,
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.delete, color: Colors.white, size: 26),
+                        SizedBox(height: 2),
+                        Text(
+                          '삭제',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        // 메모 카드
         GestureDetector(
-          onTap: _isSnapped ? _resetSwipe : widget.onTap,
-          onHorizontalDragStart: _onHorizontalDragStart,
+          onTap: widget.onTap,
           onHorizontalDragUpdate: _onHorizontalDragUpdate,
           onHorizontalDragEnd: _onHorizontalDragEnd,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             transform: Matrix4.translationValues(_dragOffset, 0, 0),
             child: Card(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: ListTile(
-                leading: widget.memo.isFavorite
-                    ? const Icon(Icons.star, color: Colors.amber, size: 20)
-                    : null,
-                title: Text(
-                  widget.memo.firstLine,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                trailing: ReorderableDragStartListener(
-                  index: widget.index,
-                  child: const Icon(Icons.drag_handle, color: Colors.grey),
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: ListTile(
+                  leading: widget.memo.isFavorite
+                      ? GestureDetector(
+                          onTap: () {
+                            widget.onButtonTapped();
+                            widget.onToggleFavorite();
+                          },
+                          child: const Icon(Icons.star, color: Colors.amber, size: 20),
+                        )
+                      : null,
+                  title: Text(
+                    widget.memo.firstLine,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 16,
+                      letterSpacing: 0.2,
+                      height: 1.4,
+                    ),
+                  ),
+                  trailing: ReorderableDragStartListener(
+                    index: widget.index,
+                    child: const Icon(Icons.drag_handle, color: Colors.grey),
+                  ),
                 ),
               ),
             ),
