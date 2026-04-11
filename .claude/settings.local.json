@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter --version)",
+      "Read(//Users/user/fvm/default/bin/**)",
+      "Read(//Users/user/snap/flutter/common/flutter/bin/**)",
+      "Read(//usr/local/bin/**)",
+      "Read(//Users/user/flutter/bin/**)",
+      "Bash(mdfind -name flutter)",
+      "Bash(grep 'bin/flutter$')",
+      "Bash(export PATH=\"/Users/user/fvm/versions/stable/bin:$PATH\")",
+      "Bash(flutter pub:*)",
+      "Bash(flutter devices:*)",
+      "Bash(flutter run:*)",
+      "Bash(nc -U /tmp/flutter_tools.*)",
+      "Bash(kill -SIGUSR1 67284)",
+      "Bash(pkill -f \"flutter_tools\")",
+      "Bash(pkill -f \"flutter run\")",
+      "Bash(brew install:*)",
+      "Bash(/Users/user/fvm/versions/stable/bin/flutter devices:*)",
+      "Bash(/Users/user/fvm/versions/stable/bin/flutter run:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
