@@ -27,7 +27,7 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.easeOut,
     );
 
-    _timer = Timer(const Duration(milliseconds: 1500), () {
+    _timer = Timer(const Duration(milliseconds: 750), () {
       _fadeController.forward().then((_) {
         if (mounted) {
           Navigator.pushReplacement(
