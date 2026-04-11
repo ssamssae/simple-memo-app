@@ -54,6 +54,30 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     Navigator.pop(context, memo);
   }
 
+  Future<void> _confirmDeleteEmpty() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('빈 메모'),
+        content: const Text('내용이 비어 있습니다. 메모를 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      Navigator.pop(context, 'delete:${widget.memo!.id}');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -61,6 +85,10 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         final memo = _buildMemo();
+        if (memo == null && _isEditing) {
+          _confirmDeleteEmpty();
+          return;
+        }
         Navigator.pop(context, memo);
       },
       child: Scaffold(

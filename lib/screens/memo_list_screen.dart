@@ -99,14 +99,18 @@ class _MemoListScreenState extends State<MemoListScreen> {
     final index = _memos.indexWhere((m) => m.id == memoId);
     if (index == -1) return;
 
-    final result = await Navigator.push<Memo>(
+    final result = await Navigator.push<Object>(
       context,
       MaterialPageRoute(builder: (_) => MemoEditScreen(memo: _memos[index])),
     );
-    if (result != null && mounted) {
+    if (!mounted) return;
+    if (result is Memo) {
       setState(() {
         _memos[index] = result;
       });
+      await _saveMemos();
+    } else if (result is String && result.startsWith('delete:')) {
+      setState(() => _memos.removeWhere((m) => m.id == memoId));
       await _saveMemos();
     }
   }
