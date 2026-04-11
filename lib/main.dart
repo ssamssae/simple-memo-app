@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'screens/memo_list_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,7 +58,7 @@ class MemoApp extends StatelessWidget {
         useMaterial3: true,
         brightness: Brightness.dark,
       ),
-      home: const MemoListScreen(),
+      home: const SplashScreen(),
     );
   }
 }
