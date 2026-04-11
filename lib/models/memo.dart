@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:uuid/uuid.dart';
 
 class Memo {
   final String id;
@@ -38,10 +39,12 @@ class Memo {
     );
   }
 
+  static const _uuid = Uuid();
+
   factory Memo.create({required String content}) {
     final now = DateTime.now();
     return Memo(
-      id: now.millisecondsSinceEpoch.toString(),
+      id: _uuid.v4(),
       content: content,
       createdAt: now,
       updatedAt: now,
