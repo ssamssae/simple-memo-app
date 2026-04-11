@@ -23,6 +23,21 @@ class Memo {
     return line.trim();
   }
 
+  // copyWith: 불변 방식으로 필드 변경
+  Memo copyWith({
+    String? content,
+    bool? isFavorite,
+    DateTime? updatedAt,
+  }) {
+    return Memo(
+      id: id,
+      content: content ?? this.content,
+      isFavorite: isFavorite ?? this.isFavorite,
+      createdAt: createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
   factory Memo.create({required String content}) {
     final now = DateTime.now();
     return Memo(
@@ -41,13 +56,16 @@ class Memo {
     'updatedAt': updatedAt.toIso8601String(),
   };
 
-  factory Memo.fromJson(Map<String, dynamic> json) => Memo(
-    id: json['id'],
-    content: json['content'],
-    isFavorite: json['isFavorite'] ?? false,
-    createdAt: DateTime.parse(json['createdAt']),
-    updatedAt: DateTime.parse(json['updatedAt']),
-  );
+  factory Memo.fromJson(Map<String, dynamic> json) {
+    final now = DateTime.now();
+    return Memo(
+      id: json['id'] as String? ?? now.millisecondsSinceEpoch.toString(),
+      content: json['content'] as String? ?? '',
+      isFavorite: json['isFavorite'] as bool? ?? false,
+      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? now,
+      updatedAt: DateTime.tryParse(json['updatedAt'] ?? '') ?? now,
+    );
+  }
 
   static String encodeList(List<Memo> memos) =>
       jsonEncode(memos.map((m) => m.toJson()).toList());

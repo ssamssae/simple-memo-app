@@ -1,16 +1,53 @@
-# simple_memo_app
+# Simple Memo App
 
-A new Flutter project.
+간단하고 직관적인 메모 앱입니다. Flutter로 제작되었으며, 메모 작성/수정/삭제와 즐겨찾기 기능을 지원합니다.
 
-## Getting Started
+## 주요 기능
 
-This project is a starting point for a Flutter application.
+- 메모 작성, 수정, 삭제
+- 즐겨찾기 기능 (스와이프로 토글)
+- 즐겨찾기 메모가 항상 상단에 표시
+- 드래그 앤 드롭으로 메모 순서 변경
+- 스와이프로 삭제/즐겨찾기 조작
+- 로컬 저장 (SharedPreferences)
 
-A few resources to get you started if this is your first Flutter project:
+## 실행 방법
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### 사전 준비
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) 설치
+
+### 의존성 설치
+
+```bash
+flutter pub get
+```
+
+### 앱 실행
+
+```bash
+# macOS
+flutter run -d macos
+
+# Chrome
+flutter run -d chrome
+
+# iOS 시뮬레이터
+flutter run -d ios
+
+# Android 에뮬레이터
+flutter run -d android
+```
+
+## 프로젝트 구조
+
+```
+lib/
+  main.dart              # 앱 진입점
+  models/memo.dart       # Memo 데이터 모델 (copyWith 지원)
+  screens/
+    memo_list_screen.dart  # 메모 목록 화면
+    memo_edit_screen.dart  # 메모 작성/수정 화면
+  services/
+    memo_storage.dart      # SharedPreferences 기반 저장
+```

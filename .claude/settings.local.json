@@ -21,7 +21,23 @@
       "Bash(/Users/user/fvm/versions/stable/bin/flutter run:*)",
       "Bash(git init:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(/Users/user/fvm/versions/stable/bin/flutter pub:*)",
+      "Bash(open:*)",
+      "Read(//Users/user/daejong-page/**)",
+      "Read(//mnt/user-data/uploads/**)",
+      "Bash(flutter analyze:*)",
+      "Bash(fvm flutter:*)",
+      "Bash(brew list:*)",
+      "Bash(python3 -c \"import cairosvg\")",
+      "Bash(rsvg-convert -w 48 -h 48 /tmp/memo_icon_cropped.svg -o /Users/user/simple_memo_app/android/app/src/main/res/mipmap-mdpi/ic_launcher.png)",
+      "Bash(rsvg-convert -w 72 -h 72 /tmp/memo_icon_cropped.svg -o /Users/user/simple_memo_app/android/app/src/main/res/mipmap-hdpi/ic_launcher.png)",
+      "Bash(rsvg-convert -w 96 -h 96 /tmp/memo_icon_cropped.svg -o /Users/user/simple_memo_app/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png)",
+      "Bash(rsvg-convert -w 144 -h 144 /tmp/memo_icon_cropped.svg -o /Users/user/simple_memo_app/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png)",
+      "Bash(rsvg-convert -w 192 -h 192 /tmp/memo_icon_cropped.svg -o /Users/user/simple_memo_app/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png)",
+      "Bash(ls:*)",
+      "Bash(rsvg-convert:*)",
+      "Bash(git push:*)"
     ]
   }
 }
