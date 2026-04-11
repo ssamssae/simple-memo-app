@@ -37,7 +37,8 @@
       "Bash(rsvg-convert -w 192 -h 192 /tmp/memo_icon_cropped.svg -o /Users/user/simple_memo_app/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png)",
       "Bash(ls:*)",
       "Bash(rsvg-convert:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(curl:*)"
     ]
   }
 }

@@ -70,6 +70,12 @@ class Memo {
   static String encodeList(List<Memo> memos) =>
       jsonEncode(memos.map((m) => m.toJson()).toList());
 
-  static List<Memo> decodeList(String source) =>
-      (jsonDecode(source) as List).map((e) => Memo.fromJson(e)).toList();
+  static List<Memo> decodeList(String source) {
+    final decoded = jsonDecode(source);
+    if (decoded is! List) return [];
+    return decoded
+        .whereType<Map<String, dynamic>>()
+        .map((e) => Memo.fromJson(e))
+        .toList();
+  }
 }
