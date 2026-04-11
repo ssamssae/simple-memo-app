@@ -579,7 +579,9 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
           onHorizontalDragUpdate: _onHorizontalDragUpdate,
           onHorizontalDragEnd: _onHorizontalDragEnd,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: !_isSnapped && _dragOffset != 0
+                ? Duration.zero
+                : const Duration(milliseconds: 200),
             transform: Matrix4.translationValues(_dragOffset, 0, 0),
             child: Card(
               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
