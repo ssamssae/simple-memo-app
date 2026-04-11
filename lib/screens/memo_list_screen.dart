@@ -293,26 +293,11 @@ class _MemoListScreenState extends State<MemoListScreen> {
                       style: TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                   )
-                // [요구사항 4] 두 개의 독립된 섹션
                 : SingleChildScrollView(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // --- 즐겨찾기 섹션 ---
-                        if (favorites.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                            child: Text(
-                              '즐겨찾기',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.amber.shade300,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
+                        if (favorites.isNotEmpty)
                           ReorderableListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
@@ -321,14 +306,12 @@ class _MemoListScreenState extends State<MemoListScreen> {
                             buildDefaultDragHandles: false,
                             proxyDecorator: (child, index, animation) {
                               return Material(
-                                elevation: 4,
-                                borderRadius: BorderRadius.circular(12),
+                                elevation: 2,
                                 child: child,
                               );
                             },
                             itemBuilder: (context, index) {
                               final memo = favorites[index];
-                              // [요구사항 6] ValueKey(memo.id)
                               return _MemoSwipeItem(
                                 key: ValueKey(memo.id),
                                 memo: memo,
@@ -342,21 +325,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
                               );
                             },
                           ),
-                        ],
-                        // --- 일반 메모 섹션 ---
-                        if (normals.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                            child: Text(
-                              '메모',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade500,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
+                        if (normals.isNotEmpty)
                           ReorderableListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
@@ -365,8 +334,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
                             buildDefaultDragHandles: false,
                             proxyDecorator: (child, index, animation) {
                               return Material(
-                                elevation: 4,
-                                borderRadius: BorderRadius.circular(12),
+                                elevation: 2,
                                 child: child,
                               );
                             },
@@ -385,7 +353,6 @@ class _MemoListScreenState extends State<MemoListScreen> {
                               );
                             },
                           ),
-                        ],
                       ],
                     ),
                   ),
@@ -484,87 +451,105 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (_dragOffset > 0)
-          Positioned.fill(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.yellow[700],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.only(left: 12),
-              child: Listener(
-                onPointerDown: (_) => widget.onButtonTapped(),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    widget.onToggleFavorite();
-                    _resetSwipe();
-                  },
-                  child: Container(
-                    width: _actionWidth - 12,
-                    alignment: Alignment.center,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
+        Stack(
+          children: [
+            if (_dragOffset > 0)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.yellow[700],
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(left: 16),
+                  child: Listener(
+                    onPointerDown: (_) => widget.onButtonTapped(),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        widget.onToggleFavorite();
+                        _resetSwipe();
+                      },
+                      child: SizedBox(
+                        width: _actionWidth,
+                        child: Icon(
                           widget.memo.isFavorite
                               ? Icons.star_outline
                               : Icons.star,
                           color: Colors.white,
-                          size: 26,
+                          size: 22,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.memo.isFavorite ? '해제' : '즐겨찾기',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-        if (_dragOffset < 0)
-          Positioned.fill(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.orange[800],
-                borderRadius: BorderRadius.circular(12),
+            if (_dragOffset < 0)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.orange[800],
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 16),
+                  child: Listener(
+                    onPointerDown: (_) => widget.onButtonTapped(),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        _resetSwipe();
+                        widget.onDelete();
+                      },
+                      child: const SizedBox(
+                        width: 80,
+                        child: Icon(Icons.delete, color: Colors.white, size: 22),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 12),
-              child: Listener(
-                onPointerDown: (_) => widget.onButtonTapped(),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    _resetSwipe();
-                    widget.onDelete();
-                  },
-                  child: Container(
-                    width: _actionWidth - 12,
-                    alignment: Alignment.center,
-                    child: const Column(
-                      mainAxisSize: MainAxisSize.min,
+            GestureDetector(
+              onTap: widget.onTap,
+              onHorizontalDragUpdate: _onHorizontalDragUpdate,
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+              child: AnimatedContainer(
+                duration: !_isSnapped && _dragOffset != 0
+                    ? Duration.zero
+                    : const Duration(milliseconds: 200),
+                transform: Matrix4.translationValues(_dragOffset, 0, 0),
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: SizedBox(
+                    height: 48,
+                    child: Row(
                       children: [
-                        Icon(Icons.delete, color: Colors.white, size: 26),
-                        SizedBox(height: 2),
-                        Text(
-                          '삭제',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
+                        if (widget.memo.isFavorite)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: GestureDetector(
+                              onTap: () {
+                                widget.onButtonTapped();
+                                widget.onToggleFavorite();
+                              },
+                              child: const Icon(Icons.star, color: Colors.amber, size: 18),
+                            ),
+                          ),
+                        Expanded(
+                          child: Text(
+                            widget.memo.firstLine,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w400,
+                              fontSize: 15,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                        ),
+                        ReorderableDragStartListener(
+                          index: widget.index,
+                          child: const Padding(
+                            padding: EdgeInsets.only(left: 8),
+                            child: Icon(Icons.drag_handle, color: Colors.grey, size: 20),
                           ),
                         ),
                       ],
@@ -573,50 +558,9 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                 ),
               ),
             ),
-          ),
-        GestureDetector(
-          onTap: widget.onTap,
-          onHorizontalDragUpdate: _onHorizontalDragUpdate,
-          onHorizontalDragEnd: _onHorizontalDragEnd,
-          child: AnimatedContainer(
-            duration: !_isSnapped && _dragOffset != 0
-                ? Duration.zero
-                : const Duration(milliseconds: 200),
-            transform: Matrix4.translationValues(_dragOffset, 0, 0),
-            child: Card(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: ListTile(
-                  leading: widget.memo.isFavorite
-                      ? GestureDetector(
-                          onTap: () {
-                            widget.onButtonTapped();
-                            widget.onToggleFavorite();
-                          },
-                          child: const Icon(Icons.star, color: Colors.amber, size: 20),
-                        )
-                      : null,
-                  title: Text(
-                    widget.memo.firstLine,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 16,
-                      letterSpacing: 0.2,
-                      height: 1.4,
-                    ),
-                  ),
-                  trailing: ReorderableDragStartListener(
-                    index: widget.index,
-                    child: const Icon(Icons.drag_handle, color: Colors.grey),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          ],
         ),
+        const Divider(height: 0.5, thickness: 0.5, indent: 16, endIndent: 16),
       ],
     );
   }
