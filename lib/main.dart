@@ -5,23 +5,23 @@ import 'package:flutter/material.dart';
 import 'screens/memo_list_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Flutter 프레임워크 에러 핸들링 (위젯 빌드/레이아웃 에러 등)
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('[FlutterError] ${details.exception}');
+    debugPrint('[FlutterError] ${details.stack}');
+  };
+
+  // 플랫폼 디스패처 에러 핸들링 (네이티브 측 비동기 에러)
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    debugPrint('[PlatformError] $error');
+    debugPrint('[PlatformError] $stack');
+    return true;
+  };
+
   runZonedGuarded(() {
-    WidgetsFlutterBinding.ensureInitialized();
-
-    // Flutter 프레임워크 에러 핸들링 (위젯 빌드/레이아웃 에러 등)
-    FlutterError.onError = (FlutterErrorDetails details) {
-      FlutterError.presentError(details);
-      debugPrint('[FlutterError] ${details.exception}');
-      debugPrint('[FlutterError] ${details.stack}');
-    };
-
-    // 플랫폼 디스패처 에러 핸들링 (네이티브 측 비동기 에러)
-    PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
-      debugPrint('[PlatformError] $error');
-      debugPrint('[PlatformError] $stack');
-      return true;
-    };
-
     runApp(const MemoApp());
   }, (Object error, StackTrace stack) {
     // Zone 에러 핸들링 (runZonedGuarded 내 미처리 비동기 에러)

@@ -78,7 +78,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
       context,
       MaterialPageRoute(builder: (_) => const MemoEditScreen()),
     );
-    if (result != null) {
+    if (result != null && mounted) {
       setState(() {
         // 새 메모는 일반 그룹 맨 위 = 즐겨찾기 뒤 첫 번째
         final firstNormalIndex =
@@ -103,7 +103,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
       context,
       MaterialPageRoute(builder: (_) => MemoEditScreen(memo: _memos[index])),
     );
-    if (result != null) {
+    if (result != null && mounted) {
       setState(() {
         _memos[index] = result;
       });
@@ -134,7 +134,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
         ],
       ),
     );
-    if (confirmed == true) {
+    if (confirmed == true && mounted) {
       setState(() => _memos.removeWhere((m) => m.id == memoId));
       await _saveMemos();
     }
@@ -254,7 +254,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                    border: Border.all(color: Colors.amber.withOpacity(0.4)),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
