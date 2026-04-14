@@ -16,9 +16,62 @@ class _MemoListScreenState extends State<MemoListScreen> {
   List<Memo> _memos = [];
   bool _isLoading = true;
   final ValueNotifier<int> _closeSwipeNotifier = ValueNotifier(0);
+  final Set<String> _openSwipeIds = {};
   bool _buttonTapped = false;
   Offset? _pointerDownPos;
   static const _tapTolerance = 15.0;
+
+  // 즐겨찾기 해제 시 원래 자리로 복귀하기 위한 앵커.
+  // 값은 "즐겨찾기 직전에 일반 그룹에서 이 메모 바로 앞에 있던 메모의 id"(맨 앞이었으면 null).
+  final Map<String, String?> _unfavoriteAnchors = {};
+
+  bool _isEditMode = false;
+  final Set<String> _selectedIds = {};
+
+  void _toggleEditMode() {
+    setState(() {
+      _isEditMode = !_isEditMode;
+      if (!_isEditMode) _selectedIds.clear();
+    });
+    _closeAllSwipes();
+  }
+
+  void _toggleSelected(String id) {
+    setState(() {
+      if (!_selectedIds.add(id)) _selectedIds.remove(id);
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_selectedIds.isEmpty) return;
+    final count = _selectedIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('메모삭제'),
+        content: Text('선택한 $count개 메모를 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      setState(() {
+        _memos.removeWhere((m) => _selectedIds.contains(m.id));
+        _selectedIds.clear();
+        _isEditMode = false;
+      });
+      _saveMemos();
+    }
+  }
 
   @override
   void initState() {
@@ -64,6 +117,19 @@ class _MemoListScreenState extends State<MemoListScreen> {
 
   void _closeAllSwipes() {
     _closeSwipeNotifier.value++;
+    _openSwipeIds.clear();
+  }
+
+  void _onSwipeOpened(String id) {
+    _openSwipeIds.add(id);
+  }
+
+  void _onSwipeClosed(String id) {
+    _openSwipeIds.remove(id);
+  }
+
+  bool _hasOtherOpen(String id) {
+    return _openSwipeIds.any((x) => x != id);
   }
 
   void _onButtonTapped() {
@@ -76,7 +142,10 @@ class _MemoListScreenState extends State<MemoListScreen> {
     _closeAllSwipes();
     final result = await Navigator.push<Memo>(
       context,
-      MaterialPageRoute(builder: (_) => const MemoEditScreen()),
+      MaterialPageRoute(
+        builder: (_) => const MemoEditScreen(),
+        fullscreenDialog: true,
+      ),
     );
     if (result != null && mounted) {
       setState(() {
@@ -110,7 +179,10 @@ class _MemoListScreenState extends State<MemoListScreen> {
       });
       await _saveMemos();
     } else if (result is String && result.startsWith('delete:')) {
-      setState(() => _memos.removeWhere((m) => m.id == memoId));
+      setState(() {
+        _memos.removeWhere((m) => m.id == memoId);
+        _unfavoriteAnchors.remove(memoId);
+      });
       await _saveMemos();
     }
   }
@@ -123,7 +195,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('메모 삭제'),
+        title: const Text('메모삭제'),
         content: Text('"${memo.firstLine}" 메모를 삭제하시겠습니까?'),
         actions: [
           TextButton(
@@ -139,23 +211,51 @@ class _MemoListScreenState extends State<MemoListScreen> {
       ),
     );
     if (confirmed == true && mounted) {
-      setState(() => _memos.removeWhere((m) => m.id == memoId));
+      setState(() {
+        _memos.removeWhere((m) => m.id == memoId);
+        _unfavoriteAnchors.remove(memoId);
+      });
       await _saveMemos();
     }
   }
 
-  // [요구사항 5] copyWith로 isFavorite만 변경, insert/remove 안 함.
-  // _ensureGroupOrder()로 그룹 재배치 (stable).
+  // 즐겨찾기 토글. 해제 시 원래 일반 그룹에서의 위치로 복귀.
   void _toggleFavorite(String memoId) {
-    setState(() {
-      _memos = _memos.map((m) {
-        if (m.id == memoId) {
-          return m.copyWith(isFavorite: !m.isFavorite);
+    final index = _memos.indexWhere((m) => m.id == memoId);
+    if (index == -1) return;
+    final memo = _memos[index];
+
+    if (!memo.isFavorite) {
+      // 즐겨찾기 설정: 일반 그룹에서 직전 메모 id를 앵커로 저장
+      final normals = _memos.where((m) => !m.isFavorite).toList();
+      final posInNormals = normals.indexWhere((m) => m.id == memoId);
+      _unfavoriteAnchors[memoId] =
+          posInNormals > 0 ? normals[posInNormals - 1].id : null;
+
+      setState(() {
+        _memos[index] = memo.copyWith(isFavorite: true);
+        _ensureGroupOrder();
+      });
+    } else {
+      // 즐겨찾기 해제: 일반 그룹 최상단으로 이동
+      _unfavoriteAnchors.remove(memoId);
+      final updated = memo.copyWith(isFavorite: false);
+
+      setState(() {
+        _memos.removeAt(index);
+
+        // 마지막 즐겨찾기 다음(= 일반 그룹 최상단)에 삽입
+        int insertAtMemos = _memos.length;
+        for (int i = 0; i < _memos.length; i++) {
+          if (!_memos[i].isFavorite) {
+            insertAtMemos = i;
+            break;
+          }
         }
-        return m;
-      }).toList();
-      _ensureGroupOrder();
-    });
+        _memos.insert(insertAtMemos, updated);
+        _ensureGroupOrder();
+      });
+    }
     _saveMemos();
   }
 
@@ -249,18 +349,19 @@ class _MemoListScreenState extends State<MemoListScreen> {
       },
       behavior: HitTestBehavior.translucent,
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        extendBody: true,
         appBar: AppBar(
-          title: const Text('메모장'),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
+          centerTitle: true,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
+          leadingWidth: 90,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 20),
+            child: Align(
+              alignment: Alignment.centerLeft,
               child: GestureDetector(
-                onTap: () {
-                  launchUrl(
-                    Uri.parse('https://ssamssae.github.io/daejong-page'),
-                    mode: LaunchMode.externalApplication,
-                  );
-                },
+                onTap: _toggleEditMode,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
@@ -273,13 +374,62 @@ class _MemoListScreenState extends State<MemoListScreen> {
                       Icon(Icons.favorite, size: 12, color: Colors.amber.shade300),
                       const SizedBox(width: 4),
                       Text(
-                        '응원',
+                        _isEditMode ? '취소' : '편집',
                         style: TextStyle(color: Colors.amber.shade300, fontSize: 11, fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
                 ),
               ),
+            ),
+          ),
+          title: const Text('메모요'),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 20),
+              child: _isEditMode
+                  ? TextButton(
+                      onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.orange,
+                        disabledForegroundColor: Colors.orange.withValues(alpha: 0.3),
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 0),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        _selectedIds.isEmpty
+                            ? '삭제'
+                            : '삭제 (${_selectedIds.length})',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    )
+                  : GestureDetector(
+                      onTap: () {
+                        launchUrl(
+                          Uri.parse('https://ssamssae.github.io/daejong-page'),
+                          mode: LaunchMode.externalApplication,
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.favorite, size: 12, color: Colors.amber.shade300),
+                            const SizedBox(width: 4),
+                            Text(
+                              '응원',
+                              style: TextStyle(color: Colors.amber.shade300, fontSize: 11, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
             ),
           ],
         ),
@@ -290,13 +440,30 @@ class _MemoListScreenState extends State<MemoListScreen> {
                     child: Text(
                       '메모가 없습니다.\n새 메모를 추가해보세요!',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                      style: TextStyle(fontSize: 16, color: Colors.amber),
                     ),
                   )
                 : SingleChildScrollView(
-                    child: Column(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    padding: EdgeInsets.only(
+                      left: 12,
+                      right: 12,
+                      bottom: 96 +
+                          MediaQuery.of(context).viewPadding.bottom,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.all(Radius.circular(14)),
+                      child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        const Divider(
+                          height: 0.5,
+                          thickness: 0.5,
+                          indent: 0,
+                          endIndent: 0,
+                        ),
                         if (favorites.isNotEmpty)
                           ReorderableListView.builder(
                             shrinkWrap: true,
@@ -322,6 +489,13 @@ class _MemoListScreenState extends State<MemoListScreen> {
                                 onToggleFavorite: () =>
                                     _toggleFavorite(memo.id),
                                 onButtonTapped: _onButtonTapped,
+                                onSwipeOpened: _onSwipeOpened,
+                                onSwipeClosed: _onSwipeClosed,
+                                hasOtherOpen: _hasOtherOpen,
+                                closeAllSwipes: _closeAllSwipes,
+                                isEditMode: _isEditMode,
+                                isSelected: _selectedIds.contains(memo.id),
+                                onToggleSelect: () => _toggleSelected(memo.id),
                               );
                             },
                           ),
@@ -350,16 +524,31 @@ class _MemoListScreenState extends State<MemoListScreen> {
                                 onToggleFavorite: () =>
                                     _toggleFavorite(memo.id),
                                 onButtonTapped: _onButtonTapped,
+                                onSwipeOpened: _onSwipeOpened,
+                                onSwipeClosed: _onSwipeClosed,
+                                hasOtherOpen: _hasOtherOpen,
+                                closeAllSwipes: _closeAllSwipes,
+                                isEditMode: _isEditMode,
+                                isSelected: _selectedIds.contains(memo.id),
+                                onToggleSelect: () => _toggleSelected(memo.id),
                               );
                             },
                           ),
                       ],
                     ),
+                    ),
                   ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _addMemo,
-          tooltip: '새 메모',
-          child: const Icon(Icons.add),
+        floatingActionButton: Padding(
+          padding: EdgeInsets.only(
+            right: MediaQuery.of(context).viewPadding.bottom,
+          ),
+          child: FloatingActionButton(
+            onPressed: _addMemo,
+            tooltip: '새 메모',
+            backgroundColor: Colors.amber,
+            foregroundColor: const Color(0xFF1C1C1E),
+            child: const Icon(Icons.add),
+          ),
         ),
       ),
     );
@@ -376,6 +565,13 @@ class _MemoSwipeItem extends StatefulWidget {
   final VoidCallback onDelete;
   final VoidCallback onToggleFavorite;
   final VoidCallback onButtonTapped;
+  final void Function(String id) onSwipeOpened;
+  final void Function(String id) onSwipeClosed;
+  final bool Function(String id) hasOtherOpen;
+  final VoidCallback closeAllSwipes;
+  final bool isEditMode;
+  final bool isSelected;
+  final VoidCallback onToggleSelect;
 
   const _MemoSwipeItem({
     super.key,
@@ -386,6 +582,13 @@ class _MemoSwipeItem extends StatefulWidget {
     required this.onDelete,
     required this.onToggleFavorite,
     required this.onButtonTapped,
+    required this.onSwipeOpened,
+    required this.onSwipeClosed,
+    required this.hasOtherOpen,
+    required this.closeAllSwipes,
+    required this.isEditMode,
+    required this.isSelected,
+    required this.onToggleSelect,
   });
 
   @override
@@ -395,7 +598,7 @@ class _MemoSwipeItem extends StatefulWidget {
 class _MemoSwipeItemState extends State<_MemoSwipeItem> {
   double _dragOffset = 0;
   bool _isSnapped = false;
-  static const _actionWidth = 80.0;
+  static const _actionWidth = 68.0;
 
   @override
   void initState() {
@@ -415,19 +618,28 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
         _dragOffset = 0;
         _isSnapped = false;
       });
+      widget.onSwipeClosed(widget.memo.id);
     }
   }
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
-    if (_isSnapped) return;
     setState(() {
+      if (_isSnapped) {
+        final movingBack = (_dragOffset < 0 && details.delta.dx > 0) ||
+            (_dragOffset > 0 && details.delta.dx < 0);
+        if (movingBack) {
+          _isSnapped = false;
+        } else {
+          return;
+        }
+      }
       _dragOffset += details.delta.dx;
       _dragOffset = _dragOffset.clamp(-_actionWidth, _actionWidth);
     });
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
-    if (_isSnapped) return;
+    final wasSnapped = _isSnapped;
     setState(() {
       if (_dragOffset < -_actionWidth * 0.4) {
         _dragOffset = -_actionWidth;
@@ -440,13 +652,20 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
         _isSnapped = false;
       }
     });
+    if (_isSnapped && !wasSnapped) {
+      widget.onSwipeOpened(widget.memo.id);
+    } else if (!_isSnapped && wasSnapped) {
+      widget.onSwipeClosed(widget.memo.id);
+    }
   }
 
   void _resetSwipe() {
+    final wasSnapped = _isSnapped;
     setState(() {
       _dragOffset = 0;
       _isSnapped = false;
     });
+    if (wasSnapped) widget.onSwipeClosed(widget.memo.id);
   }
 
   @override
@@ -461,7 +680,6 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                 child: Container(
                   color: Colors.yellow[700],
                   alignment: Alignment.centerLeft,
-                  padding: const EdgeInsets.only(left: 16),
                   child: Listener(
                     onPointerDown: (_) => widget.onButtonTapped(),
                     child: GestureDetector(
@@ -472,12 +690,14 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                       },
                       child: SizedBox(
                         width: _actionWidth,
-                        child: Icon(
-                          widget.memo.isFavorite
-                              ? Icons.star_outline
-                              : Icons.star,
-                          color: Colors.white,
-                          size: 22,
+                        child: Center(
+                          child: Icon(
+                            widget.memo.isFavorite
+                                ? Icons.star_outline
+                                : Icons.star,
+                            color: Colors.white,
+                            size: 22,
+                          ),
                         ),
                       ),
                     ),
@@ -489,7 +709,6 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                 child: Container(
                   color: Colors.orange[800],
                   alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 16),
                   child: Listener(
                     onPointerDown: (_) => widget.onButtonTapped(),
                     child: GestureDetector(
@@ -499,36 +718,63 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                         widget.onDelete();
                       },
                       child: const SizedBox(
-                        width: 80,
-                        child: Icon(Icons.delete, color: Colors.white, size: 22),
+                        width: _actionWidth,
+                        child: Center(
+                          child: Icon(Icons.delete, color: Colors.white, size: 22),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
             GestureDetector(
-              onTap: widget.onTap,
-              onHorizontalDragUpdate: _onHorizontalDragUpdate,
-              onHorizontalDragEnd: _onHorizontalDragEnd,
+              onTap: () {
+                if (widget.isEditMode) {
+                  widget.onToggleSelect();
+                  return;
+                }
+                if (_isSnapped) {
+                  _resetSwipe();
+                } else if (widget.hasOtherOpen(widget.memo.id)) {
+                  widget.closeAllSwipes();
+                } else {
+                  widget.onTap();
+                }
+              },
+              onHorizontalDragUpdate:
+                  widget.isEditMode ? null : _onHorizontalDragUpdate,
+              onHorizontalDragEnd:
+                  widget.isEditMode ? null : _onHorizontalDragEnd,
               child: AnimatedContainer(
                 duration: !_isSnapped && _dragOffset != 0
                     ? Duration.zero
                     : const Duration(milliseconds: 200),
                 transform: Matrix4.translationValues(_dragOffset, 0, 0),
-                color: Theme.of(context).scaffoldBackgroundColor,
+                color: const Color(0xFF2C2C2E),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.only(left: 28, right: 20),
                   child: SizedBox(
                     height: 48,
                     child: Row(
                       children: [
+                        if (widget.isEditMode)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 12),
+                            child: Icon(
+                              widget.isSelected
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_unchecked,
+                              color: Colors.amber,
+                              size: 20,
+                            ),
+                          ),
                         if (widget.memo.isFavorite)
                           Padding(
                             padding: const EdgeInsets.only(right: 10),
                             child: GestureDetector(
                               onTap: () {
                                 widget.onButtonTapped();
-                                widget.onToggleFavorite();
+                                widget.onTap();
                               },
                               child: const Icon(Icons.star, color: Colors.amber, size: 18),
                             ),
@@ -539,19 +785,21 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
+                              color: Colors.amber,
                               fontWeight: FontWeight.w400,
-                              fontSize: 15,
+                              fontSize: 17,
                               letterSpacing: 0.1,
                             ),
                           ),
                         ),
-                        ReorderableDragStartListener(
-                          index: widget.index,
-                          child: const Padding(
-                            padding: EdgeInsets.only(left: 8),
-                            child: Icon(Icons.drag_handle, color: Colors.grey, size: 20),
+                        if (!widget.isEditMode)
+                          ReorderableDragStartListener(
+                            index: widget.index,
+                            child: const Padding(
+                              padding: EdgeInsets.only(left: 8, right: 8),
+                              child: Icon(Icons.drag_handle, color: Colors.amber, size: 20),
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -560,7 +808,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
             ),
           ],
         ),
-        const Divider(height: 0.5, thickness: 0.5, indent: 16, endIndent: 16),
+        const Divider(height: 0.5, thickness: 0.5, indent: 0, endIndent: 0),
       ],
     );
   }
