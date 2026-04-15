@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/memo.dart';
+import '../widgets/paste_button.dart';
 
 class MemoEditScreen extends StatefulWidget {
   final Memo? memo;
@@ -42,6 +43,19 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     } else {
       return Memo.create(content: content);
     }
+  }
+
+  void _insertPastedText(String text) {
+    final value = _contentController.value;
+    final sel = value.selection;
+    final start = sel.isValid ? sel.start : value.text.length;
+    final end = sel.isValid ? sel.end : value.text.length;
+    final newText = value.text.replaceRange(start, end, text);
+    _contentController.value = value.copyWith(
+      text: newText,
+      selection: TextSelection.collapsed(offset: start + text.length),
+      composing: TextRange.empty,
+    );
   }
 
   void _saveMemo() {
@@ -129,6 +143,12 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
           ),
           title: Text(_isEditing ? '메모수정' : '새메모'),
           actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: PasteButton(
+                onPaste: _insertPastedText,
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.only(right: 20),
               child: GestureDetector(
