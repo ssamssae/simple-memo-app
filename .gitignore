@@ -1,6 +1,7 @@
 # Miscellaneous
 *.class
 *.log
+.claude/worktrees/
 *.pyc
 *.swp
 .DS_Store
