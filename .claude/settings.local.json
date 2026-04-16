@@ -38,7 +38,22 @@
       "Bash(ls:*)",
       "Bash(rsvg-convert:*)",
       "Bash(git push:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git remote:*)",
+      "Bash(flutter clean:*)",
+      "Bash(export PATH=\"/Users/user/fvm/cache.git/bin:$PATH\")",
+      "Bash(pod install:*)",
+      "Bash(flutter precache:*)",
+      "Bash(/Users/user/fvm/versions/stable/bin/flutter analyze:*)",
+      "Bash(/Users/user/fvm/versions/stable/bin/flutter build:*)",
+      "Bash(/Users/user/fvm/versions/stable/bin/flutter clean:*)",
+      "Read(//opt/homebrew/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home/bin/**)",
+      "Bash(export JAVA_HOME=/opt/homebrew/opt/openjdk@17)",
+      "Bash(export PATH=\"$JAVA_HOME/bin:$PATH\")",
+      "Bash(java -version)",
+      "Bash(export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools)",
+      "Bash(export ANDROID_SDK_ROOT=$ANDROID_HOME)",
+      "Bash(python3:*)"
     ]
   }
 }
