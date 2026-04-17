@@ -67,33 +67,35 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     final value = _undoController.value;
     if (!value.canUndo && !value.canRedo) return;
     _shakeDialogOpen = true;
+    final showRedoOnly = value.canRedo;
     try {
       await showCupertinoDialog<void>(
         context: context,
         builder: (ctx) => CupertinoAlertDialog(
-          title: const Text('실행 취소'),
+          title: Text(showRedoOnly ? '다시실행' : '실행취소'),
           content: const Text('어떤 작업을 할까요?'),
           actions: [
             CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('취소'),
             ),
-            if (value.canRedo)
+            if (showRedoOnly)
               CupertinoDialogAction(
+                isDefaultAction: true,
                 onPressed: () {
                   Navigator.pop(ctx);
                   _undoController.redo();
                 },
-                child: const Text('다시 실행'),
-              ),
-            if (value.canUndo)
+                child: const Text('다시실행'),
+              )
+            else if (value.canUndo)
               CupertinoDialogAction(
                 isDefaultAction: true,
                 onPressed: () {
                   Navigator.pop(ctx);
                   _undoController.undo();
                 },
-                child: const Text('실행 취소'),
+                child: const Text('실행취소'),
               ),
           ],
         ),
@@ -152,7 +154,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('계속 수정'),
+            child: const Text('계속수정'),
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
@@ -187,32 +189,50 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   }
 
   Widget _pillButton({
-    required String label,
+    String? label,
     required IconData icon,
     required Color color,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
+    double width = 58,
   }) {
+    final hasLabel = label != null && label.isNotEmpty;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        width: width,
+        height: 22,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           border: Border.all(color: color.withValues(alpha: 0.5)),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Icon(icon, size: 12, color: color),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
+            if (hasLabel) ...[
+              const SizedBox(width: 4),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                strutStyle: const StrutStyle(
+                  fontSize: 11,
+                  height: 1.0,
+                  leading: 0,
+                  forceStrutHeight: true,
+                ),
+                style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  height: 1.0,
+                  leadingDistribution: TextLeadingDistribution.even,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -223,10 +243,13 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   Widget build(BuildContext context) {
     final titleText = _isEditing ? '메모수정' : '새메모';
     final appBarTheme = Theme.of(context).appBarTheme;
-    final titleStyle = appBarTheme.titleTextStyle ??
+    final baseTitleStyle = appBarTheme.titleTextStyle ??
         Theme.of(context).textTheme.titleLarge?.copyWith(
               color: appBarTheme.foregroundColor ?? Colors.amber,
             );
+    final titleStyle = baseTitleStyle?.copyWith(
+      fontSize: 17,
+    );
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
@@ -263,13 +286,15 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                   color: Colors.amber.shade300,
                   onTap: _saveAndPop,
                 ),
-                const SizedBox(width: 6),
-                _pillButton(
-                  label: '취소',
-                  icon: Icons.close,
-                  color: Colors.redAccent.shade100,
-                  onTap: _cancelEdit,
-                ),
+                if (_isEditing) ...[
+                  const SizedBox(width: 6),
+                  _pillButton(
+                    label: '취소',
+                    icon: Icons.close,
+                    color: Colors.redAccent.shade100,
+                    onTap: _cancelEdit,
+                  ),
+                ],
               ],
             ),
           ),
@@ -288,24 +313,27 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                           ? Colors.amber.shade300
                           : Colors.amber.shade300.withValues(alpha: 0.25),
                       onPressed: value.canUndo ? _undoController.undo : null,
-                      tooltip: '실행 취소',
+                      tooltip: '실행취소',
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.redo, size: 20),
-                      padding: EdgeInsets.zero,
-                      visualDensity: VisualDensity.compact,
-                      color: value.canRedo
-                          ? Colors.amber.shade300
-                          : Colors.amber.shade300.withValues(alpha: 0.25),
-                      onPressed: value.canRedo ? _undoController.redo : null,
-                      tooltip: '다시 실행',
+                    Transform.translate(
+                      offset: const Offset(-8, 0),
+                      child: IconButton(
+                        icon: const Icon(Icons.redo, size: 20),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        color: value.canRedo
+                            ? Colors.amber.shade300
+                            : Colors.amber.shade300.withValues(alpha: 0.25),
+                        onPressed: value.canRedo ? _undoController.redo : null,
+                        tooltip: '다시실행',
+                      ),
                     ),
                   ],
                 );
               },
             ),
             Padding(
-              padding: const EdgeInsets.only(right: 12, left: 4),
+              padding: const EdgeInsets.only(right: 12, left: 0),
               child: _pillButton(
                 label: '저장',
                 icon: Icons.favorite,
@@ -338,7 +366,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                     controller: _contentController,
                     undoController: _undoController,
                     cursorColor: Colors.amber,
-                    cursorHeight: 20,
+                    cursorHeight: 18,
                     strutStyle: const StrutStyle(
                       fontSize: 18,
                       height: 1.5,
@@ -357,6 +385,9 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       height: 1.5,
                       leadingDistribution: TextLeadingDistribution.even,
                       letterSpacing: 0.2,
+                      decoration: TextDecoration.none,
+                      decorationColor: Colors.transparent,
+                      decorationThickness: 0,
                     ),
                     maxLines: null,
                     autofocus: !_isEditing,

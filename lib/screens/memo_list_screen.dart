@@ -355,25 +355,43 @@ class _MemoListScreenState extends State<MemoListScreen> {
           surfaceTintColor: Colors.transparent,
           leadingWidth: 90,
           leading: Padding(
-            padding: const EdgeInsets.only(left: 20),
+            padding: const EdgeInsets.only(left: 12),
             child: Align(
               alignment: Alignment.centerLeft,
               child: GestureDetector(
                 onTap: _toggleEditMode,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  width: 58,
+                  height: 22,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                    border: Border.all(color: Colors.amber.shade300.withValues(alpha: 0.5)),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Icon(Icons.favorite, size: 12, color: Colors.amber.shade300),
                       const SizedBox(width: 4),
                       Text(
                         _isEditMode ? '취소' : '편집',
-                        style: TextStyle(color: Colors.amber.shade300, fontSize: 11, fontWeight: FontWeight.w500),
+                        textAlign: TextAlign.center,
+                        strutStyle: const StrutStyle(
+                          fontSize: 11,
+                          height: 1.0,
+                          leading: 0,
+                          forceStrutHeight: true,
+                        ),
+                        style: TextStyle(
+                          color: Colors.amber.shade300,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          height: 1.0,
+                          leadingDistribution: TextLeadingDistribution.even,
+                        ),
                       ),
                     ],
                   ),
@@ -381,7 +399,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
               ),
             ),
           ),
-          title: const Text('메모요'),
+          title: const Text('메모요', style: TextStyle(fontSize: 17)),
           actions: [
             if (_isEditMode)
               Padding(
@@ -510,9 +528,10 @@ class _MemoListScreenState extends State<MemoListScreen> {
                     ),
                     ),
                   ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         floatingActionButton: Padding(
           padding: EdgeInsets.only(
-            right: MediaQuery.of(context).viewPadding.bottom,
+            bottom: MediaQuery.of(context).viewPadding.bottom,
           ),
           child: FloatingActionButton(
             onPressed: _addMemo,
@@ -756,11 +775,19 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                             widget.memo.firstLine,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                            strutStyle: const StrutStyle(
+                              fontSize: 17,
+                              height: 1.0,
+                              leading: 0,
+                              forceStrutHeight: true,
+                            ),
                             style: const TextStyle(
                               color: Colors.amber,
                               fontWeight: FontWeight.w400,
                               fontSize: 17,
                               letterSpacing: 0.1,
+                              height: 1.0,
+                              leadingDistribution: TextLeadingDistribution.even,
                             ),
                           ),
                         ),
