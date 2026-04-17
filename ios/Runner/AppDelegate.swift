@@ -14,6 +14,9 @@ class AppDelegate: FlutterAppDelegate {
       registrar.register(factory, withId: "memoyo/paste_button")
     }
 
+    // Suppress the system shake-to-undo dialog — the app handles shake in Dart via sensors_plus.
+    application.applicationSupportsShakeToEdit = false
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }

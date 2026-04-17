@@ -140,51 +140,50 @@ class _MemoListScreenState extends State<MemoListScreen> {
 
   Future<void> _addMemo() async {
     _closeAllSwipes();
-    final result = await Navigator.push<Memo>(
+    await Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder: (_) => const MemoEditScreen(),
-        fullscreenDialog: true,
+        builder: (_) => MemoEditScreen(
+          onSave: (newMemo) {
+            if (!mounted) return;
+            setState(() {
+              final firstNormalIndex =
+                  _memos.indexWhere((m) => !m.isFavorite);
+              if (firstNormalIndex == -1) {
+                _memos.add(newMemo);
+              } else {
+                _memos.insert(firstNormalIndex, newMemo);
+              }
+            });
+            _saveMemos();
+          },
+        ),
       ),
     );
-    if (result != null && mounted) {
-      setState(() {
-        // 새 메모는 일반 그룹 맨 위 = 즐겨찾기 뒤 첫 번째
-        final firstNormalIndex =
-            _memos.indexWhere((m) => !m.isFavorite);
-        if (firstNormalIndex == -1) {
-          _memos.add(result); // 전부 즐겨찾기면 맨 뒤에
-        } else {
-          _memos.insert(firstNormalIndex, result);
-        }
-      });
-      await _saveMemos();
-    }
   }
 
-  // [요구사항 5] id 기준으로 찾아서 처리
   Future<void> _editMemo(String memoId) async {
     _closeAllSwipes();
     final index = _memos.indexWhere((m) => m.id == memoId);
     if (index == -1) return;
 
-    final result = await Navigator.push<Object>(
+    await Navigator.push<void>(
       context,
-      MaterialPageRoute(builder: (_) => MemoEditScreen(memo: _memos[index])),
+      MaterialPageRoute(
+        builder: (_) => MemoEditScreen(
+          memo: _memos[index],
+          onSave: (updatedMemo) {
+            if (!mounted) return;
+            final currentIndex = _memos.indexWhere((m) => m.id == memoId);
+            if (currentIndex == -1) return;
+            setState(() {
+              _memos[currentIndex] = updatedMemo;
+            });
+            _saveMemos();
+          },
+        ),
+      ),
     );
-    if (!mounted) return;
-    if (result is Memo) {
-      setState(() {
-        _memos[index] = result;
-      });
-      await _saveMemos();
-    } else if (result is String && result.startsWith('delete:')) {
-      setState(() {
-        _memos.removeWhere((m) => m.id == memoId);
-        _unfavoriteAnchors.remove(memoId);
-      });
-      await _saveMemos();
-    }
   }
 
   Future<void> _deleteMemo(String memoId) async {
