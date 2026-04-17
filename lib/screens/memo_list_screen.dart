@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/memo.dart';
 import '../services/memo_storage.dart';
 import 'memo_edit_screen.dart';
@@ -384,52 +383,26 @@ class _MemoListScreenState extends State<MemoListScreen> {
           ),
           title: const Text('메모요'),
           actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 20),
-              child: _isEditMode
-                  ? TextButton(
-                      onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.orange,
-                        disabledForegroundColor: Colors.orange.withValues(alpha: 0.3),
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 0),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        _selectedIds.isEmpty
-                            ? '삭제'
-                            : '삭제 (${_selectedIds.length})',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    )
-                  : GestureDetector(
-                      onTap: () {
-                        launchUrl(
-                          Uri.parse('https://ssamssae.github.io/daejong-page'),
-                          mode: LaunchMode.externalApplication,
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.favorite, size: 12, color: Colors.amber.shade300),
-                            const SizedBox(width: 4),
-                            Text(
-                              '응원',
-                              style: TextStyle(color: Colors.amber.shade300, fontSize: 11, fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-            ),
+            if (_isEditMode)
+              Padding(
+                padding: const EdgeInsets.only(right: 20),
+                child: TextButton(
+                  onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.orange,
+                    disabledForegroundColor: Colors.orange.withValues(alpha: 0.3),
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 0),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    _selectedIds.isEmpty
+                        ? '삭제'
+                        : '삭제 (${_selectedIds.length})',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+              ),
           ],
         ),
         body: _isLoading
