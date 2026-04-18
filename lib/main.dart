@@ -58,6 +58,11 @@ class MemoApp extends StatelessWidget {
           backgroundColor: Colors.amber.shade700,
           foregroundColor: const Color(0xFF1A1A2E),
         ),
+        textSelectionTheme: TextSelectionThemeData(
+          cursorColor: Colors.amber,
+          selectionColor: Colors.amber.withValues(alpha: 0.35),
+          selectionHandleColor: Colors.amber,
+        ),
         useMaterial3: true,
         brightness: Brightness.dark,
       ),

@@ -360,40 +360,17 @@ class _MemoListScreenState extends State<MemoListScreen> {
               alignment: Alignment.centerLeft,
               child: GestureDetector(
                 onTap: _toggleEditMode,
+                behavior: HitTestBehavior.opaque,
                 child: Container(
-                  width: 58,
-                  height: 22,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.amber.shade300.withValues(alpha: 0.5)),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Icon(Icons.favorite, size: 12, color: Colors.amber.shade300),
-                      const SizedBox(width: 4),
-                      Text(
-                        _isEditMode ? '취소' : '편집',
-                        textAlign: TextAlign.center,
-                        strutStyle: const StrutStyle(
-                          fontSize: 11,
-                          height: 1.0,
-                          leading: 0,
-                          forceStrutHeight: true,
-                        ),
-                        style: TextStyle(
-                          color: Colors.amber.shade300,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          height: 1.0,
-                          leadingDistribution: TextLeadingDistribution.even,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    _isEditMode ? '취소' : '편집',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.amber.shade300,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),

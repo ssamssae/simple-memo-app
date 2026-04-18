@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +27,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   bool _shakeDialogOpen = false;
   bool _isEditing = false;
   bool _popHandled = false;
+  Offset? _lastTouchPosition;
+  bool _isClampingSelection = false;
 
   static const double _shakeThreshold = 18.0;
   static const Duration _shakeCooldown = Duration(milliseconds: 1500);
@@ -37,6 +40,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     _contentController = TextEditingController(
       text: widget.memo?.content ?? '',
     );
+    _contentController.addListener(_clampSelectionTrailingNewline);
     if (!kIsWeb && (Platform.isIOS || Platform.isAndroid)) {
       _accelSub = accelerometerEventStream(
         samplingPeriod: const Duration(milliseconds: 60),
@@ -47,9 +51,73 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   @override
   void dispose() {
     _accelSub?.cancel();
+    _contentController.removeListener(_clampSelectionTrailingNewline);
     _contentController.dispose();
     _undoController.dispose();
     super.dispose();
+  }
+
+  // 선택 양 끝이 "라인 끝의 공백/개행" 영역에 걸쳐 있으면 실제 글자 뒤로
+  // 하이라이트가 뻗어 보임. 사용자는 마지막 글자에서 멈추기를 원하므로,
+  // 공백(space/tab/CR)과 개행(LF)을 선택 양 끝에서 걷어냄. 단 공백은
+  // 바로 뒤가 개행/문서끝 일 때만 (= 실제 라인 끝의 잔여 공백일 때만)
+  // 잘라서, 문장 중간의 공백은 건드리지 않음.
+  void _clampSelectionTrailingNewline() {
+    if (_isClampingSelection) return;
+    final v = _contentController.value;
+    final sel = v.selection;
+    if (!sel.isValid || sel.isCollapsed) return;
+    final text = v.text;
+    final len = text.length;
+
+    bool isWs(int c) => c == 0x20 || c == 0x09 || c == 0x0D;
+
+    int trimEnd(int end, int lowerBound) {
+      while (end > lowerBound && end > 0) {
+        final c = text.codeUnitAt(end - 1);
+        if (c == 0x0A) {
+          end--;
+          continue;
+        }
+        if (isWs(c)) {
+          // 공백은 "선택 끝부터 다음 개행/문서끝까지 모두 공백인 경우"만 잘라냄.
+          // (라인 중간의 공백은 건드리지 않음)
+          var peek = end;
+          var allWsToLineEnd = true;
+          while (peek < len) {
+            final pc = text.codeUnitAt(peek);
+            if (pc == 0x0A) break;
+            if (!isWs(pc)) {
+              allWsToLineEnd = false;
+              break;
+            }
+            peek++;
+          }
+          if (allWsToLineEnd) {
+            end--;
+            continue;
+          }
+        }
+        break;
+      }
+      return end;
+    }
+
+    final base = sel.baseOffset;
+    final ext = sel.extentOffset;
+    int newBase = base;
+    int newExt = ext;
+    if (ext > base) {
+      newExt = trimEnd(ext, base);
+    } else if (base > ext) {
+      newBase = trimEnd(base, ext);
+    }
+    if (newBase == base && newExt == ext) return;
+    _isClampingSelection = true;
+    _contentController.value = v.copyWith(
+      selection: TextSelection(baseOffset: newBase, extentOffset: newExt),
+    );
+    _isClampingSelection = false;
   }
 
   void _onAccel(AccelerometerEvent e) {
@@ -190,46 +258,31 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
 
   Widget _pillButton({
     String? label,
-    required IconData icon,
+    IconData? icon,
     required Color color,
     required VoidCallback? onTap,
-    double width = 58,
   }) {
     final hasLabel = label != null && label.isNotEmpty;
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: Container(
-        width: width,
-        height: 22,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          border: Border.all(color: color.withValues(alpha: 0.5)),
-          borderRadius: BorderRadius.circular(16),
-        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(icon, size: 12, color: color),
+            if (icon != null) Icon(icon, size: 16, color: color),
             if (hasLabel) ...[
-              const SizedBox(width: 4),
+              if (icon != null) const SizedBox(width: 4),
               Text(
                 label,
                 textAlign: TextAlign.center,
-                strutStyle: const StrutStyle(
-                  fontSize: 11,
-                  height: 1.0,
-                  leading: 0,
-                  forceStrutHeight: true,
-                ),
                 style: TextStyle(
                   color: color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  height: 1.0,
-                  leadingDistribution: TextLeadingDistribution.even,
+                  fontSize: 16,
                 ),
               ),
             ],
@@ -282,7 +335,6 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               children: [
                 _pillButton(
                   label: '뒤로',
-                  icon: Icons.favorite,
                   color: Colors.amber.shade300,
                   onTap: _saveAndPop,
                 ),
@@ -290,7 +342,6 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                   const SizedBox(width: 6),
                   _pillButton(
                     label: '취소',
-                    icon: Icons.close,
                     color: Colors.redAccent.shade100,
                     onTap: _cancelEdit,
                   ),
@@ -336,7 +387,6 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               padding: const EdgeInsets.only(right: 12, left: 0),
               child: _pillButton(
                 label: '저장',
-                icon: Icons.favorite,
                 color: Colors.amber.shade300,
                 onTap: _saveMemo,
               ),
@@ -362,11 +412,16 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                 ),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: TextField(
+                  child: Listener(
+                    onPointerDown: (e) => _lastTouchPosition = e.position,
+                    onPointerUp: (e) => _lastTouchPosition = e.position,
+                    child: TextField(
                     controller: _contentController,
                     undoController: _undoController,
                     cursorColor: Colors.amber,
                     cursorHeight: 18,
+                    selectionControls: _largeCupertinoSelectionControls,
+                    selectionHeightStyle: ui.BoxHeightStyle.includeLineSpacingMiddle,
                     strutStyle: const StrutStyle(
                       fontSize: 18,
                       height: 1.5,
@@ -404,11 +459,47 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                           );
                         }
                       }
+                      final sel = editableTextState.textEditingValue.selection;
+                      final text = editableTextState.textEditingValue.text;
+                      items.removeWhere(
+                        (item) => item.type == ContextMenuButtonType.selectAll,
+                      );
+                      final allSelected = sel.isValid &&
+                          sel.start == 0 &&
+                          sel.end == text.length;
+                      if (text.isNotEmpty && !allSelected) {
+                        final selectAll = ContextMenuButtonItem(
+                          type: ContextMenuButtonType.selectAll,
+                          label: 'Select All',
+                          onPressed: () {
+                            editableTextState
+                                .selectAll(SelectionChangedCause.toolbar);
+                          },
+                        );
+                        final pasteIdx = items.indexWhere(
+                          (item) => item.type == ContextMenuButtonType.paste,
+                        );
+                        if (pasteIdx >= 0) {
+                          items.insert(pasteIdx, selectAll);
+                        } else {
+                          items.add(selectAll);
+                        }
+                      }
+
+                      var anchors = editableTextState.contextMenuAnchors;
+                      if (sel.isValid && _lastTouchPosition != null) {
+                        anchors = TextSelectionToolbarAnchors(
+                          primaryAnchor: _lastTouchPosition!,
+                          secondaryAnchor: _lastTouchPosition!,
+                        );
+                      }
+
                       return AdaptiveTextSelectionToolbar.buttonItems(
-                        anchors: editableTextState.contextMenuAnchors,
+                        anchors: anchors,
                         buttonItems: items,
                       );
                     },
+                  ),
                   ),
                 ),
               ),
@@ -420,3 +511,102 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     );
   }
 }
+
+class _LargeHandlePainter extends CustomPainter {
+  const _LargeHandlePainter(this.color, this.radius);
+  final Color color;
+  final double radius;
+  static const double _overlap = 1.5;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const halfStrokeWidth = 1.0;
+    final paint = Paint()..color = color;
+    final circle = Rect.fromCircle(
+      center: Offset(radius, radius),
+      radius: radius,
+    );
+    final line = Rect.fromPoints(
+      Offset(radius - halfStrokeWidth, 2 * radius - _overlap),
+      Offset(radius + halfStrokeWidth, size.height),
+    );
+    final path = Path()
+      ..addOval(circle)
+      ..addRect(line);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_LargeHandlePainter oldPainter) =>
+      color != oldPainter.color || radius != oldPainter.radius;
+}
+
+class _LargeCupertinoSelectionControls extends CupertinoTextSelectionControls {
+  static const double _radius = 7.0;
+  static const double _overlap = 1.5;
+
+  @override
+  Size getHandleSize(double textLineHeight) {
+    return Size(
+      _radius * 2,
+      textLineHeight + _radius * 2 - _overlap,
+    );
+  }
+
+  @override
+  Widget buildHandle(
+    BuildContext context,
+    TextSelectionHandleType type,
+    double textLineHeight, [
+    VoidCallback? onTap,
+  ]) {
+    final Size desiredSize;
+    final Widget handle;
+    final Widget customPaint = CustomPaint(
+      painter: _LargeHandlePainter(
+        CupertinoTheme.of(context).selectionHandleColor,
+        _radius,
+      ),
+    );
+
+    switch (type) {
+      case TextSelectionHandleType.left:
+        desiredSize = getHandleSize(textLineHeight);
+        handle = SizedBox.fromSize(size: desiredSize, child: customPaint);
+        return handle;
+      case TextSelectionHandleType.right:
+        desiredSize = getHandleSize(textLineHeight);
+        handle = SizedBox.fromSize(size: desiredSize, child: customPaint);
+        return Transform(
+          transform: Matrix4.identity()
+            ..translate(desiredSize.width / 2, desiredSize.height / 2)
+            ..rotateZ(math.pi)
+            ..translate(-desiredSize.width / 2, -desiredSize.height / 2),
+          child: handle,
+        );
+      case TextSelectionHandleType.collapsed:
+        return SizedBox.fromSize(size: getHandleSize(textLineHeight));
+    }
+  }
+
+  @override
+  Offset getHandleAnchor(TextSelectionHandleType type, double textLineHeight) {
+    final Size handleSize = getHandleSize(textLineHeight);
+    switch (type) {
+      case TextSelectionHandleType.left:
+        return Offset(handleSize.width / 2, handleSize.height);
+      case TextSelectionHandleType.right:
+        return Offset(
+          handleSize.width / 2,
+          handleSize.height - 2 * _radius + _overlap,
+        );
+      case TextSelectionHandleType.collapsed:
+        return Offset(
+          handleSize.width / 2,
+          textLineHeight + (handleSize.height - textLineHeight) / 2,
+        );
+    }
+  }
+}
+
+final _largeCupertinoSelectionControls = _LargeCupertinoSelectionControls();
