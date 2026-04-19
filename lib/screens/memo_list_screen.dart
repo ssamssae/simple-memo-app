@@ -269,8 +269,12 @@ class _MemoListScreenState extends State<MemoListScreen> {
       if (_memos[i].isFavorite) favOriginalIndices.add(i);
     }
 
-    if (oldIndex < 0 || oldIndex >= favOriginalIndices.length ||
-        newIndex < 0 || newIndex >= favOriginalIndices.length) return;
+    if (oldIndex < 0 ||
+        oldIndex >= favOriginalIndices.length ||
+        newIndex < 0 ||
+        newIndex >= favOriginalIndices.length) {
+      return;
+    }
 
     final movedMemo = _memos[favOriginalIndices[oldIndex]];
     setState(() {
@@ -301,8 +305,12 @@ class _MemoListScreenState extends State<MemoListScreen> {
       if (!_memos[i].isFavorite) normalOriginalIndices.add(i);
     }
 
-    if (oldIndex < 0 || oldIndex >= normalOriginalIndices.length ||
-        newIndex < 0 || newIndex >= normalOriginalIndices.length) return;
+    if (oldIndex < 0 ||
+        oldIndex >= normalOriginalIndices.length ||
+        newIndex < 0 ||
+        newIndex >= normalOriginalIndices.length) {
+      return;
+    }
 
     final movedMemo = _memos[normalOriginalIndices[oldIndex]];
     setState(() {
