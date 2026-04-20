@@ -43,11 +43,16 @@ flutter run -d android
 
 ```
 lib/
-  main.dart              # 앱 진입점
-  models/memo.dart       # Memo 데이터 모델 (copyWith 지원)
+  main.dart                # 앱 진입점 (MemoApp + 글로벌 에러 핸들러)
+  models/memo.dart         # Memo 데이터 모델 (copyWith / JSON 직렬화)
   screens/
-    memo_list_screen.dart  # 메모 목록 화면
-    memo_edit_screen.dart  # 메모 작성/수정 화면
+    splash_screen.dart       # 스플래시 → 목록 화면 전환
+    memo_list_screen.dart    # 메모 목록 화면 (스와이프/리오더)
+    memo_edit_screen.dart    # 메모 작성/수정 화면
   services/
-    memo_storage.dart      # SharedPreferences 기반 저장
+    memo_storage.dart        # SharedPreferences 기반 영속 저장
+  widgets/
+    paste_button.dart        # 클립보드 붙여넣기 버튼
+test/
+  widget_test.dart         # Memo 모델 단위 테스트
 ```
