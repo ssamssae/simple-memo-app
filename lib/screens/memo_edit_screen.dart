@@ -421,7 +421,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                     cursorColor: Colors.amber,
                     cursorHeight: 18,
                     selectionControls: _largeCupertinoSelectionControls,
-                    selectionHeightStyle: ui.BoxHeightStyle.includeLineSpacingMiddle,
+                    selectionHeightStyle: ui.BoxHeightStyle.strut,
                     strutStyle: const StrutStyle(
                       fontSize: 18,
                       height: 1.5,
@@ -450,13 +450,15 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       final items = List<ContextMenuButtonItem>.from(
                         editableTextState.contextMenuButtonItems,
                       );
-                      for (var i = 0; i < items.length; i++) {
-                        if (items[i].type == ContextMenuButtonType.paste) {
-                          items[i] = ContextMenuButtonItem(
-                            type: ContextMenuButtonType.paste,
-                            onPressed: () =>
-                                _handlePasteWithNewline(editableTextState),
-                          );
+                      if (!Platform.isIOS) {
+                        for (var i = 0; i < items.length; i++) {
+                          if (items[i].type == ContextMenuButtonType.paste) {
+                            items[i] = ContextMenuButtonItem(
+                              type: ContextMenuButtonType.paste,
+                              onPressed: () =>
+                                  _handlePasteWithNewline(editableTextState),
+                            );
+                          }
                         }
                       }
                       final sel = editableTextState.textEditingValue.selection;
@@ -487,7 +489,14 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       }
 
                       var anchors = editableTextState.contextMenuAnchors;
-                      if (sel.isValid && _lastTouchPosition != null) {
+                      if (allSelected) {
+                        final s = MediaQuery.of(context).size;
+                        final mid = Offset(s.width / 2, s.height / 2);
+                        anchors = TextSelectionToolbarAnchors(
+                          primaryAnchor: mid,
+                          secondaryAnchor: mid,
+                        );
+                      } else if (sel.isValid && _lastTouchPosition != null) {
                         anchors = TextSelectionToolbarAnchors(
                           primaryAnchor: _lastTouchPosition!,
                           secondaryAnchor: _lastTouchPosition!,
