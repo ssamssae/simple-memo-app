@@ -12,7 +12,6 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _fadeController;
-  late final Animation<double> _fadeAnimation;
   Timer? _timer;
 
   @override
@@ -21,10 +20,6 @@ class _SplashScreenState extends State<SplashScreen>
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeOut,
     );
 
     _timer = Timer(const Duration(milliseconds: 750), () {

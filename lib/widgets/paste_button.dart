@@ -24,10 +24,7 @@ class PasteButton extends StatefulWidget {
 }
 
 class _PasteButtonState extends State<PasteButton> {
-  int? _viewId;
-
   void _onPlatformViewCreated(int id) {
-    _viewId = id;
     MethodChannel('memoyo/paste_button_$id').setMethodCallHandler((call) async {
       if (call.method == 'onPaste') {
         final text = call.arguments as String? ?? '';
