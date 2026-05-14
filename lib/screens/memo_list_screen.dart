@@ -411,11 +411,22 @@ class _MemoListScreenState extends State<MemoListScreen> {
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _memos.isEmpty
-                ? const Center(
-                    child: Text(
-                      '메모가 없습니다.\n새 메모를 추가해보세요!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.amber),
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(
+                          Icons.sticky_note_2_outlined,
+                          size: 56,
+                          color: Colors.amber,
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          '아직 메모가 없어요.\n아래 + 버튼을 눌러 첫 메모를 남겨보세요.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16, color: Colors.amber),
+                        ),
+                      ],
                     ),
                   )
                 : SingleChildScrollView(
