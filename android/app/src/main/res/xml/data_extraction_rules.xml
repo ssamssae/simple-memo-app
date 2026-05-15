@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Android 12+ (API 31+) data extraction rules. Both cloud backup and
+   device-to-device transfer are denied for memo data. SharedPreferences
+   key 'memos' is excluded explicitly; the entire shared-preferences and
+   database domains are also denied as defense in depth.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" />
+        <exclude domain="database" />
+        <exclude domain="file" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" />
+        <exclude domain="database" />
+        <exclude domain="file" />
+    </device-transfer>
+</data-extraction-rules>

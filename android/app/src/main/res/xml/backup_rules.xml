@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Android 11- (API 30 and below) auto-backup rules. Excludes all memo
+   data from any Google Drive auto-backup. android:allowBackup="false"
+   in the manifest already disables backup entirely on older platforms,
+   but the explicit rules file is referenced via android:fullBackupContent
+   so it must exist; if backup is ever re-enabled, the excludes here
+   prevent silent regressions.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" />
+    <exclude domain="database" />
+    <exclude domain="file" />
+</full-backup-content>
