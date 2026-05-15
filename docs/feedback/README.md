@@ -28,12 +28,12 @@
 - 성능 모니터링
 - 비주얼 브랜딩 강화
 
-### 반영 상태 (2026-05-12 기준)
+### 반영 상태 (2026-05-15 갱신)
 | 항목 | 상태 | 비고 |
 |------|------|------|
-| (1) ASO | 부분 | Play Console 한글 description 풍부함, 키워드 강화 여지 |
+| (1) ASO | 부분+draft | Play Console 한글 description 풍부함. 키워드 강화 v2 draft = `docs/store-assets/metadata-aso-v2-2026-05-14.md` (Play Console 직접 편집 대기) |
 | (2) Screenshots | 미반영 | 베타 모집용 스샷 3장만 있음 (list/edit/empty) |
 | (3) Walkthrough | 미반영 | lib/screens/ 에 onboarding 없음 |
 | (4) Multi-lang | 미반영 | pubspec.yaml 에 flutter_localizations 없음 |
-| (5) Privacy/Terms | 미반영 | daejong-page 에 privacy-memoyo.html 없음 (다른 앱들은 있음) |
-| (6) Rate 버튼 | 미반영 | in_app_review 패키지 미사용 |
+| (5) Privacy/Terms | ✅ 반영 | `~/daejong-page/privacy-memoyo.html` 라이브 (2026-05-13). Play Console "개인정보처리방침" URL 연결 됨 |
+| (6) Rate 버튼 | 미반영 | in_app_review 패키지 미사용 (draft 1.0.4 backlog P0-2 대기) |
