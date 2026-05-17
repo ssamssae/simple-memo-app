@@ -98,4 +98,39 @@ void main() {
       expect(await SnapshotStore.hasSnapshot(), isFalse);
     });
   });
+
+  group('ExportImportService — edge cases', () {
+    test('동일 updatedAt 충돌 시 기존 우선 (안전 디폴트)', () {
+      final t = DateTime(2026, 1, 1);
+      final existing = [memo('a', 'existing', t)];
+      final incoming = [memo('a', 'incoming', t)];
+      final merged = ExportImportService.mergeSilently(existing, incoming);
+      expect(merged.first.content, 'existing');
+    });
+
+    test('가져온 list 가 중복 id 를 갖고 있으면 마지막 항목 기준', () {
+      final existing = <Memo>[];
+      final incoming = [
+        memo('a', 'first', DateTime(2026, 1, 1)),
+        memo('a', 'second', DateTime(2026, 1, 2)),
+      ];
+      final merged = ExportImportService.mergeSilently(existing, incoming);
+      expect(merged.length, 1);
+      expect(merged.first.content, 'second');
+    });
+
+    test('parseImport: JSON 이긴 한데 메모 객체가 아닌 형태도 비파괴', () {
+      final parsed = ExportImportService.parseImport('"just a string"');
+      expect(parsed, isNotNull);
+      expect(parsed!.isEmpty, isTrue);
+    });
+
+    test('parseImport: 일부 필드 누락 메모 — Memo.fromJson default 적용', () {
+      final parsed = ExportImportService.parseImport('[{"id":"x"}]');
+      expect(parsed, isNotNull);
+      expect(parsed!.length, 1);
+      expect(parsed.first.id, 'x');
+      expect(parsed.first.content, '');
+    });
+  });
 }
