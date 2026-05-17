@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/memo.dart';
+import '../services/export_import_service.dart';
 import '../services/memo_storage.dart';
+import '../services/snapshot_store.dart';
 import 'memo_edit_screen.dart';
 
 class MemoListScreen extends StatefulWidget {
@@ -26,6 +28,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
 
   bool _isEditMode = false;
   final Set<String> _selectedIds = {};
+  bool _hasImportSnapshot = false;
 
   void _toggleEditMode() {
     setState(() {
@@ -94,11 +97,13 @@ class _MemoListScreenState extends State<MemoListScreen> {
   Future<void> _loadMemos() async {
     try {
       final memos = await MemoStorage.loadMemos();
+      final hasSnapshot = await SnapshotStore.hasSnapshot();
       if (!mounted) return;
       setState(() {
         _memos = memos;
         _ensureGroupOrder();
         _isLoading = false;
+        _hasImportSnapshot = hasSnapshot;
       });
     } catch (e) {
       debugPrint('[_loadMemos] $e');
@@ -108,6 +113,72 @@ class _MemoListScreenState extends State<MemoListScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  void _selectAll() {
+    setState(() {
+      _selectedIds
+        ..clear()
+        ..addAll(_memos.map((m) => m.id));
+    });
+  }
+
+  Future<void> _onOverflowSelected(String value) async {
+    if (value == 'export') {
+      if (_memos.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('내보낼 메모가 없습니다')),
+        );
+        return;
+      }
+      await ExportImportService.shareExport(_memos);
+      return;
+    }
+    if (value == 'import') {
+      try {
+        final result = await ExportImportService.pickAndImport();
+        if (result == null) return;
+        final (incoming, total) = result;
+        if (incoming == 0) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('가져올 메모가 없습니다')),
+          );
+          return;
+        }
+        await _loadMemos();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('메모 $incoming개 가져왔습니다 (전체 $total개)'),
+            action: SnackBarAction(
+              label: '되돌리기',
+              onPressed: _handleUndoImport,
+            ),
+          ),
+        );
+      } on FormatException {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('올바른 메모요 백업 파일이 아닙니다')),
+        );
+      }
+      return;
+    }
+    if (value == 'undo') {
+      await _handleUndoImport();
+    }
+  }
+
+  Future<void> _handleUndoImport() async {
+    final restored = await ExportImportService.undoImport();
+    if (restored == null) return;
+    await _loadMemos();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('이전 메모 ${restored.length}개로 되돌렸습니다')),
+    );
   }
 
   Future<void> _saveMemos() async {
@@ -386,14 +457,39 @@ class _MemoListScreenState extends State<MemoListScreen> {
           ),
           title: const Text('메모요', style: TextStyle(fontSize: 17)),
           actions: [
-            if (_isEditMode)
+            if (_isEditMode) ...[
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: TextButton(
+                  onPressed: _memos.isEmpty
+                      ? null
+                      : (_selectedIds.length == _memos.length
+                          ? () => setState(_selectedIds.clear)
+                          : _selectAll),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.amber.shade300,
+                    disabledForegroundColor:
+                        Colors.amber.shade300.withValues(alpha: 0.3),
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 0),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    (_selectedIds.length == _memos.length && _memos.isNotEmpty)
+                        ? '선택해제'
+                        : '전체선택',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.only(right: 20),
                 child: TextButton(
                   onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.orange,
-                    disabledForegroundColor: Colors.orange.withValues(alpha: 0.3),
+                    disabledForegroundColor:
+                        Colors.orange.withValues(alpha: 0.3),
                     padding: EdgeInsets.zero,
                     minimumSize: const Size(0, 0),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -405,6 +501,31 @@ class _MemoListScreenState extends State<MemoListScreen> {
                     style: const TextStyle(fontSize: 16),
                   ),
                 ),
+              ),
+            ],
+            if (!_isEditMode)
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.amber),
+                color: const Color(0xFF2C2C2E),
+                onSelected: _onOverflowSelected,
+                itemBuilder: (ctx) => [
+                  const PopupMenuItem(
+                    value: 'export',
+                    child: Text('메모 내보내기',
+                        style: TextStyle(color: Colors.amber)),
+                  ),
+                  const PopupMenuItem(
+                    value: 'import',
+                    child: Text('메모 가져오기',
+                        style: TextStyle(color: Colors.amber)),
+                  ),
+                  if (_hasImportSnapshot)
+                    const PopupMenuItem(
+                      value: 'undo',
+                      child: Text('가져오기 되돌리기',
+                          style: TextStyle(color: Colors.amber)),
+                    ),
+                ],
               ),
           ],
         ),
