@@ -113,4 +113,69 @@ void main() {
       expect(meta.mimeType, 'application/json');
     });
   });
+
+  group('DriveBackupService._rotate', () {
+    test('8개 → 1개 삭제 → 7개 유지', () async {
+      final api = _MockDriveApi();
+      final files = _MockFilesResource();
+      when(() => api.files).thenReturn(files);
+      final fileList = drive.FileList(files: [
+        for (int i = 0; i < 8; i++) drive.File()..id = 'f$i',
+      ]);
+      when(() => files.list(
+            q: any(named: 'q'),
+            spaces: any(named: 'spaces'),
+            orderBy: any(named: 'orderBy'),
+            $fields: any(named: r'$fields'),
+          )).thenAnswer((_) async => fileList);
+      when(() => files.delete(any())).thenAnswer((_) async {});
+
+      await DriveBackupService.rotateForTest(api,
+          folderId: 'memoyoId', keep: 7);
+      verify(() => files.delete('f0')).called(1);
+      verifyNever(() => files.delete('f1'));
+    });
+
+    test('10개 → 3개 삭제 → 7개 유지', () async {
+      final api = _MockDriveApi();
+      final files = _MockFilesResource();
+      when(() => api.files).thenReturn(files);
+      final fileList = drive.FileList(files: [
+        for (int i = 0; i < 10; i++) drive.File()..id = 'f$i',
+      ]);
+      when(() => files.list(
+            q: any(named: 'q'),
+            spaces: any(named: 'spaces'),
+            orderBy: any(named: 'orderBy'),
+            $fields: any(named: r'$fields'),
+          )).thenAnswer((_) async => fileList);
+      when(() => files.delete(any())).thenAnswer((_) async {});
+
+      await DriveBackupService.rotateForTest(api,
+          folderId: 'memoyoId', keep: 7);
+      verify(() => files.delete('f0')).called(1);
+      verify(() => files.delete('f1')).called(1);
+      verify(() => files.delete('f2')).called(1);
+      verifyNever(() => files.delete('f3'));
+    });
+
+    test('7개 이하 → 삭제 호출 0', () async {
+      final api = _MockDriveApi();
+      final files = _MockFilesResource();
+      when(() => api.files).thenReturn(files);
+      final fileList = drive.FileList(files: [
+        for (int i = 0; i < 5; i++) drive.File()..id = 'f$i',
+      ]);
+      when(() => files.list(
+            q: any(named: 'q'),
+            spaces: any(named: 'spaces'),
+            orderBy: any(named: 'orderBy'),
+            $fields: any(named: r'$fields'),
+          )).thenAnswer((_) async => fileList);
+
+      await DriveBackupService.rotateForTest(api,
+          folderId: 'memoyoId', keep: 7);
+      verifyNever(() => files.delete(any()));
+    });
+  });
 }

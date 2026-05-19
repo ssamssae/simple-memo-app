@@ -40,6 +40,27 @@ class DriveBackupService {
     return null;
   }
 
+  static Future<void> rotateForTest(
+    drive.DriveApi api, {
+    required String folderId,
+    required int keep,
+  }) async {
+    final query =
+        "'$folderId' in parents and mimeType = 'application/json' and trashed = false";
+    final list = await api.files.list(
+      q: query,
+      spaces: 'drive',
+      orderBy: 'createdTime',
+      $fields: 'files(id, name, createdTime)',
+    );
+    final files = list.files ?? [];
+    if (files.length <= keep) return;
+    final excess = files.length - keep;
+    for (int i = 0; i < excess; i++) {
+      await api.files.delete(files[i].id!);
+    }
+  }
+
   static Future<String> uploadJsonFileForTest(
     drive.DriveApi api, {
     required String folderId,
