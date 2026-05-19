@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -41,9 +42,17 @@ class ExportImportService {
     return file;
   }
 
-  static Future<void> shareExport(List<Memo> memos) async {
+  static Future<void> shareExport(
+    List<Memo> memos, {
+    Rect? sharePositionOrigin,
+  }) async {
     final file = await writeExportFile(memos);
-    await Share.shareXFiles([XFile(file.path)], text: '메모요 백업');
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'application/json')],
+      text: '메모요 백업',
+      sharePositionOrigin:
+          sharePositionOrigin ?? const Rect.fromLTWH(0, 0, 100, 100),
+    );
   }
 
   /// Returns (importedCount, totalCount) on success; null on user cancel.

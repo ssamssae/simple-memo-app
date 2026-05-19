@@ -132,7 +132,21 @@ class _MemoListScreenState extends State<MemoListScreen> {
         );
         return;
       }
-      await ExportImportService.shareExport(_memos);
+      final box = context.findRenderObject() as RenderBox?;
+      final origin = box != null
+          ? box.localToGlobal(Offset.zero) & box.size
+          : null;
+      try {
+        await ExportImportService.shareExport(
+          _memos,
+          sharePositionOrigin: origin,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('내보내기 실패: $e')),
+        );
+      }
       return;
     }
     if (value == 'import') {
