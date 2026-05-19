@@ -1,3 +1,5 @@
+import 'package:google_sign_in/google_sign_in.dart';
+
 sealed class DriveBackupResult {
   const DriveBackupResult();
 }
@@ -22,4 +24,18 @@ class DriveBackupQuotaExceeded extends DriveBackupResult {
 class DriveBackupUnknown extends DriveBackupResult {
   final String message;
   const DriveBackupUnknown(this.message);
+}
+
+class DriveBackupService {
+  static const _scopes = ['https://www.googleapis.com/auth/drive.file'];
+  static final _signIn = GoogleSignIn(scopes: _scopes);
+
+  static Future<DriveBackupResult?> obtainAuthClientForTest(
+      GoogleSignIn gsi) async {
+    final account = await gsi.signIn();
+    if (account == null) {
+      return const DriveBackupPermissionDenied();
+    }
+    return null;
+  }
 }
