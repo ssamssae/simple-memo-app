@@ -1,5 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
+
+import '../models/memo.dart';
 
 sealed class DriveBackupResult {
   const DriveBackupResult();
@@ -38,6 +44,55 @@ class DriveBackupService {
       return const DriveBackupPermissionDenied();
     }
     return null;
+  }
+
+  static DriveBackupResult mapErrorForTest(Object e) {
+    if (e is SocketException) return const DriveBackupNetworkError();
+    if (e is drive.DetailedApiRequestError) {
+      if (e.status == 403 &&
+          (e.message?.contains('storageQuotaExceeded') ?? false)) {
+        return const DriveBackupQuotaExceeded();
+      }
+      if (e.status == 401 || e.status == 403) {
+        return const DriveBackupPermissionDenied();
+      }
+    }
+    return DriveBackupUnknown(e.toString());
+  }
+
+  static Future<DriveBackupResult> uploadBackup(List<Memo> memos) async {
+    try {
+      final account = await _signIn.signIn();
+      if (account == null) return const DriveBackupPermissionDenied();
+      final authClient = await _signIn.authenticatedClient();
+      if (authClient == null) return const DriveBackupPermissionDenied();
+
+      final api = drive.DriveApi(authClient);
+      final folderId = await ensureMemoyoFolderForTest(api);
+
+      final ts = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
+      final filename = 'memoyo-export-$ts.json';
+      final jsonStr = Memo.encodeList(memos);
+      final bytes = utf8.encode(jsonStr);
+
+      await uploadJsonFileForTest(
+        api,
+        folderId: folderId,
+        filename: filename,
+        jsonBytes: bytes,
+      );
+
+      await rotateForTest(api, folderId: folderId, keep: 7);
+
+      final folderUrl = 'https://drive.google.com/drive/folders/$folderId';
+      return DriveBackupSuccess(folderUrl);
+    } catch (e) {
+      return mapErrorForTest(e);
+    }
   }
 
   static Future<void> rotateForTest(

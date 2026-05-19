@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
@@ -176,6 +178,32 @@ void main() {
       await DriveBackupService.rotateForTest(api,
           folderId: 'memoyoId', keep: 7);
       verifyNever(() => files.delete(any()));
+    });
+  });
+
+  group('DriveBackupService.mapError', () {
+    test('SocketException → NetworkError', () {
+      final r = DriveBackupService.mapErrorForTest(
+          const SocketException('no network'));
+      expect(r, isA<DriveBackupNetworkError>());
+    });
+
+    test('DetailedApiRequestError 403 storageQuotaExceeded → QuotaExceeded',
+        () {
+      final err = drive.DetailedApiRequestError(403, 'storageQuotaExceeded');
+      final r = DriveBackupService.mapErrorForTest(err);
+      expect(r, isA<DriveBackupQuotaExceeded>());
+    });
+
+    test('DetailedApiRequestError 401 → PermissionDenied', () {
+      final err = drive.DetailedApiRequestError(401, 'unauthorized');
+      final r = DriveBackupService.mapErrorForTest(err);
+      expect(r, isA<DriveBackupPermissionDenied>());
+    });
+
+    test('그 외 Exception → Unknown', () {
+      final r = DriveBackupService.mapErrorForTest(Exception('something else'));
+      expect(r, isA<DriveBackupUnknown>());
     });
   });
 }
