@@ -1,9 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:mocktail/mocktail.dart';
 import 'package:simple_memo_app/services/drive_backup_service.dart';
 
 class _MockGoogleSignIn extends Mock implements GoogleSignIn {}
+
+class _MockDriveApi extends Mock implements drive.DriveApi {}
+
+class _MockFilesResource extends Mock implements drive.FilesResource {}
 
 void main() {
   group('DriveBackupResult', () {
@@ -36,6 +41,45 @@ void main() {
       when(() => gsi.signIn()).thenAnswer((_) async => null);
       final result = await DriveBackupService.obtainAuthClientForTest(gsi);
       expect(result, isA<DriveBackupPermissionDenied>());
+    });
+  });
+
+  group('DriveBackupService._ensureMemoyoFolder', () {
+    setUpAll(() {
+      registerFallbackValue(drive.File());
+    });
+
+    test('폴더 없음 → 생성 후 id 반환', () async {
+      final api = _MockDriveApi();
+      final files = _MockFilesResource();
+      when(() => api.files).thenReturn(files);
+      when(() => files.list(
+            q: any(named: 'q'),
+            spaces: any(named: 'spaces'),
+            $fields: any(named: r'$fields'),
+          )).thenAnswer((_) async => drive.FileList(files: []));
+      when(() => files.create(any(), $fields: any(named: r'$fields')))
+          .thenAnswer((_) async => drive.File()..id = 'newFolderId');
+
+      final id = await DriveBackupService.ensureMemoyoFolderForTest(api);
+      expect(id, 'newFolderId');
+    });
+
+    test('폴더 이미 있음 → 기존 id 반환, create 호출 X', () async {
+      final api = _MockDriveApi();
+      final files = _MockFilesResource();
+      when(() => api.files).thenReturn(files);
+      when(() => files.list(
+            q: any(named: 'q'),
+            spaces: any(named: 'spaces'),
+            $fields: any(named: r'$fields'),
+          )).thenAnswer((_) async => drive.FileList(files: [
+                drive.File()..id = 'existingId',
+              ]));
+
+      final id = await DriveBackupService.ensureMemoyoFolderForTest(api);
+      expect(id, 'existingId');
+      verifyNever(() => files.create(any(), $fields: any(named: r'$fields')));
     });
   });
 }
