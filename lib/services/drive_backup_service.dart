@@ -40,6 +40,28 @@ class DriveBackupService {
     return null;
   }
 
+  static Future<String> uploadJsonFileForTest(
+    drive.DriveApi api, {
+    required String folderId,
+    required String filename,
+    required List<int> jsonBytes,
+  }) async {
+    final media = drive.Media(
+      Stream<List<int>>.fromIterable([jsonBytes]),
+      jsonBytes.length,
+      contentType: 'application/json',
+    );
+    final result = await api.files.create(
+      drive.File()
+        ..name = filename
+        ..parents = [folderId]
+        ..mimeType = 'application/json',
+      uploadMedia: media,
+      $fields: 'id',
+    );
+    return result.id!;
+  }
+
   static Future<String> ensureMemoyoFolderForTest(drive.DriveApi api) async {
     const folderName = 'Memoyo';
     const folderMime = 'application/vnd.google-apps.folder';

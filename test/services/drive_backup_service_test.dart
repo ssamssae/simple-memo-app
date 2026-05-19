@@ -82,4 +82,35 @@ void main() {
       verifyNever(() => files.create(any(), $fields: any(named: r'$fields')));
     });
   });
+
+  group('DriveBackupService._uploadJsonFile', () {
+    test('multipart media 로 업로드 호출', () async {
+      final api = _MockDriveApi();
+      final files = _MockFilesResource();
+      when(() => api.files).thenReturn(files);
+      when(() => files.create(
+            any(),
+            uploadMedia: any(named: 'uploadMedia'),
+            $fields: any(named: r'$fields'),
+          )).thenAnswer((_) async => drive.File()..id = 'uploadedId');
+
+      final id = await DriveBackupService.uploadJsonFileForTest(
+        api,
+        folderId: 'memoyoFolderId',
+        filename: 'memoyo-export-2026-05-19-201700.json',
+        jsonBytes: const [123, 125],
+      );
+      expect(id, 'uploadedId');
+
+      final captured = verify(() => files.create(
+            captureAny(),
+            uploadMedia: any(named: 'uploadMedia'),
+            $fields: any(named: r'$fields'),
+          )).captured;
+      final meta = captured.first as drive.File;
+      expect(meta.name, 'memoyo-export-2026-05-19-201700.json');
+      expect(meta.parents, ['memoyoFolderId']);
+      expect(meta.mimeType, 'application/json');
+    });
+  });
 }
