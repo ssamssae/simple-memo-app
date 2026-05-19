@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/memo.dart';
+import '../services/drive_backup_service.dart';
 import '../services/export_import_service.dart';
 import '../services/memo_storage.dart';
 import '../services/snapshot_store.dart';
@@ -124,7 +126,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
   }
 
   Future<void> _onOverflowSelected(String value) async {
-    if (value == 'export') {
+    if (value == 'drive_backup') {
       if (_memos.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -132,20 +134,38 @@ class _MemoListScreenState extends State<MemoListScreen> {
         );
         return;
       }
-      final box = context.findRenderObject() as RenderBox?;
-      final origin = box != null
-          ? box.localToGlobal(Offset.zero) & box.size
-          : null;
-      try {
-        await ExportImportService.shareExport(
-          _memos,
-          sharePositionOrigin: origin,
-        );
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('내보내기 실패: $e')),
-        );
+      final result = await DriveBackupService.uploadBackup(_memos);
+      if (!mounted) return;
+      switch (result) {
+        case DriveBackupSuccess(:final folderUrl):
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Drive 에 저장됐어요'),
+              action: SnackBarAction(
+                label: 'Memoyo 폴더 열기',
+                onPressed: () async {
+                  final uri = Uri.parse(folderUrl);
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                },
+              ),
+            ),
+          );
+        case DriveBackupNetworkError():
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('인터넷 연결을 확인해주세요')),
+          );
+        case DriveBackupPermissionDenied():
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Drive 권한이 필요해요')),
+          );
+        case DriveBackupQuotaExceeded():
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Drive 용량이 부족해요')),
+          );
+        case DriveBackupUnknown(:final message):
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Drive 백업 실패: $message')),
+          );
       }
       return;
     }
@@ -524,8 +544,8 @@ class _MemoListScreenState extends State<MemoListScreen> {
                 onSelected: _onOverflowSelected,
                 itemBuilder: (ctx) => [
                   const PopupMenuItem(
-                    value: 'export',
-                    child: Text('메모 내보내기',
+                    value: 'drive_backup',
+                    child: Text('Drive 에 백업',
                         style: TextStyle(color: Colors.amber)),
                   ),
                   const PopupMenuItem(
