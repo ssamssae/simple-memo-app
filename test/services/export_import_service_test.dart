@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/models/memo.dart';
 import 'package:simple_memo_app/services/export_import_service.dart';
+import 'package:simple_memo_app/services/memo_storage.dart';
 import 'package:simple_memo_app/services/snapshot_store.dart';
 
 void main() {
@@ -131,6 +132,40 @@ void main() {
       expect(parsed!.length, 1);
       expect(parsed.first.id, 'x');
       expect(parsed.first.content, '');
+    });
+  });
+
+  group('ExportImportService.importFromSource', () {
+    test('정상 JSON → snapshot 저장 + merge + (count,total) 반환', () async {
+      await MemoStorage.saveMemos([memo('a', 'old', DateTime(2026, 1, 1))]);
+      final source = Memo.encodeList([memo('b', 'new', DateTime(2026, 1, 2))]);
+
+      final (incoming, total) =
+          await ExportImportService.importFromSource(source);
+      expect(incoming, 1);
+      expect(total, 2);
+      expect(await SnapshotStore.hasSnapshot(), isTrue);
+      final saved = await MemoStorage.loadMemos();
+      expect(saved.map((m) => m.id), containsAll(<String>['a', 'b']));
+    });
+
+    test('잘못된 JSON → FormatException, 기존 메모 무변경', () async {
+      await MemoStorage.saveMemos([memo('a', 'keep', DateTime(2026, 1, 1))]);
+      expect(() => ExportImportService.importFromSource('not json'),
+          throwsFormatException);
+      final saved = await MemoStorage.loadMemos();
+      expect(saved.length, 1);
+    });
+
+    test('빈 list JSON → (0,0), snapshot 미저장 + 기존 무변경', () async {
+      await MemoStorage.saveMemos([memo('a', 'keep', DateTime(2026, 1, 1))]);
+      final (incoming, total) =
+          await ExportImportService.importFromSource('[]');
+      expect(incoming, 0);
+      expect(total, 0);
+      expect(await SnapshotStore.hasSnapshot(), isFalse);
+      final saved = await MemoStorage.loadMemos();
+      expect(saved.length, 1);
     });
   });
 }

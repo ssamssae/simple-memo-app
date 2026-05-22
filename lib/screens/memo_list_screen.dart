@@ -170,39 +170,127 @@ class _MemoListScreenState extends State<MemoListScreen> {
       return;
     }
     if (value == 'import') {
-      try {
-        final result = await ExportImportService.pickAndImport();
-        if (result == null) return;
-        final (incoming, total) = result;
-        if (incoming == 0) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('가져올 메모가 없습니다')),
-          );
-          return;
-        }
-        await _loadMemos();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('메모 $incoming개 가져왔습니다 (전체 $total개)'),
-            action: SnackBarAction(
-              label: '되돌리기',
-              onPressed: _handleUndoImport,
-            ),
-          ),
-        );
-      } on FormatException {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('올바른 메모요 백업 파일이 아닙니다')),
-        );
-      }
+      await _handleDriveImport();
       return;
     }
     if (value == 'undo') {
       await _handleUndoImport();
     }
+  }
+
+  /// "메모 가져오기" → Drive Memoyo 폴더의 백업 목록 → 선택 → import.
+  Future<void> _handleDriveImport() async {
+    final listResult = await DriveBackupService.listBackups();
+    if (!mounted) return;
+    switch (listResult) {
+      case DriveBackupListFailure(:final error):
+        _showDriveError(error);
+      case DriveBackupListSuccess(:final entries):
+        if (entries.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Drive 에 백업 파일이 없어요')),
+          );
+          return;
+        }
+        final picked = await _pickDriveBackup(entries);
+        if (picked == null || !mounted) return;
+        try {
+          final source = await DriveBackupService.downloadBackup(picked.id);
+          final (incoming, total) =
+              await ExportImportService.importFromSource(source);
+          if (!mounted) return;
+          if (incoming == 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('가져올 메모가 없습니다')),
+            );
+            return;
+          }
+          await _loadMemos();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('메모 $incoming개 가져왔습니다 (전체 $total개)'),
+              action: SnackBarAction(
+                label: '되돌리기',
+                onPressed: _handleUndoImport,
+              ),
+            ),
+          );
+        } on FormatException {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('올바른 메모요 백업 파일이 아닙니다')),
+          );
+        } catch (e) {
+          if (!mounted) return;
+          _showDriveError(DriveBackupService.mapErrorForTest(e));
+        }
+    }
+  }
+
+  void _showDriveError(DriveBackupResult error) {
+    final message = switch (error) {
+      DriveBackupNetworkError() => '인터넷 연결을 확인해주세요',
+      DriveBackupPermissionDenied() => 'Drive 권한이 필요해요',
+      DriveBackupQuotaExceeded() => 'Drive 용량이 부족해요',
+      DriveBackupUnknown(:final message) => 'Drive 가져오기 실패: $message',
+      DriveBackupSuccess() => '',
+    };
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<DriveBackupEntry?> _pickDriveBackup(
+      List<DriveBackupEntry> entries) async {
+    return showModalBottomSheet<DriveBackupEntry>(
+      context: context,
+      backgroundColor: const Color(0xFF2C2C2E),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Drive 백업 선택',
+                style: TextStyle(
+                    color: Colors.amber,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: entries.length,
+                itemBuilder: (ctx, i) {
+                  final e = entries[i];
+                  return ListTile(
+                    leading: const Icon(Icons.description_outlined,
+                        color: Colors.amber),
+                    title: Text(_backupLabel(e),
+                        style: const TextStyle(color: Colors.white)),
+                    onTap: () => Navigator.of(ctx).pop(e),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// memoyo-export-2026-05-19T20-17-00.json → 2026-05-19 20:17:00
+  String _backupLabel(DriveBackupEntry e) {
+    final m = RegExp(
+            r'memoyo-export-(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})')
+        .firstMatch(e.name);
+    if (m != null) {
+      return '${m.group(1)} ${m.group(2)}:${m.group(3)}:${m.group(4)}';
+    }
+    return e.name;
   }
 
   Future<void> _handleUndoImport() async {

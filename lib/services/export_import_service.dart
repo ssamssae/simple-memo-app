@@ -26,18 +26,10 @@ class ExportImportService {
     }
   }
 
-  /// Returns (importedCount, totalCount) on success; null on user cancel.
+  /// Parses [source] JSON, snapshots current memos (for UNDO), and silently
+  /// merges. Returns (importedCount, totalCount).
   /// Throws [FormatException] on invalid JSON — caller shows toast.
-  static Future<(int, int)?> pickAndImport() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-    );
-    if (result == null || result.files.isEmpty) return null;
-    final path = result.files.single.path;
-    if (path == null) return null;
-
-    final source = await File(path).readAsString();
+  static Future<(int, int)> importFromSource(String source) async {
     final incoming = parseImport(source);
     if (incoming == null) {
       throw const FormatException('not a memoyo backup');
@@ -51,6 +43,21 @@ class ExportImportService {
     final merged = mergeSilently(existing, incoming);
     await MemoStorage.saveMemos(merged);
     return (incoming.length, merged.length);
+  }
+
+  /// Returns (importedCount, totalCount) on success; null on user cancel.
+  /// Throws [FormatException] on invalid JSON — caller shows toast.
+  static Future<(int, int)?> pickAndImport() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
+    if (result == null || result.files.isEmpty) return null;
+    final path = result.files.single.path;
+    if (path == null) return null;
+
+    final source = await File(path).readAsString();
+    return importFromSource(source);
   }
 
   static Future<List<Memo>?> undoImport() async {
