@@ -471,7 +471,6 @@ class _MemoListScreenState extends State<MemoListScreen> {
   // _memos에서 해당 그룹의 원본 인덱스를 찾아 직접 조작.
   void _onReorderFav(int oldIndex, int newIndex) {
     _closeAllSwipes();
-    if (newIndex > oldIndex) newIndex--;
 
     // _memos 내 즐겨찾기 항목들의 원본 인덱스 목록
     final favOriginalIndices = <int>[];
@@ -508,7 +507,6 @@ class _MemoListScreenState extends State<MemoListScreen> {
 
   void _onReorderNormal(int oldIndex, int newIndex) {
     _closeAllSwipes();
-    if (newIndex > oldIndex) newIndex--;
 
     final normalOriginalIndices = <int>[];
     for (int i = 0; i < _memos.length; i++) {
@@ -715,7 +713,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: favorites.length,
-                            onReorder: _onReorderFav,
+                            onReorderItem: _onReorderFav,
                             buildDefaultDragHandles: false,
                             proxyDecorator: (child, index, animation) {
                               return Material(
@@ -750,7 +748,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: normals.length,
-                            onReorder: _onReorderNormal,
+                            onReorderItem: _onReorderNormal,
                             buildDefaultDragHandles: false,
                             proxyDecorator: (child, index, animation) {
                               return Material(
