@@ -33,6 +33,36 @@ class DriveBackupUnknown extends DriveBackupResult {
   const DriveBackupUnknown(this.message);
 }
 
+class DriveBackupEntry {
+  final String id;
+  final String name;
+  final DateTime? modifiedTime;
+
+  const DriveBackupEntry({
+    required this.id,
+    required this.name,
+    this.modifiedTime,
+  });
+}
+
+sealed class DriveBackupListResult {
+  const DriveBackupListResult();
+}
+
+class DriveBackupListSuccess extends DriveBackupListResult {
+  final List<DriveBackupEntry> entries;
+  const DriveBackupListSuccess(this.entries);
+}
+
+class DriveBackupListFailure extends DriveBackupListResult {
+  final DriveBackupResult error;
+  const DriveBackupListFailure(this.error);
+}
+
+class DriveBackupDownloadAuthException implements Exception {
+  const DriveBackupDownloadAuthException();
+}
+
 class DriveBackupService {
   static const _scopes = ['https://www.googleapis.com/auth/drive.file'];
   static final _signIn = GoogleSignIn(scopes: _scopes);
@@ -48,6 +78,9 @@ class DriveBackupService {
 
   static DriveBackupResult mapErrorForTest(Object e) {
     if (e is SocketException) return const DriveBackupNetworkError();
+    if (e is DriveBackupDownloadAuthException) {
+      return const DriveBackupPermissionDenied();
+    }
     if (e is drive.DetailedApiRequestError) {
       if (e.status == 403 &&
           (e.message?.contains('storageQuotaExceeded') ?? false)) {
@@ -58,6 +91,77 @@ class DriveBackupService {
       }
     }
     return DriveBackupUnknown(e.toString());
+  }
+
+  static Future<DriveBackupListResult> listBackups() async {
+    try {
+      final account = await _signIn.signIn();
+      if (account == null) {
+        return const DriveBackupListFailure(DriveBackupPermissionDenied());
+      }
+      final authClient = await _signIn.authenticatedClient();
+      if (authClient == null) {
+        return const DriveBackupListFailure(DriveBackupPermissionDenied());
+      }
+
+      final api = drive.DriveApi(authClient);
+      final folderId = await findMemoyoFolderForTest(api);
+      if (folderId == null) {
+        return const DriveBackupListSuccess([]);
+      }
+      final entries = await listBackupsInFolderForTest(api, folderId);
+      return DriveBackupListSuccess(entries);
+    } catch (e) {
+      return DriveBackupListFailure(mapErrorForTest(e));
+    }
+  }
+
+  static Future<List<DriveBackupEntry>> listBackupsInFolderForTest(
+    drive.DriveApi api,
+    String folderId,
+  ) async {
+    final query =
+        "'$folderId' in parents and mimeType = 'application/json' and trashed = false";
+    final list = await api.files.list(
+      q: query,
+      spaces: 'drive',
+      orderBy: 'createdTime desc',
+      $fields: 'files(id, name, modifiedTime)',
+    );
+    final files = list.files ?? [];
+    return [
+      for (final f in files)
+        if (f.id != null)
+          DriveBackupEntry(
+            id: f.id!,
+            name: f.name ?? f.id!,
+            modifiedTime: f.modifiedTime,
+          ),
+    ];
+  }
+
+  static Future<String> downloadBackup(String fileId) async {
+    final authClient = await _signIn.authenticatedClient();
+    if (authClient == null) {
+      throw const DriveBackupDownloadAuthException();
+    }
+    final api = drive.DriveApi(authClient);
+    return downloadBackupContentForTest(api, fileId);
+  }
+
+  static Future<String> downloadBackupContentForTest(
+    drive.DriveApi api,
+    String fileId,
+  ) async {
+    final media = await api.files.get(
+      fileId,
+      downloadOptions: drive.DownloadOptions.fullMedia,
+    ) as drive.Media;
+    final bytes = <int>[];
+    await for (final chunk in media.stream) {
+      bytes.addAll(chunk);
+    }
+    return utf8.decode(bytes);
   }
 
   static Future<DriveBackupResult> uploadBackup(List<Memo> memos) async {
@@ -139,6 +243,21 @@ class DriveBackupService {
   }
 
   static Future<String> ensureMemoyoFolderForTest(drive.DriveApi api) async {
+    final existingId = await findMemoyoFolderForTest(api);
+    if (existingId != null) return existingId;
+
+    const folderName = 'Memoyo';
+    const folderMime = 'application/vnd.google-apps.folder';
+    final folder = await api.files.create(
+      drive.File()
+        ..name = folderName
+        ..mimeType = folderMime,
+      $fields: 'id',
+    );
+    return folder.id!;
+  }
+
+  static Future<String?> findMemoyoFolderForTest(drive.DriveApi api) async {
     const folderName = 'Memoyo';
     const folderMime = 'application/vnd.google-apps.folder';
     final query =
@@ -151,12 +270,6 @@ class DriveBackupService {
     if (list.files != null && list.files!.isNotEmpty) {
       return list.files!.first.id!;
     }
-    final folder = await api.files.create(
-      drive.File()
-        ..name = folderName
-        ..mimeType = folderMime,
-      $fields: 'id',
-    );
-    return folder.id!;
+    return null;
   }
 }
