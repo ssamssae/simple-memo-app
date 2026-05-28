@@ -1,3 +1,8 @@
+// SDK 정책 v1 (옵션 1 fvm 통일) 확정 전 cross-SDK lint cascade 끊기.
+// Flutter 3.41.9 (non-null onReorder) + Flutter 3.44.0 (nullable onReorder)
+// 양쪽 모두 analyze clean. 형님 ack 후 onReorder → onReorderItem migration.
+// ignore_for_file: unnecessary_non_null_assertion, deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -62,7 +67,7 @@ void main() {
 
       // 콜백 직접 invoke — drag gesture 시뮬레이션은 nested-scroll +
       // shrinkWrap 환경에서 flaky 하므로 callback contract 만 검증.
-      reorderable.onReorder(0, 1);
+      reorderable.onReorder!(0, 1);
       await tester.pumpAndSettle();
 
       // _onReorderFav 의 알고리즘 (newIndex 보정 X) 결과: [F2, F1, F3]
@@ -113,7 +118,7 @@ void main() {
       final reorderable = await pumpAndFindReorderable(tester, index: 0);
       expect(reorderable.onReorder, isA<ReorderCallback>());
 
-      reorderable.onReorder(2, 0);
+      reorderable.onReorder!(2, 0);
       await tester.pumpAndSettle();
 
       // _onReorderNormal 의 알고리즘 (newIndex 보정 X) 결과: [N3, N1, N2]
