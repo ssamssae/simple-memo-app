@@ -249,6 +249,31 @@ class DriveBackupService {
     return result.id!;
   }
 
+  static Future<List<Memo>?> downloadLatestForTest(drive.DriveApi api) async {
+    final folderId = await ensureMemoyoFolderForTest(api);
+    final query =
+        "'$folderId' in parents and mimeType = 'application/json' and trashed = false";
+    final list = await api.files.list(
+      q: query,
+      spaces: 'drive',
+      orderBy: 'createdTime desc',
+      $fields: 'files(id, name, createdTime)',
+    );
+    final files = list.files ?? [];
+    if (files.isEmpty) return null;
+    final latest = files.first;
+    final media = await api.files.get(
+      latest.id!,
+      downloadOptions: drive.DownloadOptions.fullMedia,
+    ) as drive.Media;
+    final bytes = <int>[];
+    await for (final chunk in media.stream) {
+      bytes.addAll(chunk);
+    }
+    final jsonStr = utf8.decode(bytes);
+    return Memo.decodeList(jsonStr);
+  }
+
   static Future<String> ensureMemoyoFolderForTest(drive.DriveApi api) async {
     final existingId = await findMemoyoFolderForTest(api);
     if (existingId != null) return existingId;
