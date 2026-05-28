@@ -51,7 +51,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<!-- Google Sign-In OAuth (1.0.7 (1) Drive 백업). REVERSED_CLIENT_ID 는 Google Cloud Console 의 iOS OAuth client 생성 후 실제 값으로 교체 — Task 11 형님 손 단계. -->
+	<!-- Google Sign-In OAuth (1.0.7 Drive 백업). CLIENT_ID + REVERSED_CLIENT_ID from iOS OAuth client. -->
+	<key>GIDClientID</key>
+	<string>601847949978-csqh74o6bd23vl9ffvcbu37qis2ep6pr.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
