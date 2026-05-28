@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/memo.dart';
 
 class MemoEditScreen extends StatefulWidget {
@@ -213,6 +214,17 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     Navigator.pop(context);
   }
 
+  Future<void> _shareMemo() async {
+    final memo = _buildMemo();
+    if (memo == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('공유할 내용이 없습니다.')));
+      return;
+    }
+    await Share.share(memo.content, subject: memo.title);
+  }
+
   Future<void> _cancelEdit() async {
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
@@ -350,6 +362,14 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
             ),
           ),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.share, size: 20),
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+              color: Colors.amber.shade300,
+              tooltip: '공유',
+              onPressed: _shareMemo,
+            ),
             ValueListenableBuilder<UndoHistoryValue>(
               valueListenable: _undoController,
               builder: (context, value, _) {
@@ -588,9 +608,19 @@ class _LargeCupertinoSelectionControls extends CupertinoTextSelectionControls {
         handle = SizedBox.fromSize(size: desiredSize, child: customPaint);
         return Transform(
           transform: Matrix4.identity()
-            ..translate(desiredSize.width / 2, desiredSize.height / 2)
+            ..translateByDouble(
+              desiredSize.width / 2,
+              desiredSize.height / 2,
+              0,
+              1,
+            )
             ..rotateZ(math.pi)
-            ..translate(-desiredSize.width / 2, -desiredSize.height / 2),
+            ..translateByDouble(
+              -desiredSize.width / 2,
+              -desiredSize.height / 2,
+              0,
+              1,
+            ),
           child: handle,
         );
       case TextSelectionHandleType.collapsed:
