@@ -24,6 +24,8 @@ class Memo {
     return line.trim();
   }
 
+  String get title => firstLine;
+
   // copyWith: 불변 방식으로 필드 변경
   Memo copyWith({
     String? content,
