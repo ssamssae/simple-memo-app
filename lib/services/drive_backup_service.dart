@@ -35,7 +35,14 @@ class DriveBackupUnknown extends DriveBackupResult {
 
 class DriveBackupService {
   static const _scopes = ['https://www.googleapis.com/auth/drive.file'];
-  static final _signIn = GoogleSignIn(scopes: _scopes);
+  // Android: google-services.json 부재로 default OAuth client 미해결 → ApiException 10
+  // (DEVELOPER_ERROR). Web OAuth client 의 serverClientId 박아 platform-independent
+  // sign-in. iOS 는 Info.plist GIDClientID 가 별도로 적용.
+  static final _signIn = GoogleSignIn(
+    serverClientId:
+        '601847949978-8esieuqqqeokdeh1erp6sjjl1m9h4rgn.apps.googleusercontent.com',
+    scopes: _scopes,
+  );
 
   static Future<DriveBackupResult?> obtainAuthClientForTest(
       GoogleSignIn gsi) async {
