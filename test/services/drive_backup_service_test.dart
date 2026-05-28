@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -15,7 +16,8 @@ class _MockFilesResource extends Mock implements drive.FilesResource {}
 void main() {
   group('DriveBackupResult', () {
     test('Success holds folderUrl', () {
-      const r = DriveBackupSuccess('https://drive.google.com/drive/folders/abc');
+      const r =
+          DriveBackupSuccess('https://drive.google.com/drive/folders/abc');
       expect(r.folderUrl, 'https://drive.google.com/drive/folders/abc');
     });
 
@@ -25,7 +27,9 @@ void main() {
       expect(a, isNot(equals(b)));
     });
 
-    test('PermissionDenied / QuotaExceeded / Unknown all subtype DriveBackupResult', () {
+    test(
+        'PermissionDenied / QuotaExceeded / Unknown all subtype DriveBackupResult',
+        () {
       const list = <DriveBackupResult>[
         DriveBackupSuccess('x'),
         DriveBackupNetworkError(),
@@ -76,11 +80,28 @@ void main() {
             spaces: any(named: 'spaces'),
             $fields: any(named: r'$fields'),
           )).thenAnswer((_) async => drive.FileList(files: [
-                drive.File()..id = 'existingId',
-              ]));
+            drive.File()..id = 'existingId',
+          ]));
 
       final id = await DriveBackupService.ensureMemoyoFolderForTest(api);
       expect(id, 'existingId');
+      verifyNever(() => files.create(any(), $fields: any(named: r'$fields')));
+    });
+  });
+
+  group('DriveBackupService.findMemoyoFolder', () {
+    test('폴더 없음 → null 반환, create 호출 X', () async {
+      final api = _MockDriveApi();
+      final files = _MockFilesResource();
+      when(() => api.files).thenReturn(files);
+      when(() => files.list(
+            q: any(named: 'q'),
+            spaces: any(named: 'spaces'),
+            $fields: any(named: r'$fields'),
+          )).thenAnswer((_) async => drive.FileList(files: []));
+
+      final id = await DriveBackupService.findMemoyoFolderForTest(api);
+      expect(id, isNull);
       verifyNever(() => files.create(any(), $fields: any(named: r'$fields')));
     });
   });
@@ -204,6 +225,87 @@ void main() {
     test('그 외 Exception → Unknown', () {
       final r = DriveBackupService.mapErrorForTest(Exception('something else'));
       expect(r, isA<DriveBackupUnknown>());
+    });
+
+    test('DriveBackupDownloadAuthException → PermissionDenied', () {
+      final r = DriveBackupService.mapErrorForTest(
+          const DriveBackupDownloadAuthException());
+      expect(r, isA<DriveBackupPermissionDenied>());
+    });
+  });
+
+  group('DriveBackupService.listBackupsInFolder', () {
+    test('파일 목록 → DriveBackupEntry 매핑 + createdTime desc 쿼리', () async {
+      final api = _MockDriveApi();
+      final files = _MockFilesResource();
+      when(() => api.files).thenReturn(files);
+      when(() => files.list(
+            q: any(named: 'q'),
+            spaces: any(named: 'spaces'),
+            orderBy: any(named: 'orderBy'),
+            $fields: any(named: r'$fields'),
+          )).thenAnswer((_) async => drive.FileList(files: [
+            drive.File()
+              ..id = 'a'
+              ..name = 'memoyo-export-2026-05-19T20-17-00.json',
+            drive.File()
+              ..id = 'b'
+              ..name = 'memoyo-export-2026-05-18T09-00-00.json',
+          ]));
+
+      final entries =
+          await DriveBackupService.listBackupsInFolderForTest(api, 'folderId');
+      expect(entries.length, 2);
+      expect(entries.first.id, 'a');
+      expect(entries.first.name, 'memoyo-export-2026-05-19T20-17-00.json');
+
+      final captured = verify(() => files.list(
+            q: captureAny(named: 'q'),
+            spaces: any(named: 'spaces'),
+            orderBy: captureAny(named: 'orderBy'),
+            $fields: any(named: r'$fields'),
+          )).captured;
+      expect(captured[0], contains("'folderId' in parents"));
+      expect(captured[1], 'createdTime desc');
+    });
+
+    test('빈 폴더 → 빈 list', () async {
+      final api = _MockDriveApi();
+      final files = _MockFilesResource();
+      when(() => api.files).thenReturn(files);
+      when(() => files.list(
+            q: any(named: 'q'),
+            spaces: any(named: 'spaces'),
+            orderBy: any(named: 'orderBy'),
+            $fields: any(named: r'$fields'),
+          )).thenAnswer((_) async => drive.FileList(files: []));
+
+      final entries =
+          await DriveBackupService.listBackupsInFolderForTest(api, 'folderId');
+      expect(entries, isEmpty);
+    });
+  });
+
+  group('DriveBackupService.downloadBackupContent', () {
+    test('Media stream → utf8 디코드 문자열', () async {
+      final api = _MockDriveApi();
+      final files = _MockFilesResource();
+      when(() => api.files).thenReturn(files);
+      const jsonStr = '[{"id":"1","content":"hi"}]';
+      final bytes = utf8.encode(jsonStr);
+      when(() => files.get(
+            'file123',
+            downloadOptions: drive.DownloadOptions.fullMedia,
+          )).thenAnswer(
+        (_) async => drive.Media(
+          Stream<List<int>>.fromIterable([bytes]),
+          bytes.length,
+        ),
+      );
+
+      final content =
+          await DriveBackupService.downloadBackupContentForTest(api, 'file123');
+      expect(content, jsonStr);
     });
   });
 }
