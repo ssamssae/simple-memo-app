@@ -62,7 +62,7 @@ void main() {
 
       // 콜백 직접 invoke — drag gesture 시뮬레이션은 nested-scroll +
       // shrinkWrap 환경에서 flaky 하므로 callback contract 만 검증.
-      reorderable.onReorder!(0, 1);
+      reorderable.onReorder(0, 1);
       await tester.pumpAndSettle();
 
       // _onReorderFav 의 알고리즘 (newIndex 보정 X) 결과: [F2, F1, F3]
@@ -113,7 +113,7 @@ void main() {
       final reorderable = await pumpAndFindReorderable(tester, index: 0);
       expect(reorderable.onReorder, isA<ReorderCallback>());
 
-      reorderable.onReorder!(2, 0);
+      reorderable.onReorder(2, 0);
       await tester.pumpAndSettle();
 
       // _onReorderNormal 의 알고리즘 (newIndex 보정 X) 결과: [N3, N1, N2]
