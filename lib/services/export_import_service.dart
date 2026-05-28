@@ -1,9 +1,6 @@
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../models/memo.dart';
 import 'memo_storage.dart';
@@ -27,32 +24,6 @@ class ExportImportService {
     } catch (_) {
       return null;
     }
-  }
-
-  static Future<File> writeExportFile(List<Memo> memos) async {
-    final dir = await getTemporaryDirectory();
-    final ts = DateTime.now()
-        .toIso8601String()
-        .replaceAll(':', '')
-        .replaceAll('.', '')
-        .replaceAll('-', '')
-        .substring(0, 15);
-    final file = File('${dir.path}/memoyo-export-$ts.json');
-    await file.writeAsString(Memo.encodeList(memos));
-    return file;
-  }
-
-  static Future<void> shareExport(
-    List<Memo> memos, {
-    Rect? sharePositionOrigin,
-  }) async {
-    final file = await writeExportFile(memos);
-    await Share.shareXFiles(
-      [XFile(file.path, mimeType: 'application/json')],
-      text: '메모요 백업',
-      sharePositionOrigin:
-          sharePositionOrigin ?? const Rect.fromLTWH(0, 0, 100, 100),
-    );
   }
 
   /// Returns (importedCount, totalCount) on success; null on user cancel.
