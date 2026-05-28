@@ -68,12 +68,24 @@ class _MemoListScreenState extends State<MemoListScreen> {
       ),
     );
     if (confirmed == true && mounted) {
+      final deleted = <_DeletedMemo>[];
+      for (int i = 0; i < _memos.length; i++) {
+        final memo = _memos[i];
+        if (_selectedIds.contains(memo.id)) {
+          deleted.add(_DeletedMemo(memo: memo, index: i));
+        }
+      }
       setState(() {
         _memos.removeWhere((m) => _selectedIds.contains(m.id));
+        for (final item in deleted) {
+          _unfavoriteAnchors.remove(item.memo.id);
+        }
         _selectedIds.clear();
         _isEditMode = false;
       });
-      _saveMemos();
+      await _saveMemos();
+      if (!mounted) return;
+      _showDeleteUndoSnackBar(deleted);
     }
   }
 
@@ -219,6 +231,41 @@ class _MemoListScreenState extends State<MemoListScreen> {
     await MemoStorage.saveMemos(_memos);
   }
 
+  Future<void> _restoreDeletedMemos(List<_DeletedMemo> deleted) async {
+    if (deleted.isEmpty || !mounted) return;
+    setState(() {
+      for (final item in deleted) {
+        if (_memos.any((m) => m.id == item.memo.id)) continue;
+        final insertAt = item.index.clamp(0, _memos.length).toInt();
+        _memos.insert(insertAt, item.memo);
+      }
+      _ensureGroupOrder();
+    });
+    await _saveMemos();
+  }
+
+  void _showDeleteUndoSnackBar(List<_DeletedMemo> deleted) {
+    if (deleted.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          deleted.length == 1
+              ? '메모를 삭제했습니다'
+              : '메모 ${deleted.length}개를 삭제했습니다',
+        ),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: '실행 취소',
+          onPressed: () async {
+            await _restoreDeletedMemos(deleted);
+          },
+        ),
+      ),
+    );
+  }
+
   void _closeAllSwipes() {
     _closeSwipeNotifier.value++;
     _openSwipeIds.clear();
@@ -319,6 +366,8 @@ class _MemoListScreenState extends State<MemoListScreen> {
         _unfavoriteAnchors.remove(memoId);
       });
       await _saveMemos();
+      if (!mounted) return;
+      _showDeleteUndoSnackBar([_DeletedMemo(memo: memo, index: index)]);
     }
   }
 
@@ -366,7 +415,6 @@ class _MemoListScreenState extends State<MemoListScreen> {
   // _memos에서 해당 그룹의 원본 인덱스를 찾아 직접 조작.
   void _onReorderFav(int oldIndex, int newIndex) {
     _closeAllSwipes();
-    if (newIndex > oldIndex) newIndex--;
 
     // _memos 내 즐겨찾기 항목들의 원본 인덱스 목록
     final favOriginalIndices = <int>[];
@@ -403,7 +451,6 @@ class _MemoListScreenState extends State<MemoListScreen> {
 
   void _onReorderNormal(int oldIndex, int newIndex) {
     _closeAllSwipes();
-    if (newIndex > oldIndex) newIndex--;
 
     final normalOriginalIndices = <int>[];
     for (int i = 0; i < _memos.length; i++) {
@@ -610,7 +657,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: favorites.length,
-                            onReorder: _onReorderFav,
+                            onReorderItem: _onReorderFav,
                             buildDefaultDragHandles: false,
                             proxyDecorator: (child, index, animation) {
                               return Material(
@@ -645,7 +692,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: normals.length,
-                            onReorder: _onReorderNormal,
+                            onReorderItem: _onReorderNormal,
                             buildDefaultDragHandles: false,
                             proxyDecorator: (child, index, animation) {
                               return Material(
@@ -695,6 +742,16 @@ class _MemoListScreenState extends State<MemoListScreen> {
       ),
     );
   }
+}
+
+class _DeletedMemo {
+  final Memo memo;
+  final int index;
+
+  const _DeletedMemo({
+    required this.memo,
+    required this.index,
+  });
 }
 
 // --- 스와이프 아이템 위젯 (변경 없음) ---
