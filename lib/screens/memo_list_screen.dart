@@ -5,6 +5,7 @@ import '../services/drive_backup_service.dart';
 import '../services/export_import_service.dart';
 import '../services/memo_storage.dart';
 import '../services/snapshot_store.dart';
+import '../widgets/version_footer.dart';
 import 'memo_edit_screen.dart';
 
 class MemoListScreen extends StatefulWidget {
@@ -614,6 +615,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         extendBody: true,
+        bottomNavigationBar: const SafeArea(child: VersionFooter()),
         appBar: AppBar(
           centerTitle: true,
           scrolledUnderElevation: 0,
