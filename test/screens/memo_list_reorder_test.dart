@@ -1,6 +1,7 @@
 // SDK 정책 v1 (옵션 1 fvm 통일) 확정 전 cross-SDK lint cascade 끊기.
-// Flutter 3.44+ onReorderItem API wiring 회귀 방지.
-// ignore_for_file: unnecessary_non_null_assertion
+// Flutter 3.41.9 (non-null onReorder) + Flutter 3.44.0 (nullable onReorder)
+// 양쪽 모두 analyze clean. 형님 ack 후 onReorder → onReorderItem migration.
+// ignore_for_file: unnecessary_non_null_assertion, deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,10 +28,10 @@ void main() {
   }
 
   testWidgets(
-    'favorites reorder — onReorderItem(0,1) → [F1,F2,F3] → [F2,F1,F3] + SharedPreferences 영속',
+    'favorites reorder — onReorder(0,1) → [F1,F2,F3] → [F2,F1,F3] + SharedPreferences 영속',
     (tester) async {
       // 사이클 #3 onReorder → onReorderItem 회귀 사고 재발 방지 안전망.
-      // 콜백 named arg 가 'onReorderItem' 이 아니면 컴파일 실패 + 런타임에서
+      // 콜백 named arg 가 'onReorder' 가 아니면 컴파일 실패 + 런타임에서
       // 콜백 invoke 시 의도된 reorder 가 안 일어나면 검증 실패.
       final now = DateTime(2026, 5, 29, 2, 0);
       final favs = [
@@ -62,11 +63,11 @@ void main() {
 
       final reorderable = await pumpAndFindReorderable(tester, index: 0);
       // 콜백 wiring 자체 — 사이클 #3 회귀 직접 방어. ReorderCallback 타입.
-      expect(reorderable.onReorderItem, isA<ReorderCallback>());
+      expect(reorderable.onReorder, isA<ReorderCallback>());
 
       // 콜백 직접 invoke — drag gesture 시뮬레이션은 nested-scroll +
       // shrinkWrap 환경에서 flaky 하므로 callback contract 만 검증.
-      reorderable.onReorderItem!(0, 1);
+      reorderable.onReorder!(0, 1);
       await tester.pumpAndSettle();
 
       // _onReorderFav 의 알고리즘 (newIndex 보정 X) 결과: [F2, F1, F3]
@@ -86,7 +87,7 @@ void main() {
   );
 
   testWidgets(
-    'normal reorder — onReorderItem(2,0) → [N1,N2,N3] → [N3,N1,N2] + SharedPreferences 영속',
+    'normal reorder — onReorder(2,0) → [N1,N2,N3] → [N3,N1,N2] + SharedPreferences 영속',
     (tester) async {
       final now = DateTime(2026, 5, 29, 2, 5);
       final normals = [
@@ -115,9 +116,9 @@ void main() {
 
       // favorites 가 없으므로 ReorderableListView 인스턴스 1개 (normals).
       final reorderable = await pumpAndFindReorderable(tester, index: 0);
-      expect(reorderable.onReorderItem, isA<ReorderCallback>());
+      expect(reorderable.onReorder, isA<ReorderCallback>());
 
-      reorderable.onReorderItem!(2, 0);
+      reorderable.onReorder!(2, 0);
       await tester.pumpAndSettle();
 
       // _onReorderNormal 의 알고리즘 (newIndex 보정 X) 결과: [N3, N1, N2]
