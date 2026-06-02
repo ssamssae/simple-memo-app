@@ -1,6 +1,7 @@
 // SDK 정책 v1 (옵션 1 fvm 통일) 확정 전 cross-SDK lint cascade 끊기.
-// Flutter 3.44+ onReorderItem API wiring 회귀 방지.
-// ignore_for_file: unnecessary_non_null_assertion
+// Flutter 3.41.9 (non-null onReorder) + Flutter 3.44.0 (nullable onReorder)
+// 양쪽 모두 analyze clean. 형님 ack 후 onReorder → onReorderItem migration.
+// ignore_for_file: unnecessary_non_null_assertion, deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -68,7 +69,7 @@ void main() {
       expect(normalReorderable.itemCount, 2);
 
       // normal reorder(1, 0) → [N3 fav | N2, N1] (N1 과 N2 swap, N3 영향 0)
-      normalReorderable.onReorderItem!(1, 0);
+      normalReorderable.onReorder!(1, 0);
       await tester.pumpAndSettle();
 
       final prefs = await SharedPreferences.getInstance();
@@ -122,7 +123,7 @@ void main() {
       expect(normalReorderable.itemCount, 1);
 
       // favorites reorder(0, 1) → [F2, F1, N1]
-      favReorderable.onReorderItem!(0, 1);
+      favReorderable.onReorder!(0, 1);
       await tester.pumpAndSettle();
 
       final prefs = await SharedPreferences.getInstance();

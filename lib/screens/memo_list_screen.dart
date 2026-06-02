@@ -778,7 +778,8 @@ class _MemoListScreenState extends State<MemoListScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: favorites.length,
-                            onReorderItem: _onReorderFav,
+                            // ignore: deprecated_member_use
+                            onReorder: _onReorderFav,
                             buildDefaultDragHandles: false,
                             proxyDecorator: (child, index, animation) {
                               return Material(
@@ -813,7 +814,8 @@ class _MemoListScreenState extends State<MemoListScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: normals.length,
-                            onReorderItem: _onReorderNormal,
+                            // ignore: deprecated_member_use
+                            onReorder: _onReorderNormal,
                             buildDefaultDragHandles: false,
                             proxyDecorator: (child, index, animation) {
                               return Material(
