@@ -7,6 +7,7 @@ import '../services/memo_storage.dart';
 import '../services/snapshot_store.dart';
 import '../widgets/version_footer.dart';
 import 'memo_edit_screen.dart';
+import 'settings_screen.dart';
 
 class MemoListScreen extends StatefulWidget {
   const MemoListScreen({super.key});
@@ -184,6 +185,13 @@ class _MemoListScreenState extends State<MemoListScreen> {
     }
     if (value == 'import') {
       await _handleDriveImport();
+      return;
+    }
+    if (value == 'settings') {
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => const SettingsScreen()),
+      );
       return;
     }
     if (value == 'undo') {
@@ -707,6 +715,12 @@ class _MemoListScreenState extends State<MemoListScreen> {
                     child: Text('메모 가져오기',
                         style: TextStyle(color: Colors.amber)),
                   ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: 'settings',
+                    child:
+                        Text('설정', style: TextStyle(color: Colors.amber)),
+                  ),
                   if (_hasImportSnapshot)
                     const PopupMenuItem(
                       value: 'undo',
@@ -764,7 +778,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: favorites.length,
-                            onReorder: _onReorderFav,
+                            onReorderItem: _onReorderFav,
                             buildDefaultDragHandles: false,
                             proxyDecorator: (child, index, animation) {
                               return Material(
@@ -799,7 +813,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: normals.length,
-                            onReorder: _onReorderNormal,
+                            onReorderItem: _onReorderNormal,
                             buildDefaultDragHandles: false,
                             proxyDecorator: (child, index, animation) {
                               return Material(

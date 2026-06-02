@@ -23,6 +23,7 @@ void main() {
 
       final driveItem = find.text('Drive 에 백업');
       expect(driveItem, findsOneWidget);
+      expect(find.text('설정'), findsOneWidget);
 
       await tester.tap(driveItem);
       await tester.pump();
