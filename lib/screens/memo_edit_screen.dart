@@ -222,7 +222,14 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       ).showSnackBar(const SnackBar(content: Text('공유할 내용이 없습니다.')));
       return;
     }
-    await Share.share(memo.content, subject: memo.title);
+    try {
+      await Share.share(memo.content, subject: memo.title);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('공유 실패: $e')),
+      );
+    }
   }
 
   Future<void> _cancelEdit() async {

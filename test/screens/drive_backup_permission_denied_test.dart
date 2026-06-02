@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,9 +37,9 @@ void main() {
       final calls = <MethodCall>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(gsiChannel, (call) async {
-        calls.add(call);
-        return null;
-      });
+            calls.add(call);
+            return null;
+          });
 
       await tester.pumpWidget(const MaterialApp(home: MemoListScreen()));
       await tester.pumpAndSettle();
@@ -61,4 +63,34 @@ void main() {
       expect(find.text('Drive 권한이 필요해요'), findsOneWidget);
     },
   );
+
+  testWidgets('Drive 백업 탭 직후 진행 안내를 먼저 보여준다', (tester) async {
+    final now = DateTime(2026, 6, 2, 20, 30);
+    final memo = Memo(
+      id: 'progress-1',
+      content: '진행 안내 테스트',
+      createdAt: now,
+      updatedAt: now,
+    );
+    SharedPreferences.setMockInitialValues({
+      'memos': Memo.encodeList([memo]),
+    });
+
+    final gate = Completer<Object?>();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(gsiChannel, (_) => gate.future);
+
+    await tester.pumpWidget(const MaterialApp(home: MemoListScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Drive 에 백업'));
+    await tester.pump();
+
+    expect(find.text('Drive 백업을 시작합니다'), findsOneWidget);
+
+    gate.complete(null);
+    await tester.pumpAndSettle();
+  });
 }
