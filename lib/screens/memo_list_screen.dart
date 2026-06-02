@@ -7,6 +7,7 @@ import '../services/memo_storage.dart';
 import '../services/snapshot_store.dart';
 import '../widgets/version_footer.dart';
 import 'memo_edit_screen.dart';
+import 'settings_screen.dart';
 
 class MemoListScreen extends StatefulWidget {
   const MemoListScreen({super.key});
@@ -188,6 +189,13 @@ class _MemoListScreenState extends State<MemoListScreen> {
     }
     if (value == 'undo') {
       await _handleUndoImport();
+      return;
+    }
+    if (value == 'settings') {
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => const SettingsScreen()),
+      );
     }
   }
 
@@ -713,6 +721,10 @@ class _MemoListScreenState extends State<MemoListScreen> {
                       child: Text('가져오기 되돌리기',
                           style: TextStyle(color: Colors.amber)),
                     ),
+                  const PopupMenuItem(
+                    value: 'settings',
+                    child: Text('설정', style: TextStyle(color: Colors.amber)),
+                  ),
                 ],
               ),
           ],
