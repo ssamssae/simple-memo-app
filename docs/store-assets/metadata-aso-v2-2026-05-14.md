@@ -1,6 +1,8 @@
 # 메모요 ASO 강화안 v2 — 2026-05-14
 
-기존 `metadata.md` v1.0.0 (산문 한국어 설명) → ASO 강화 (불릿 + 키워드 + 가치 제안). TC 피드백 1번 ("앱 설명에 키워드 + 기능 불릿 추가") 반영. 본 파일은 git 측 SoT, Play Console 실제 적용은 별 후속 (강대종 직접 또는 mac mini paste 운반).
+기존 `metadata.md` v1.0.0 (산문 한국어 설명) → ASO 강화 (불릿 + 키워드 + 가치 제안). TC 피드백 1번 ("앱 설명에 키워드 + 기능 불릿 추가") 반영.
+
+2026-06-03 기준 현재 SoT 는 `docs/store-assets/metadata.md` 이다. 이 파일은 v2 Google Play 강화안의 히스토리로 보관하며, Play Console / App Store Connect 복붙용 최신 초안과 "제출하지 않음" 적용 경계는 `metadata.md` 를 따른다.
 
 ## 짧은 설명 (Google Play 80자 이내)
 
