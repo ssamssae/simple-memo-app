@@ -4,9 +4,9 @@ import '../services/app_review_service.dart';
 import '../widgets/version_footer.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, this.requestReview});
+  const SettingsScreen({super.key, this.openReviewListing});
 
-  final Future<AppReviewResult> Function()? requestReview;
+  final Future<AppReviewListingResult> Function()? openReviewListing;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -14,24 +14,25 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final AppReviewService _appReviewService = AppReviewService();
-  bool _isRequestingReview = false;
+  bool _isOpeningReviewListing = false;
 
-  Future<void> _requestReview() async {
-    if (_isRequestingReview) return;
+  Future<void> _openReviewListing() async {
+    if (_isOpeningReviewListing) return;
 
     setState(() {
-      _isRequestingReview = true;
+      _isOpeningReviewListing = true;
     });
 
     final result =
-        await (widget.requestReview ?? _appReviewService.requestReview)();
+        await (widget.openReviewListing ??
+            _appReviewService.openReviewListing)();
 
     if (!mounted) return;
     setState(() {
-      _isRequestingReview = false;
+      _isOpeningReviewListing = false;
     });
 
-    if (result == AppReviewResult.unavailable) {
+    if (result == AppReviewListingResult.unavailable) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('스토어를 열 수 없습니다')));
@@ -63,14 +64,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 '앱 평가하기',
                 style: TextStyle(color: Colors.white),
               ),
-              trailing: _isRequestingReview
+              trailing: _isOpeningReviewListing
                   ? const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.chevron_right, color: Colors.amber),
-              onTap: _isRequestingReview ? null : _requestReview,
+              onTap: _isOpeningReviewListing ? null : _openReviewListing,
             ),
             const Divider(height: 0.5, thickness: 0.5),
           ],
