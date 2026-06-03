@@ -39,5 +39,29 @@ void main() {
     final arguments = calls.single.arguments as Map<dynamic, dynamic>;
     expect(arguments['text'], '제목\n본문 내용');
     expect(arguments['subject'], '제목');
+    expect(arguments['originWidth'], greaterThan(0));
+    expect(arguments['originHeight'], greaterThan(0));
+  });
+
+  testWidgets('공유 채널 실패 시 SnackBar 로 안내한다', (tester) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(shareChannel, (call) async {
+          throw PlatformException(
+            code: 'share_failed',
+            message: 'iOS share error',
+          );
+        });
+
+    final memo = Memo.create(content: '공유 실패 테스트');
+
+    await tester.pumpWidget(MaterialApp(home: MemoEditScreen(memo: memo)));
+
+    await tester.tap(find.byTooltip('공유'));
+    await tester.pump();
+
+    expect(
+      find.textContaining('PlatformException(share_failed'),
+      findsOneWidget,
+    );
   });
 }

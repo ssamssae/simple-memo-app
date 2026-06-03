@@ -33,6 +33,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
   bool _isEditMode = false;
   final Set<String> _selectedIds = {};
   bool _hasImportSnapshot = false;
+  bool _isDriveBackupRunning = false;
 
   void _toggleEditMode() {
     setState(() {
@@ -141,46 +142,7 @@ class _MemoListScreenState extends State<MemoListScreen> {
 
   Future<void> _onOverflowSelected(String value) async {
     if (value == 'drive_backup') {
-      if (_memos.isEmpty) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('내보낼 메모가 없습니다')),
-        );
-        return;
-      }
-      final result = await DriveBackupService.uploadBackup(_memos);
-      if (!mounted) return;
-      switch (result) {
-        case DriveBackupSuccess(:final folderUrl):
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Drive 에 저장됐어요'),
-              action: SnackBarAction(
-                label: 'Memoyo 폴더 열기',
-                onPressed: () async {
-                  final uri = Uri.parse(folderUrl);
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                },
-              ),
-            ),
-          );
-        case DriveBackupNetworkError():
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('인터넷 연결을 확인해주세요')),
-          );
-        case DriveBackupPermissionDenied():
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Drive 권한이 필요해요')),
-          );
-        case DriveBackupQuotaExceeded():
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Drive 용량이 부족해요')),
-          );
-        case DriveBackupUnknown(:final message):
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Drive 백업 실패: $message')),
-          );
-      }
+      await _handleDriveBackup();
       return;
     }
     if (value == 'import') {
@@ -196,6 +158,76 @@ class _MemoListScreenState extends State<MemoListScreen> {
     }
     if (value == 'undo') {
       await _handleUndoImport();
+    }
+  }
+
+  Future<void> _handleDriveBackup() async {
+    if (_memos.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('내보낼 메모가 없습니다')),
+      );
+      return;
+    }
+    if (_isDriveBackupRunning) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Drive 백업을 진행 중입니다')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isDriveBackupRunning = true;
+    });
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Drive 백업을 시작합니다'),
+          duration: Duration(seconds: 30),
+        ),
+      );
+
+    final result = await DriveBackupService.uploadBackup(_memos);
+    if (!mounted) return;
+    setState(() {
+      _isDriveBackupRunning = false;
+    });
+    _showDriveBackupResult(result);
+  }
+
+  void _showDriveBackupResult(DriveBackupResult result) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    switch (result) {
+      case DriveBackupSuccess(:final folderUrl):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Drive 에 저장됐어요'),
+            action: SnackBarAction(
+              label: 'Memoyo 폴더 열기',
+              onPressed: () async {
+                final uri = Uri.parse(folderUrl);
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              },
+            ),
+          ),
+        );
+      case DriveBackupNetworkError():
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('인터넷 연결을 확인해주세요')),
+        );
+      case DriveBackupPermissionDenied():
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Drive 권한이 필요해요')),
+        );
+      case DriveBackupQuotaExceeded():
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Drive 용량이 부족해요')),
+        );
+      case DriveBackupUnknown(:final message):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Drive 백업 실패: $message')),
+        );
     }
   }
 
