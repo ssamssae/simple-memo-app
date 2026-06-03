@@ -214,7 +214,13 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     Navigator.pop(context);
   }
 
-  Future<void> _shareMemo() async {
+  Rect? _shareOriginRect(BuildContext shareContext) {
+    final box = shareContext.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
+  Future<void> _shareMemo(BuildContext shareContext) async {
     final memo = _buildMemo();
     if (memo == null) {
       ScaffoldMessenger.of(
@@ -222,7 +228,18 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       ).showSnackBar(const SnackBar(content: Text('공유할 내용이 없습니다.')));
       return;
     }
-    await Share.share(memo.content, subject: memo.title);
+    try {
+      await Share.share(
+        memo.content,
+        subject: memo.title,
+        sharePositionOrigin: _shareOriginRect(shareContext),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('공유 실패: $e')),
+      );
+    }
   }
 
   Future<void> _cancelEdit() async {
@@ -362,13 +379,15 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
             ),
           ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.share, size: 20),
-              padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
-              color: Colors.amber.shade300,
-              tooltip: '공유',
-              onPressed: _shareMemo,
+            Builder(
+              builder: (shareContext) => IconButton(
+                icon: const Icon(Icons.share, size: 20),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                color: Colors.amber.shade300,
+                tooltip: '공유',
+                onPressed: () => _shareMemo(shareContext),
+              ),
             ),
             ValueListenableBuilder<UndoHistoryValue>(
               valueListenable: _undoController,
