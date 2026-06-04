@@ -171,7 +171,7 @@ class _TrashScreenState extends State<TrashScreen> {
                 : ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     itemCount: _trash.length,
-                    separatorBuilder: (_, __) =>
+                    separatorBuilder: (_, _) =>
                         const Divider(height: 0.5, thickness: 0.5),
                     itemBuilder: (context, index) {
                       final memo = _trash[index];
