@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/app_review_service.dart';
 import '../widgets/version_footer.dart';
+import 'backup_restore_screen.dart';
 import 'policy_screen.dart';
 import 'trash_screen.dart';
 
@@ -55,6 +56,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _openBackupRestore() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const BackupRestoreScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,6 +95,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     )
                   : const Icon(Icons.chevron_right, color: Colors.amber),
               onTap: _isOpeningReviewListing ? null : _openReviewListing,
+            ),
+            const Divider(height: 0.5, thickness: 0.5),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              leading: const Icon(
+                Icons.backup_outlined,
+                color: Colors.amber,
+              ),
+              title: const Text(
+                '백업 & 복원',
+                style: TextStyle(color: Colors.white),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.amber),
+              onTap: _openBackupRestore,
             ),
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
