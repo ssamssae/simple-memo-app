@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/app_review_service.dart';
 import '../widgets/version_footer.dart';
+import 'policy_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, this.openReviewListing});
@@ -39,6 +40,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  void _openPolicy(String title, String assetPath) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PolicyScreen(title: title, assetPath: assetPath),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,6 +81,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     )
                   : const Icon(Icons.chevron_right, color: Colors.amber),
               onTap: _isOpeningReviewListing ? null : _openReviewListing,
+            ),
+            const Divider(height: 0.5, thickness: 0.5),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              leading: const Icon(
+                Icons.description_outlined,
+                color: Colors.white70,
+              ),
+              title: const Text(
+                '이용약관',
+                style: TextStyle(color: Colors.white),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+              onTap: () => _openPolicy(
+                '이용약관',
+                'docs/legal/terms-of-service.md',
+              ),
+            ),
+            const Divider(height: 0.5, thickness: 0.5),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              leading: const Icon(
+                Icons.privacy_tip_outlined,
+                color: Colors.white70,
+              ),
+              title: const Text(
+                '개인정보처리방침',
+                style: TextStyle(color: Colors.white),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+              onTap: () => _openPolicy(
+                '개인정보처리방침',
+                'docs/legal/privacy-policy.md',
+              ),
             ),
             const Divider(height: 0.5, thickness: 0.5),
           ],
