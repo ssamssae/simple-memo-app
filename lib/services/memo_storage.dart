@@ -25,4 +25,21 @@ class MemoStorage {
       debugPrint('[MemoStorage.saveMemos] $e');
     }
   }
+
+  /// [Memo.trashRetention](기본 30일) 지난 soft-deleted 메모를 영구 삭제한다.
+  /// 활성 메모(deletedAt == null)는 절대 건드리지 않는다.
+  /// 변경이 있을 때만 저장하고, 영구삭제된 메모 수를 반환한다.
+  /// 호출 위치(다음 PR): cold start(_loadMemos) + app resume.
+  static Future<int> purgeExpiredTrash() async {
+    final all = await loadMemos();
+    final cutoff = DateTime.now().subtract(Memo.trashRetention);
+    final survivors = all.where((m) {
+      final d = m.deletedAt;
+      if (d == null) return true; // 활성 — 유지
+      return d.isAfter(cutoff); // 휴지통이지만 보관기간 안 지남 — 유지
+    }).toList();
+    final purged = all.length - survivors.length;
+    if (purged > 0) await saveMemos(survivors);
+    return purged;
+  }
 }

@@ -2,11 +2,17 @@ import 'dart:convert';
 import 'package:uuid/uuid.dart';
 
 class Memo {
+  // 휴지통 보관 기간 — 이 기간 지난 soft-deleted 메모는 영구 삭제(purge).
+  // timeUntilPurge / MemoStorage.purgeExpiredTrash 의 단일 기준값.
+  static const trashRetention = Duration(days: 30);
+
   final String id;
   String content;
   bool isFavorite;
   final DateTime createdAt;
   DateTime updatedAt;
+  // null = 활성 메모, 값 있음 = 휴지통(soft-deleted)에 들어간 시각.
+  DateTime? deletedAt;
 
   Memo({
     required this.id,
@@ -14,6 +20,7 @@ class Memo {
     this.isFavorite = false,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
   });
 
   String get firstLine {
@@ -26,11 +33,26 @@ class Memo {
 
   String get title => firstLine;
 
+  bool get isInTrash => deletedAt != null;
+
+  // 영구삭제까지 남은 시간. 활성 메모(deletedAt == null)는 Duration.zero.
+  // 이미 기간 지났으면 음수 Duration(= purge 대상).
+  Duration get timeUntilPurge {
+    final d = deletedAt;
+    if (d == null) return Duration.zero;
+    return d.add(trashRetention).difference(DateTime.now());
+  }
+
+  // deletedAt 의 "미지정(기존값 유지)" 과 "명시적 null(휴지통에서 복구)" 을
+  // 구분하기 위한 sentinel. content/isFavorite/updatedAt 은 기존 동작 유지.
+  static const _undefinedDeletedAt = Object();
+
   // copyWith: 불변 방식으로 필드 변경
   Memo copyWith({
     String? content,
     bool? isFavorite,
     DateTime? updatedAt,
+    Object? deletedAt = _undefinedDeletedAt,
   }) {
     return Memo(
       id: id,
@@ -38,6 +60,9 @@ class Memo {
       isFavorite: isFavorite ?? this.isFavorite,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: identical(deletedAt, _undefinedDeletedAt)
+          ? this.deletedAt
+          : deletedAt as DateTime?,
     );
   }
 
@@ -59,6 +84,8 @@ class Memo {
     'isFavorite': isFavorite,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
+    // 활성 메모는 키 자체를 안 박음 — 1.0.6 이하 JSON 과 동일(백워드 호환).
+    if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
   };
 
   factory Memo.fromJson(Map<String, dynamic> json) {
@@ -69,6 +96,8 @@ class Memo {
       isFavorite: json['isFavorite'] as bool? ?? false,
       createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? now,
       updatedAt: DateTime.tryParse(json['updatedAt'] ?? '') ?? now,
+      // deletedAt 키 없으면(1.0.6 이하·활성) null. 파싱 실패도 null(활성 취급, 안전).
+      deletedAt: DateTime.tryParse(json['deletedAt'] ?? ''),
     );
   }
 
