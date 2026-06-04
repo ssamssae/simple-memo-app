@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/app_review_service.dart';
 import '../widgets/version_footer.dart';
 import 'policy_screen.dart';
+import 'trash_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, this.openReviewListing});
@@ -48,6 +49,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _openTrash() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const TrashScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,6 +88,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     )
                   : const Icon(Icons.chevron_right, color: Colors.amber),
               onTap: _isOpeningReviewListing ? null : _openReviewListing,
+            ),
+            const Divider(height: 0.5, thickness: 0.5),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              leading: const Icon(
+                Icons.delete_outline,
+                color: Colors.amber,
+              ),
+              title: const Text(
+                '휴지통',
+                style: TextStyle(color: Colors.white),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.amber),
+              onTap: _openTrash,
             ),
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(

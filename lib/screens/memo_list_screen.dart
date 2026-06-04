@@ -16,7 +16,8 @@ class MemoListScreen extends StatefulWidget {
   State<MemoListScreen> createState() => _MemoListScreenState();
 }
 
-class _MemoListScreenState extends State<MemoListScreen> {
+class _MemoListScreenState extends State<MemoListScreen>
+    with WidgetsBindingObserver {
   // [요구사항 1] 단일 리스트로만 관리. 즐겨찾기가 앞, 일반이 뒤 순서 유지.
   List<Memo> _memos = [];
   bool _isLoading = true;
@@ -97,13 +98,24 @@ class _MemoListScreenState extends State<MemoListScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadMemos();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _closeSwipeNotifier.dispose();
     super.dispose();
+  }
+
+  // 앱이 다시 활성화될 때 휴지통 30일 만료분 purge + 재로드.
+  // (앱을 켜둔 채 자정/30일 경계를 넘긴 경우 resume 1회로 정리.)
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadMemos();
+    }
   }
 
   // [요구사항 8] 즐겨찾기=항상 위, 일반=아래. .where()는 원래 순서 유지(stable).
@@ -115,6 +127,8 @@ class _MemoListScreenState extends State<MemoListScreen> {
 
   Future<void> _loadMemos() async {
     try {
+      // 휴지통 30일 만료분 자동 영구삭제(cold start/resume). 활성 메모 무영향.
+      await MemoStorage.purgeExpiredTrash();
       final memos = await MemoStorage.loadMemos();
       final hasSnapshot = await SnapshotStore.hasSnapshot();
       if (!mounted) return;
@@ -157,6 +171,8 @@ class _MemoListScreenState extends State<MemoListScreen> {
         context,
         MaterialPageRoute(builder: (_) => const SettingsScreen()),
       );
+      // 설정 → 휴지통에서 복구/영구삭제했을 수 있으니 돌아오면 재로드.
+      if (mounted) await _loadMemos();
       return;
     }
     if (value == 'undo') {
