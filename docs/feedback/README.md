@@ -28,12 +28,14 @@
 - 성능 모니터링
 - 비주얼 브랜딩 강화
 
-### 반영 상태 (2026-05-15 갱신)
+### 반영 상태 (2026-06-06 갱신)
 | 항목 | 상태 | 비고 |
 |------|------|------|
-| (1) ASO | 부분+draft | Play Console 한글 description 풍부함. 키워드 강화 v2 draft = `docs/store-assets/metadata-aso-v2-2026-05-14.md` (Play Console 직접 편집 대기) |
-| (2) Screenshots | 미반영 | 베타 모집용 스샷 3장만 있음 (list/edit/empty) |
-| (3) Walkthrough | 미반영 | lib/screens/ 에 onboarding 없음 |
-| (4) Multi-lang | 미반영 | pubspec.yaml 에 flutter_localizations 없음 |
-| (5) Privacy/Terms | ✅ 반영 | `~/daejong-page/privacy-memoyo.html` 라이브 (2026-05-13). Play Console "개인정보처리방침" URL 연결 됨 |
-| (6) Rate 버튼 | 미반영 | in_app_review 패키지 미사용 (draft 1.0.4 backlog P0-2 대기) |
+| (1) ASO | ✅ 반영 | 최신 SoT = `docs/store-assets/metadata.md`. Play/ASC 복붙용 설명·키워드·정책 URL 통합 |
+| (2) Screenshots | ✅ 반영 | Android 정석 재캡처 4컷 업로드 완료. 베타 모집용 3컷은 `docs/beta-recruitment/screenshots/` 에 보존 |
+| (3) Walkthrough | 1.1.0+ 이월 | 첫 실행 onboarding + Help/FAQ 로 묶음. 정리 문서: `docs/specs/1.1.0-plus-enhancements.md` |
+| (4) Multi-lang | 1.1.0+ 이월 | `flutter_localizations` 미도입. 1.1.1 scaffold → 1.1.2 EN/JA 순서 권장 |
+| (5) Privacy/Terms | ✅ 반영 | 인앱 정책 화면 + `docs/legal/privacy-policy.md`, `docs/legal/terms-of-service.md` 추가 |
+| (6) Rate 버튼 | ✅ 반영 | 설정 화면 `앱 평가하기` + `in_app_review` 서비스/테스트 추가 |
+
+잔여 장기 항목은 `1.1.0+ 사용자 안내/다국어 트랙`으로 분리한다. 동기화는 데이터 일관성 기능이므로 별도 1.2.x 트랙에서 다룬다.
