@@ -460,7 +460,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                     cursorColor: Colors.amber,
                     cursorHeight: 18,
                     selectionControls: _largeCupertinoSelectionControls,
-                    selectionHeightStyle: ui.BoxHeightStyle.strut,
+                    selectionHeightStyle: ui.BoxHeightStyle.includeLineSpacingMiddle,
                     strutStyle: const StrutStyle(
                       fontSize: 18,
                       height: 1.5,
