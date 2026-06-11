@@ -38,7 +38,7 @@
 
 키워드: 메모, 메모장, 노트, 노트 앱, 다크 모드, 심플, 미니멀, 즐겨찾기, 빠른 메모, 메모 정리, 다이어리, 일기, 아이디어, 할 일, 기록
 
-문의: ssamssae@me.com
+문의: minusbetastudio@gmail.com
 개인정보 처리방침: https://ssamssae.github.io/daejong-page/privacy-memoyo.html
 ```
 

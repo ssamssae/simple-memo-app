@@ -44,5 +44,5 @@
 
 ## 9. 문의처
 
-- 이메일: ssamssae@naver.com
+- 이메일: minusbetastudio@gmail.com
 - 사업자/개발자 정보: [게시 전 확정]

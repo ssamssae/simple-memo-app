@@ -66,7 +66,7 @@
 
 키워드: 메모, 메모장, 노트, 노트 앱, 다크 모드, 오프라인 메모, 심플 메모, 미니멀 노트, 빠른 메모, 즐겨찾기, 메모 정리, 할 일, 일기, 다이어리, 아이디어, 로컬 저장, 광고 없는 메모장
 
-문의: ssamssae@me.com
+문의: minusbetastudio@gmail.com
 개인정보 처리방침: https://ssamssae.github.io/daejong-page/privacy-memoyo.html
 ```
 
@@ -112,7 +112,7 @@ Memoyo is a minimal dark memo app for capturing thoughts quickly. Write without 
 
 - 지원 URL: https://ssamssae.github.io/daejong-page
 - 마케팅 URL: https://ssamssae.github.io/daejong-page
-- 연락처 이메일: ssamssae@me.com
+- 연락처 이메일: minusbetastudio@gmail.com
 - 개인정보 처리방침: https://ssamssae.github.io/daejong-page/privacy-memoyo.html
 
 ## App Privacy 선언 - App Store Connect
