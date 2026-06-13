@@ -1,0 +1,26 @@
+name: Flutter CI
+
+# 메모요 머지전 자동 게이트 파일럿 (T-260612-22) — PR analyze + test.
+# 빌드(apk/ipa)는 무거워 이번 파일럿 제외, 검증 후 확대.
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  analyze-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          # 라이덴 로컬 검증 버전으로 pin: Linux flutter 3.44.0(Dart 3.12)에서
+          # analyze=No issues / test=124 passed 확인. CI 도 ubuntu(Linux)라 동일 toolchain.
+          # ⚠️ 5노드 SDK skew(3.41↔3.44): 이 노드 Windows flutter 는 3.41.7 —
+          #   릴리스 파이프라인(맥미니) pin 과 일치하는지 본진 확인 후 머지. latest stable 임의 X.
+          #   pubspec.lock 제약 flutter >=3.38.4 / dart >=3.10.4 충족.
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
