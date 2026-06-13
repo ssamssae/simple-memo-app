@@ -48,7 +48,7 @@ class ExportImportService {
   /// Returns (importedCount, totalCount) on success; null on user cancel.
   /// Throws [FormatException] on invalid JSON — caller shows toast.
   static Future<(int, int)?> pickAndImport() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['json'],
     );
