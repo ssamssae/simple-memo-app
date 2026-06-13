@@ -1,27 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 // 메모요 (simple_memo_app) 는 자체 AppColors 디자인 토큰이 없는 minimal
 // Material 3 앱 (main.dart ColorScheme.fromSeed + amber accent inline, cluster D)
 // 이라 spec v1.4 fallback 룰 `Theme.of(context).hintColor` 적용. 로또 친족.
-// 버전은 spec v1 dart-define 안 — 빌드 시 `--dart-define=APP_VERSION=X.Y.Z`
-// 주입, 미주입 빌드는 `vdev · 강대종` 으로 렌더 (dev 시그널). const widget 안 됨.
+// 버전은 package_info_plus 로 런타임에 실제 pubspec 버전을 읽는다 — dart-define
+// (`--dart-define=APP_VERSION`) 의존이 사라져 빌드 플래그 누락 시 'vdev' 로 박히던
+// footgun 제거. 로드 전엔 버전 없이 '강대종' 만 렌더.
 class VersionFooter extends StatelessWidget {
   const VersionFooter({super.key});
 
   @override
   Widget build(BuildContext context) {
-    const version = String.fromEnvironment('APP_VERSION', defaultValue: 'dev');
-    return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 4),
-      child: Text(
-        'v$version · 강대종',
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-          color: Theme.of(context).hintColor,
-          letterSpacing: -0.1,
-        ),
-      ),
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snapshot) {
+        final version = snapshot.data?.version ?? '';
+        final label = version.isEmpty ? '강대종' : 'v$version · 강대종';
+        return Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 4),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).hintColor,
+              letterSpacing: -0.1,
+            ),
+          ),
+        );
+      },
     );
   }
 }
