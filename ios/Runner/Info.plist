@@ -73,10 +73,9 @@
 			</array>
 		</dict>
 	</array>
-	<!-- AdMob 앱 ID. ⚠️ 출시 전 아니키 AdMob 계정의 실제 앱 ID 로 교체.
-	     현재는 구글 공식 테스트 앱 ID (테스트 광고만 표시). -->
+	<!-- AdMob 앱 ID — 메모요 iOS (AdMob 게시자 ca-app-pub-7025432711849670). -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-7025432711849670~4611071101</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>

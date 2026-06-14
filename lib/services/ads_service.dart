@@ -34,11 +34,11 @@ class AdsService {
     await prefs.setBool(_removeAdsPrefKey, value);
   }
 
-  /// 배너 광고 단위 ID — 현재 구글 공식 테스트 ID (출시 전 실제 ID 로 교체).
+  /// 배너 광고 단위 ID — 메모요 AdMob 실제 광고단위 (게시자 ca-app-pub-7025432711849670).
   String get bannerAdUnitId {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
-      return 'ca-app-pub-3940256099942544/2934735716'; // 테스트 배너 (iOS)
+      return 'ca-app-pub-7025432711849670/2649951313'; // 메모요 하단 배너 (iOS)
     }
-    return 'ca-app-pub-3940256099942544/6300978111'; // 테스트 배너 (Android)
+    return 'ca-app-pub-7025432711849670/5924152772'; // 메모요 하단 배너 (Android)
   }
 }
