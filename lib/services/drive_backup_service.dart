@@ -68,25 +68,45 @@ class DriveBackupService {
   // Android: google-services.json 부재로 default OAuth client 미해결 → ApiException 10
   // (DEVELOPER_ERROR). Web OAuth client 의 serverClientId 박아 platform-independent
   // sign-in. iOS 는 Info.plist GIDClientID 가 별도로 적용.
-  static final _signIn = GoogleSignIn(
-    serverClientId:
-        '601847949978-8esieuqqqeokdeh1erp6sjjl1m9h4rgn.apps.googleusercontent.com',
-    scopes: _scopes,
-  );
+  static const _serverClientId =
+      '601847949978-8esieuqqqeokdeh1erp6sjjl1m9h4rgn.apps.googleusercontent.com';
 
-  static Future<DriveBackupResult?> obtainAuthClientForTest(
-      GoogleSignIn gsi) async {
-    final account = await gsi.signIn();
-    if (account == null) {
-      return const DriveBackupPermissionDenied();
+  // google_sign_in v7: 생성자 대신 싱글톤 instance + initialize() 1회 호출.
+  static final GoogleSignIn _signIn = GoogleSignIn.instance;
+  static bool _initialized = false;
+
+  static Future<void> _ensureInitialized() async {
+    if (_initialized) return;
+    await _signIn.initialize(serverClientId: _serverClientId);
+    _initialized = true;
+  }
+
+  // v7: 인증(authenticate)과 인가(authorizeScopes)가 분리됨. 사용자가 취소하면
+  // GoogleSignInException(canceled)을 던지므로 null 로 변환해 기존 호출부의
+  // "null → PermissionDenied" 의미를 그대로 유지한다.
+  static Future<GoogleSignInClientAuthorization?> _authorize() async {
+    await _ensureInitialized();
+    final GoogleSignInAccount account;
+    try {
+      account = await _signIn.authenticate(scopeHint: _scopes);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) return null;
+      rethrow;
     }
-    return null;
+    return account.authorizationClient.authorizeScopes(_scopes);
   }
 
   static DriveBackupResult mapErrorForTest(Object e) {
     if (e is SocketException) return const DriveBackupNetworkError();
     if (e is DriveBackupDownloadAuthException) {
       return const DriveBackupPermissionDenied();
+    }
+    if (e is GoogleSignInException) {
+      if (e.code == GoogleSignInExceptionCode.canceled ||
+          e.code == GoogleSignInExceptionCode.interrupted) {
+        return const DriveBackupPermissionDenied();
+      }
+      return DriveBackupUnknown(e.toString());
     }
     if (e is drive.DetailedApiRequestError) {
       if (e.status == 403 &&
@@ -102,16 +122,12 @@ class DriveBackupService {
 
   static Future<DriveBackupListResult> listBackups() async {
     try {
-      final account = await _signIn.signIn();
-      if (account == null) {
-        return const DriveBackupListFailure(DriveBackupPermissionDenied());
-      }
-      final authClient = await _signIn.authenticatedClient();
-      if (authClient == null) {
+      final authz = await _authorize();
+      if (authz == null) {
         return const DriveBackupListFailure(DriveBackupPermissionDenied());
       }
 
-      final api = drive.DriveApi(authClient);
+      final api = drive.DriveApi(authz.authClient(scopes: _scopes));
       final folderId = await findMemoyoFolderForTest(api);
       if (folderId == null) {
         return const DriveBackupListSuccess([]);
@@ -148,11 +164,11 @@ class DriveBackupService {
   }
 
   static Future<String> downloadBackup(String fileId) async {
-    final authClient = await _signIn.authenticatedClient();
-    if (authClient == null) {
+    final authz = await _authorize();
+    if (authz == null) {
       throw const DriveBackupDownloadAuthException();
     }
-    final api = drive.DriveApi(authClient);
+    final api = drive.DriveApi(authz.authClient(scopes: _scopes));
     return downloadBackupContentForTest(api, fileId);
   }
 
@@ -173,12 +189,10 @@ class DriveBackupService {
 
   static Future<DriveBackupResult> uploadBackup(List<Memo> memos) async {
     try {
-      final account = await _signIn.signIn();
-      if (account == null) return const DriveBackupPermissionDenied();
-      final authClient = await _signIn.authenticatedClient();
-      if (authClient == null) return const DriveBackupPermissionDenied();
+      final authz = await _authorize();
+      if (authz == null) return const DriveBackupPermissionDenied();
 
-      final api = drive.DriveApi(authClient);
+      final api = drive.DriveApi(authz.authClient(scopes: _scopes));
       final folderId = await ensureMemoyoFolderForTest(api);
 
       final ts = DateTime.now()
