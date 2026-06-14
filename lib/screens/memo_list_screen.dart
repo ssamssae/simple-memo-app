@@ -5,6 +5,13 @@ import '../widgets/version_footer.dart';
 import 'memo_edit_screen.dart';
 import 'settings_screen.dart';
 
+// Bear 톤 (따뜻한 친근 라이트) 팔레트 — 화면 로컬 시각 토큰.
+const _kBearRed = Color(0xFFE24A3B); // 따뜻한 베어 레드 accent
+const _kBearCharcoal = Color(0xFF2A2622); // 제목 다크 차콜
+const _kBearPreview = Color(0xFF8A847C); // 본문/프리뷰 소프트 웜 그레이
+const _kBearCard = Color(0xFFFFFFFF); // 메모 카드 화이트
+const _kBearDivider = Color(0xFFEFEAE1); // 얇은 웜 디바이더
+
 class MemoListScreen extends StatefulWidget {
   const MemoListScreen({super.key});
 
@@ -59,7 +66,7 @@ class _MemoListScreenState extends State<MemoListScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            style: TextButton.styleFrom(foregroundColor: _kBearRed),
             child: const Text('삭제'),
           ),
         ],
@@ -289,7 +296,7 @@ class _MemoListScreenState extends State<MemoListScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            style: TextButton.styleFrom(foregroundColor: _kBearRed),
             child: const Text('삭제'),
           ),
         ],
@@ -479,16 +486,24 @@ class _MemoListScreenState extends State<MemoListScreen>
                   child: Text(
                     _isEditMode ? '취소' : '편집',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.amber.shade300,
+                    style: const TextStyle(
+                      color: _kBearCharcoal,
                       fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ),
             ),
           ),
-          title: const Text('메모요', style: TextStyle(fontSize: 17)),
+          title: const Text(
+            '메모요',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: _kBearCharcoal,
+            ),
+          ),
           actions: [
             if (_isEditMode) ...[
               Padding(
@@ -500,9 +515,9 @@ class _MemoListScreenState extends State<MemoListScreen>
                           ? () => setState(_selectedIds.clear)
                           : _selectAll),
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.amber.shade300,
+                    foregroundColor: _kBearRed,
                     disabledForegroundColor:
-                        Colors.amber.shade300.withValues(alpha: 0.3),
+                        _kBearRed.withValues(alpha: 0.3),
                     padding: EdgeInsets.zero,
                     minimumSize: const Size(0, 0),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -520,9 +535,9 @@ class _MemoListScreenState extends State<MemoListScreen>
                 child: TextButton(
                   onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.orange,
+                    foregroundColor: _kBearRed,
                     disabledForegroundColor:
-                        Colors.orange.withValues(alpha: 0.3),
+                        _kBearRed.withValues(alpha: 0.3),
                     padding: EdgeInsets.zero,
                     minimumSize: const Size(0, 0),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -538,14 +553,14 @@ class _MemoListScreenState extends State<MemoListScreen>
             ],
             if (!_isEditMode)
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.amber),
-                color: const Color(0xFF2C2C2E),
+                icon: const Icon(Icons.more_vert, color: _kBearCharcoal),
+                color: _kBearCard,
                 onSelected: _onOverflowSelected,
                 itemBuilder: (ctx) => [
                   const PopupMenuItem(
                     value: 'settings',
                     child:
-                        Text('설정', style: TextStyle(color: Colors.amber)),
+                        Text('설정', style: TextStyle(color: _kBearCharcoal)),
                   ),
                 ],
               ),
@@ -561,13 +576,18 @@ class _MemoListScreenState extends State<MemoListScreen>
                         Icon(
                           Icons.sticky_note_2_outlined,
                           size: 56,
-                          color: Colors.amber,
+                          color: _kBearRed,
                         ),
                         SizedBox(height: 12),
                         Text(
                           '아직 메모가 없어요.\n아래 + 버튼을 눌러 첫 메모를 남겨보세요.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 16, color: Colors.amber),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _kBearCharcoal,
+                            height: 1.5,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ],
                     ),
@@ -592,6 +612,7 @@ class _MemoListScreenState extends State<MemoListScreen>
                           thickness: 0.5,
                           indent: 0,
                           endIndent: 0,
+                          color: _kBearDivider,
                         ),
                         if (favorites.isNotEmpty)
                           ReorderableListView.builder(
@@ -677,8 +698,8 @@ class _MemoListScreenState extends State<MemoListScreen>
           child: FloatingActionButton(
             onPressed: _addMemo,
             tooltip: '새 메모',
-            backgroundColor: Colors.amber,
-            foregroundColor: const Color(0xFF1C1C1E),
+            backgroundColor: _kBearRed,
+            foregroundColor: Colors.white,
             child: const Icon(Icons.add),
           ),
         ),
@@ -810,7 +831,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
             if (_dragOffset > 0)
               Positioned.fill(
                 child: Container(
-                  color: Colors.yellow[700],
+                  color: const Color(0xFFE8A13B),
                   alignment: Alignment.centerLeft,
                   child: Listener(
                     onPointerDown: (_) => widget.onButtonTapped(),
@@ -839,7 +860,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
             if (_dragOffset < 0)
               Positioned.fill(
                 child: Container(
-                  color: Colors.orange[800],
+                  color: _kBearRed,
                   alignment: Alignment.centerRight,
                   child: Listener(
                     onPointerDown: (_) => widget.onButtonTapped(),
@@ -882,7 +903,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                     ? Duration.zero
                     : const Duration(milliseconds: 200),
                 transform: Matrix4.translationValues(_dragOffset, 0, 0),
-                color: const Color(0xFF2C2C2E),
+                color: _kBearCard,
                 child: Padding(
                   padding: const EdgeInsets.only(left: 28, right: 20),
                   child: SizedBox(
@@ -896,7 +917,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                               widget.isSelected
                                   ? Icons.radio_button_checked
                                   : Icons.radio_button_unchecked,
-                              color: Colors.amber,
+                              color: _kBearRed,
                               size: 20,
                             ),
                           ),
@@ -908,7 +929,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                                 widget.onButtonTapped();
                                 widget.onTap();
                               },
-                              child: const Icon(Icons.star, color: Colors.amber, size: 18),
+                              child: const Icon(Icons.star, color: _kBearRed, size: 18),
                             ),
                           ),
                         Expanded(
@@ -923,8 +944,8 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                               forceStrutHeight: true,
                             ),
                             style: const TextStyle(
-                              color: Colors.amber,
-                              fontWeight: FontWeight.w400,
+                              color: _kBearCharcoal,
+                              fontWeight: FontWeight.w600,
                               fontSize: 17,
                               letterSpacing: 0.1,
                               height: 1.0,
@@ -937,7 +958,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                             index: widget.index,
                             child: const Padding(
                               padding: EdgeInsets.only(left: 8, right: 8),
-                              child: Icon(Icons.drag_handle, color: Colors.amber, size: 20),
+                              child: Icon(Icons.drag_handle, color: _kBearPreview, size: 20),
                             ),
                           ),
                       ],
@@ -948,7 +969,13 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
             ),
           ],
         ),
-        const Divider(height: 0.5, thickness: 0.5, indent: 0, endIndent: 0),
+        const Divider(
+          height: 0.5,
+          thickness: 0.5,
+          indent: 0,
+          endIndent: 0,
+          color: _kBearDivider,
+        ),
       ],
     );
   }

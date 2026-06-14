@@ -42,29 +42,29 @@ class MemoApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.amber,
-          brightness: Brightness.dark,
+          seedColor: const Color(0xFFE24A3B),
+          brightness: Brightness.light,
         ),
-        scaffoldBackgroundColor: const Color(0xFF1C1C1E),
+        scaffoldBackgroundColor: const Color(0xFFFBF8F2),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1C1C1E),
-          foregroundColor: Colors.amber,
-          iconTheme: IconThemeData(color: Colors.amber),
+          backgroundColor: Color(0xFFFBF8F2),
+          foregroundColor: Color(0xFF2A2622),
+          iconTheme: IconThemeData(color: Color(0xFFE24A3B)),
         ),
         cardTheme: const CardThemeData(
-          color: Color(0xFF2C2C2E),
+          color: Color(0xFFFFFFFF),
         ),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: Colors.amber.shade700,
-          foregroundColor: const Color(0xFF1A1A2E),
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: Color(0xFFE24A3B),
+          foregroundColor: Colors.white,
         ),
         textSelectionTheme: TextSelectionThemeData(
-          cursorColor: Colors.amber,
-          selectionColor: Colors.amber.withValues(alpha: 0.35),
-          selectionHandleColor: Colors.amber,
+          cursorColor: const Color(0xFFE24A3B),
+          selectionColor: const Color(0xFFE24A3B).withValues(alpha: 0.25),
+          selectionHandleColor: const Color(0xFFE24A3B),
         ),
         useMaterial3: true,
-        brightness: Brightness.dark,
+        brightness: Brightness.light,
       ),
       home: const SplashScreen(),
     );
