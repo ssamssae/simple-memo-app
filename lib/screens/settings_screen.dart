@@ -7,9 +7,17 @@ import 'policy_screen.dart';
 import 'trash_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, this.openReviewListing});
+  const SettingsScreen({
+    super.key,
+    this.openReviewListing,
+    this.embedded = false,
+  });
 
   final Future<AppReviewListingResult> Function()? openReviewListing;
+
+  /// HomeShell 바텀바의 탭으로 임베드된 경우 true — 뒤로가기 버튼을 숨기고
+  /// 버전 풋터를 바텀바 슬롯 대신 본문 하단에 렌더한다.
+  final bool embedded;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -65,9 +73,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      bottomNavigationBar: const SafeArea(child: VersionFooter()),
       appBar: AppBar(
         centerTitle: true,
+        automaticallyImplyLeading: !widget.embedded,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         title: const Text('설정', style: TextStyle(fontSize: 17)),
@@ -159,6 +167,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const Divider(height: 0.5, thickness: 0.5),
+            const SizedBox(height: 24),
+            const SafeArea(top: false, child: VersionFooter()),
           ],
         ),
       ),
