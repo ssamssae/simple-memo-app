@@ -46,6 +46,10 @@ dependencies:
   in_app_review: ^2.0.12
   package_info_plus: ^8.1.2
 
+  # 수익화 (1.0.8): 하단 배너 광고 + '광고 제거' 인앱결제
+  google_mobile_ads: ^5.3.1
+  in_app_purchase: ^3.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -59,6 +63,17 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   mocktail: ^1.0.4
+  flutter_launcher_icons: ^0.14.1
+
+# 앱 아이콘 (T-260614, 다크 노트패드 — GPT 앱 생성 → full-bleed 처리)
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#2F333C"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
+  min_sdk_android: 21
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

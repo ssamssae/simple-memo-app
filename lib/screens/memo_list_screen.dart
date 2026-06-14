@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import '../models/memo.dart';
 import '../services/memo_storage.dart';
-import '../widgets/version_footer.dart';
 import 'memo_edit_screen.dart';
-import 'settings_screen.dart';
 
 class MemoListScreen extends StatefulWidget {
   const MemoListScreen({super.key});
 
   @override
-  State<MemoListScreen> createState() => _MemoListScreenState();
+  State<MemoListScreen> createState() => MemoListScreenState();
 }
 
-class _MemoListScreenState extends State<MemoListScreen>
+class MemoListScreenState extends State<MemoListScreen>
     with WidgetsBindingObserver {
   // [요구사항 1] 단일 리스트로만 관리. 즐겨찾기가 앞, 일반이 뒤 순서 유지.
   List<Memo> _memos = [];
@@ -59,7 +57,7 @@ class _MemoListScreenState extends State<MemoListScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFE5534B)),
             child: const Text('삭제'),
           ),
         ],
@@ -149,18 +147,6 @@ class _MemoListScreenState extends State<MemoListScreen>
     });
   }
 
-  Future<void> _onOverflowSelected(String value) async {
-    if (value == 'settings') {
-      await Navigator.push<void>(
-        context,
-        MaterialPageRoute(builder: (_) => const SettingsScreen()),
-      );
-      // 설정 → 휴지통 복구·영구삭제 / 백업&복원 가져오기로 메모가 바뀌었을 수
-      // 있으니 돌아오면 재로드.
-      if (mounted) await _loadMemos();
-    }
-  }
-
   Future<void> _saveMemos() async {
     await MemoStorage.saveMemos(_memos);
   }
@@ -221,6 +207,14 @@ class _MemoListScreenState extends State<MemoListScreen>
   void _onButtonTapped() {
     _buttonTapped = true;
   }
+
+  // --- 바텀바(HomeShell)에서 호출하는 public 진입점 ---
+
+  /// 바텀바 '새메모' 탭 → 새 메모 편집기 열기.
+  Future<void> startNewMemo() => _addMemo();
+
+  /// 바텀바 '메모' 탭 복귀 시 재로드 (설정 탭에서 복원·가져오기로 변경됐을 수 있음).
+  Future<void> reloadMemos() => _loadMemos();
 
   // --- 메모 CRUD (모두 id 기반) ---
 
@@ -289,7 +283,7 @@ class _MemoListScreenState extends State<MemoListScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFE5534B)),
             child: const Text('삭제'),
           ),
         ],
@@ -459,8 +453,6 @@ class _MemoListScreenState extends State<MemoListScreen>
       behavior: HitTestBehavior.translucent,
       child: Scaffold(
         resizeToAvoidBottomInset: false,
-        extendBody: true,
-        bottomNavigationBar: const SafeArea(child: VersionFooter()),
         appBar: AppBar(
           centerTitle: true,
           scrolledUnderElevation: 0,
@@ -479,8 +471,8 @@ class _MemoListScreenState extends State<MemoListScreen>
                   child: Text(
                     _isEditMode ? '취소' : '편집',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.amber.shade300,
+                    style: const TextStyle(
+                      color: Color(0xFF9A9AA2),
                       fontSize: 16,
                     ),
                   ),
@@ -500,9 +492,9 @@ class _MemoListScreenState extends State<MemoListScreen>
                           ? () => setState(_selectedIds.clear)
                           : _selectAll),
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.amber.shade300,
+                    foregroundColor: const Color(0xFF7C5CFF),
                     disabledForegroundColor:
-                        Colors.amber.shade300.withValues(alpha: 0.3),
+                        const Color(0xFF7C5CFF).withValues(alpha: 0.3),
                     padding: EdgeInsets.zero,
                     minimumSize: const Size(0, 0),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -520,9 +512,9 @@ class _MemoListScreenState extends State<MemoListScreen>
                 child: TextButton(
                   onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.orange,
+                    foregroundColor: const Color(0xFFE5534B),
                     disabledForegroundColor:
-                        Colors.orange.withValues(alpha: 0.3),
+                        const Color(0xFFE5534B).withValues(alpha: 0.3),
                     padding: EdgeInsets.zero,
                     minimumSize: const Size(0, 0),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -536,19 +528,6 @@ class _MemoListScreenState extends State<MemoListScreen>
                 ),
               ),
             ],
-            if (!_isEditMode)
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.amber),
-                color: const Color(0xFF2C2C2E),
-                onSelected: _onOverflowSelected,
-                itemBuilder: (ctx) => [
-                  const PopupMenuItem(
-                    value: 'settings',
-                    child:
-                        Text('설정', style: TextStyle(color: Colors.amber)),
-                  ),
-                ],
-              ),
           ],
         ),
         body: _isLoading
@@ -561,13 +540,14 @@ class _MemoListScreenState extends State<MemoListScreen>
                         Icon(
                           Icons.sticky_note_2_outlined,
                           size: 56,
-                          color: Colors.amber,
+                          color: Color(0xFF7C5CFF),
                         ),
                         SizedBox(height: 12),
                         Text(
-                          '아직 메모가 없어요.\n아래 + 버튼을 눌러 첫 메모를 남겨보세요.',
+                          '아직 메모가 없어요.\n아래 새메모 탭을 눌러 첫 메모를 남겨보세요.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 16, color: Colors.amber),
+                          style:
+                              TextStyle(fontSize: 16, color: Color(0xFF9A9AA2)),
                         ),
                       ],
                     ),
@@ -576,11 +556,10 @@ class _MemoListScreenState extends State<MemoListScreen>
                     physics: const AlwaysScrollableScrollPhysics(
                       parent: BouncingScrollPhysics(),
                     ),
-                    padding: EdgeInsets.only(
+                    padding: const EdgeInsets.only(
                       left: 12,
                       right: 12,
-                      bottom: 96 +
-                          MediaQuery.of(context).viewPadding.bottom,
+                      bottom: 16,
                     ),
                     child: ClipRRect(
                       borderRadius: const BorderRadius.all(Radius.circular(14)),
@@ -669,19 +648,6 @@ class _MemoListScreenState extends State<MemoListScreen>
                     ),
                     ),
                   ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-        floatingActionButton: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewPadding.bottom,
-          ),
-          child: FloatingActionButton(
-            onPressed: _addMemo,
-            tooltip: '새 메모',
-            backgroundColor: Colors.amber,
-            foregroundColor: const Color(0xFF1C1C1E),
-            child: const Icon(Icons.add),
-          ),
-        ),
       ),
     );
   }
@@ -810,7 +776,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
             if (_dragOffset > 0)
               Positioned.fill(
                 child: Container(
-                  color: Colors.yellow[700],
+                  color: const Color(0xFF7C5CFF),
                   alignment: Alignment.centerLeft,
                   child: Listener(
                     onPointerDown: (_) => widget.onButtonTapped(),
@@ -839,7 +805,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
             if (_dragOffset < 0)
               Positioned.fill(
                 child: Container(
-                  color: Colors.orange[800],
+                  color: const Color(0xFFB3261E),
                   alignment: Alignment.centerRight,
                   child: Listener(
                     onPointerDown: (_) => widget.onButtonTapped(),
@@ -882,7 +848,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                     ? Duration.zero
                     : const Duration(milliseconds: 200),
                 transform: Matrix4.translationValues(_dragOffset, 0, 0),
-                color: const Color(0xFF2C2C2E),
+                color: const Color(0xFF1A1A1E),
                 child: Padding(
                   padding: const EdgeInsets.only(left: 28, right: 20),
                   child: SizedBox(
@@ -896,7 +862,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                               widget.isSelected
                                   ? Icons.radio_button_checked
                                   : Icons.radio_button_unchecked,
-                              color: Colors.amber,
+                              color: const Color(0xFF7C5CFF),
                               size: 20,
                             ),
                           ),
@@ -908,7 +874,8 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                                 widget.onButtonTapped();
                                 widget.onTap();
                               },
-                              child: const Icon(Icons.star, color: Colors.amber, size: 18),
+                              child: const Icon(Icons.star,
+                                  color: Color(0xFF7C5CFF), size: 18),
                             ),
                           ),
                         Expanded(
@@ -923,10 +890,10 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                               forceStrutHeight: true,
                             ),
                             style: const TextStyle(
-                              color: Colors.amber,
-                              fontWeight: FontWeight.w400,
+                              color: Color(0xFFECECEC),
+                              fontWeight: FontWeight.w600,
                               fontSize: 17,
-                              letterSpacing: 0.1,
+                              letterSpacing: -0.2,
                               height: 1.0,
                               leadingDistribution: TextLeadingDistribution.even,
                             ),
@@ -937,7 +904,8 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                             index: widget.index,
                             child: const Padding(
                               padding: EdgeInsets.only(left: 8, right: 8),
-                              child: Icon(Icons.drag_handle, color: Colors.amber, size: 20),
+                              child: Icon(Icons.drag_handle,
+                                  color: Color(0xFF9A9AA2), size: 20),
                             ),
                           ),
                       ],
