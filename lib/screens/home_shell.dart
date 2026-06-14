@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/ad_banner.dart';
 import 'memo_list_screen.dart';
 import 'settings_screen.dart';
 
@@ -56,29 +57,35 @@ class _HomeShellState extends State<HomeShell> {
           const SettingsScreen(embedded: true),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: barCurrent,
-        onTap: _onBarTapped,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: _barBg,
-        selectedItemColor: _accent,
-        unselectedItemColor: _inactive,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.sticky_note_2_outlined),
-            activeIcon: Icon(Icons.sticky_note_2),
-            label: '메모',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_box_outlined),
-            label: '새메모',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: '설정',
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const AdBanner(),
+          BottomNavigationBar(
+            currentIndex: barCurrent,
+            onTap: _onBarTapped,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: _barBg,
+            selectedItemColor: _accent,
+            unselectedItemColor: _inactive,
+            selectedFontSize: 11,
+            unselectedFontSize: 11,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.sticky_note_2_outlined),
+                activeIcon: Icon(Icons.sticky_note_2),
+                label: '메모',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.add_box_outlined),
+                label: '새메모',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.settings_outlined),
+                activeIcon: Icon(Icons.settings),
+                label: '설정',
+              ),
+            ],
           ),
         ],
       ),

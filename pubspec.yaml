@@ -46,6 +46,10 @@ dependencies:
   in_app_review: ^2.0.12
   package_info_plus: ^8.1.2
 
+  # 수익화 (1.0.8): 하단 배너 광고 + '광고 제거' 인앱결제
+  google_mobile_ads: ^5.3.1
+  in_app_purchase: ^3.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
