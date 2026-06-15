@@ -420,7 +420,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       onPressed: value.canRedo ? _undoController.redo : null,
                       tooltip: '다시실행',
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 8),
                   ],
                 );
               },
