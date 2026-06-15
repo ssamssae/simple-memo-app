@@ -411,7 +411,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       onPressed: value.canUndo ? _undoController.undo : null,
                       tooltip: '실행취소',
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 8),
                     IconButton(
                       icon: const Icon(Icons.redo, size: 20),
                       padding: EdgeInsets.zero,
