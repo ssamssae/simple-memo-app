@@ -16,14 +16,15 @@ void main() {
     );
   });
 
-  testWidgets('VersionFooter renders "v<version> · 강대종" from PackageInfo',
+  testWidgets(
+      'VersionFooter renders "v<version> · 마이너스베타스튜디오" from PackageInfo',
       (tester) async {
     await tester.pumpWidget(
       const MaterialApp(home: Scaffold(body: VersionFooter())),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('v9.9.9 · 강대종'), findsOneWidget);
+    expect(find.text('v9.9.9 · 마이너스베타스튜디오'), findsOneWidget);
   });
 
   testWidgets('VersionFooter uses Theme.hintColor (cluster D fallback)',

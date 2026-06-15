@@ -158,12 +158,12 @@ class _TrashScreenState extends State<TrashScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: const [
-                        Icon(Icons.delete_outline, size: 56, color: Colors.amber),
+                        Icon(Icons.delete_outline, size: 56, color: Colors.white),
                         SizedBox(height: 12),
                         Text(
                           '휴지통이 비어있습니다.\n삭제한 메모는 30일간 보관됩니다.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 16, color: Colors.amber),
+                          style: TextStyle(fontSize: 16, color: Colors.white),
                         ),
                       ],
                     ),
@@ -182,16 +182,16 @@ class _TrashScreenState extends State<TrashScreen> {
                           memo.firstLine,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.amber, fontSize: 17),
+                          style: const TextStyle(color: Colors.white, fontSize: 17),
                         ),
                         subtitle: Text(
                           _purgeLabel(memo),
                           style: TextStyle(
-                            color: Colors.amber.shade200.withValues(alpha: 0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 12,
                           ),
                         ),
-                        trailing: const Icon(Icons.more_horiz, color: Colors.amber),
+                        trailing: const Icon(Icons.more_horiz, color: Colors.white),
                         onTap: () => _showItemActions(memo),
                       );
                     },

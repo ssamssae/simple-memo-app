@@ -327,7 +327,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     final appBarTheme = Theme.of(context).appBarTheme;
     final baseTitleStyle = appBarTheme.titleTextStyle ??
         Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: appBarTheme.foregroundColor ?? Colors.amber,
+              color: appBarTheme.foregroundColor ?? Colors.white,
             );
     final titleStyle = baseTitleStyle?.copyWith(
       fontSize: 17,
@@ -346,7 +346,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
           scrolledUnderElevation: 0,
           surfaceTintColor: Colors.transparent,
           automaticallyImplyLeading: false,
-          leadingWidth: 150,
+          leadingWidth: 192,
           title: null,
           flexibleSpace: SafeArea(
             child: IgnorePointer(
@@ -364,7 +364,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               children: [
                 _pillButton(
                   label: '뒤로',
-                  color: Colors.amber.shade300,
+                  color: Colors.white,
                   onTap: _saveAndPop,
                 ),
                 if (_isEditing) ...[
@@ -375,20 +375,25 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                     onTap: _cancelEdit,
                   ),
                 ],
+                // 새 메모(아직 저장 전)에는 공유할 내용이 없어 공유 버튼 숨김 (아니키 요청)
+                if (widget.memo != null) ...[
+                  const SizedBox(width: 4),
+                  Builder(
+                    builder: (shareContext) => IconButton(
+                      icon: const Icon(Icons.share, size: 20),
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(),
+                      color: Colors.white,
+                      tooltip: '공유',
+                      onPressed: () => _shareMemo(shareContext),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           actions: [
-            Builder(
-              builder: (shareContext) => IconButton(
-                icon: const Icon(Icons.share, size: 20),
-                padding: EdgeInsets.zero,
-                visualDensity: VisualDensity.compact,
-                color: Colors.amber.shade300,
-                tooltip: '공유',
-                onPressed: () => _shareMemo(shareContext),
-              ),
-            ),
             ValueListenableBuilder<UndoHistoryValue>(
               valueListenable: _undoController,
               builder: (context, value, _) {
@@ -399,25 +404,26 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       icon: const Icon(Icons.undo, size: 20),
                       padding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(),
                       color: value.canUndo
-                          ? Colors.amber.shade300
-                          : Colors.amber.shade300.withValues(alpha: 0.25),
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.25),
                       onPressed: value.canUndo ? _undoController.undo : null,
                       tooltip: '실행취소',
                     ),
-                    Transform.translate(
-                      offset: const Offset(-8, 0),
-                      child: IconButton(
-                        icon: const Icon(Icons.redo, size: 20),
-                        padding: EdgeInsets.zero,
-                        visualDensity: VisualDensity.compact,
-                        color: value.canRedo
-                            ? Colors.amber.shade300
-                            : Colors.amber.shade300.withValues(alpha: 0.25),
-                        onPressed: value.canRedo ? _undoController.redo : null,
-                        tooltip: '다시실행',
-                      ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.redo, size: 20),
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(),
+                      color: value.canRedo
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.25),
+                      onPressed: value.canRedo ? _undoController.redo : null,
+                      tooltip: '다시실행',
                     ),
+                    const SizedBox(width: 8),
                   ],
                 );
               },
@@ -426,7 +432,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               padding: const EdgeInsets.only(right: 12, left: 0),
               child: _pillButton(
                 label: '저장',
-                color: Colors.amber.shade300,
+                color: Colors.white,
                 onTap: _saveMemo,
               ),
             ),
@@ -457,7 +463,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                     child: TextField(
                     controller: _contentController,
                     undoController: _undoController,
-                    cursorColor: Colors.amber,
+                    cursorColor: Colors.white,
                     cursorHeight: 18,
                     selectionControls: _largeCupertinoSelectionControls,
                     selectionHeightStyle: ui.BoxHeightStyle.includeLineSpacingMiddle,
@@ -469,12 +475,12 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                     ),
                     decoration: InputDecoration(
                       hintText: '내용을 입력하세요...',
-                      hintStyle: TextStyle(color: Colors.amber.withValues(alpha: 0.4)),
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
                       border: InputBorder.none,
                       isCollapsed: true,
                     ),
                     style: const TextStyle(
-                      color: Colors.amber,
+                      color: Colors.white,
                       fontSize: 18,
                       height: 1.5,
                       leadingDistribution: TextLeadingDistribution.even,

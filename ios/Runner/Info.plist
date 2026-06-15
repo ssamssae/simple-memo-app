@@ -38,6 +38,14 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<!-- UIScene lifecycle 마이그레이션: 단일 scene 선언만 하고 scene delegate 는 지정하지 않아 Flutter 의 FlutterAppDelegate window 라이프사이클을 유지한다 (빈 UISceneConfigurations = app delegate fallback). App Store validation 의 UIScene 마이그레이션 안내 소거용. -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict/>
+	</dict>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -63,6 +71,16 @@
 			<array>
 				<string>com.googleusercontent.apps.601847949978-csqh74o6bd23vl9ffvcbu37qis2ep6pr</string>
 			</array>
+		</dict>
+	</array>
+	<!-- AdMob 앱 ID — 메모요 iOS (AdMob 게시자 ca-app-pub-7025432711849670). -->
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-7025432711849670~4611071101</string>
+	<key>SKAdNetworkItems</key>
+	<array>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>cstr6suwn9.skadnetwork</string>
 		</dict>
 	</array>
 </dict>
