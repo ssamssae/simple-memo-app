@@ -401,25 +401,26 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       icon: const Icon(Icons.undo, size: 20),
                       padding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(),
                       color: value.canUndo
                           ? Colors.white
                           : Colors.white.withValues(alpha: 0.25),
                       onPressed: value.canUndo ? _undoController.undo : null,
                       tooltip: '실행취소',
                     ),
-                    Transform.translate(
-                      offset: const Offset(-8, 0),
-                      child: IconButton(
-                        icon: const Icon(Icons.redo, size: 20),
-                        padding: EdgeInsets.zero,
-                        visualDensity: VisualDensity.compact,
-                        color: value.canRedo
-                            ? Colors.white
-                            : Colors.white.withValues(alpha: 0.25),
-                        onPressed: value.canRedo ? _undoController.redo : null,
-                        tooltip: '다시실행',
-                      ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      icon: const Icon(Icons.redo, size: 20),
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(),
+                      color: value.canRedo
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.25),
+                      onPressed: value.canRedo ? _undoController.redo : null,
+                      tooltip: '다시실행',
                     ),
+                    const SizedBox(width: 12),
                   ],
                 );
               },
