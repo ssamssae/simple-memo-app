@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'screens/splash_screen.dart';
 import 'services/ads_service.dart';
 import 'services/remove_ads_purchase.dart';
+import 'services/settings_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,7 @@ void main() {
     // 수익화 초기화 (배너 광고 / 광고제거 IAP) — 스플래시를 막지 않도록 비동기.
     AdsService.instance.init();
     RemoveAdsPurchase.instance.init();
+    SettingsService.instance.init();
     runApp(const MemoApp());
   }, (Object error, StackTrace stack) {
     // Zone 에러 핸들링 (runZonedGuarded 내 미처리 비동기 에러)

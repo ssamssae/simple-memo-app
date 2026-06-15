@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/memo.dart';
 import '../services/memo_storage.dart';
+import '../services/settings_service.dart';
 import 'memo_edit_screen.dart';
 
 class MemoListScreen extends StatefulWidget {
@@ -879,23 +880,26 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                             ),
                           ),
                         Expanded(
-                          child: Text(
-                            widget.memo.firstLine,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            strutStyle: const StrutStyle(
-                              fontSize: 17,
-                              height: 1.0,
-                              leading: 0,
-                              forceStrutHeight: true,
-                            ),
-                            style: const TextStyle(
-                              color: Color(0xFFECECEC),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 17,
-                              letterSpacing: -0.2,
-                              height: 1.0,
-                              leadingDistribution: TextLeadingDistribution.even,
+                          child: ValueListenableBuilder<double>(
+                            valueListenable: SettingsService.instance.fontScale,
+                            builder: (context, scale, _) => Text(
+                              widget.memo.firstLine,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              strutStyle: StrutStyle(
+                                fontSize: 17 * scale,
+                                height: 1.0,
+                                leading: 0,
+                                forceStrutHeight: true,
+                              ),
+                              style: TextStyle(
+                                color: const Color(0xFFECECEC),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 17 * scale,
+                                letterSpacing: -0.2,
+                                height: 1.0,
+                                leadingDistribution: TextLeadingDistribution.even,
+                              ),
                             ),
                           ),
                         ),
