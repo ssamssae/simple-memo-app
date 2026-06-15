@@ -346,7 +346,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
           scrolledUnderElevation: 0,
           surfaceTintColor: Colors.transparent,
           automaticallyImplyLeading: false,
-          leadingWidth: 150,
+          leadingWidth: 192,
           title: null,
           flexibleSpace: SafeArea(
             child: IgnorePointer(
@@ -375,20 +375,22 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                     onTap: _cancelEdit,
                   ),
                 ],
+                const SizedBox(width: 4),
+                Builder(
+                  builder: (shareContext) => IconButton(
+                    icon: const Icon(Icons.share, size: 20),
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(),
+                    color: Colors.white,
+                    tooltip: '공유',
+                    onPressed: () => _shareMemo(shareContext),
+                  ),
+                ),
               ],
             ),
           ),
           actions: [
-            Builder(
-              builder: (shareContext) => IconButton(
-                icon: const Icon(Icons.share, size: 20),
-                padding: EdgeInsets.zero,
-                visualDensity: VisualDensity.compact,
-                color: Colors.white,
-                tooltip: '공유',
-                onPressed: () => _shareMemo(shareContext),
-              ),
-            ),
             ValueListenableBuilder<UndoHistoryValue>(
               valueListenable: _undoController,
               builder: (context, value, _) {
