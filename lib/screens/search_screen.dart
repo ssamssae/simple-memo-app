@@ -148,7 +148,7 @@ class _SearchScreenState extends State<SearchScreen> {
         Expanded(
           child: ListView.separated(
             itemCount: _results.length,
-            separatorBuilder: (_, __) =>
+            separatorBuilder: (_, _) =>
                 const Divider(height: 1, indent: 16, endIndent: 16),
             itemBuilder: (_, i) => _SearchResultCard(
               memo: _results[i],
