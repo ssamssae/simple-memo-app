@@ -14,7 +14,7 @@ void main() {
   });
 
   testWidgets(
-    '빈 메모에서 공유 IconButton 탭 시 SnackBar 안내 + share intent 호출 X',
+    '새 메모(저장 전)에는 공유 버튼이 숨겨져 share intent 호출 불가',
     (tester) async {
       final calls = <MethodCall>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -25,13 +25,9 @@ void main() {
 
       await tester.pumpWidget(const MaterialApp(home: MemoEditScreen()));
 
-      final shareButton = find.byTooltip('공유');
-      expect(shareButton, findsOneWidget);
-
-      await tester.tap(shareButton);
-      await tester.pump();
-
-      expect(find.text('공유할 내용이 없습니다.'), findsOneWidget);
+      // 새 메모(widget.memo == null)에는 공유할 내용이 없어 공유 버튼을 숨긴다 (아니키 요청, f707129).
+      // 버튼이 없으니 빈 메모를 공유할 경로 자체가 차단된다.
+      expect(find.byTooltip('공유'), findsNothing);
       expect(calls, isEmpty);
     },
   );
