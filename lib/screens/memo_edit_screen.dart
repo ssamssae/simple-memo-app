@@ -327,7 +327,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     final appBarTheme = Theme.of(context).appBarTheme;
     final baseTitleStyle = appBarTheme.titleTextStyle ??
         Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: appBarTheme.foregroundColor ?? Colors.amber,
+              color: appBarTheme.foregroundColor ?? Colors.white,
             );
     final titleStyle = baseTitleStyle?.copyWith(
       fontSize: 17,
@@ -364,7 +364,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               children: [
                 _pillButton(
                   label: '뒤로',
-                  color: Colors.amber.shade300,
+                  color: Colors.white,
                   onTap: _saveAndPop,
                 ),
                 if (_isEditing) ...[
@@ -384,7 +384,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                 icon: const Icon(Icons.share, size: 20),
                 padding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
-                color: Colors.amber.shade300,
+                color: Colors.white,
                 tooltip: '공유',
                 onPressed: () => _shareMemo(shareContext),
               ),
@@ -400,8 +400,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       padding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
                       color: value.canUndo
-                          ? Colors.amber.shade300
-                          : Colors.amber.shade300.withValues(alpha: 0.25),
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.25),
                       onPressed: value.canUndo ? _undoController.undo : null,
                       tooltip: '실행취소',
                     ),
@@ -412,8 +412,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                         padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
                         color: value.canRedo
-                            ? Colors.amber.shade300
-                            : Colors.amber.shade300.withValues(alpha: 0.25),
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.25),
                         onPressed: value.canRedo ? _undoController.redo : null,
                         tooltip: '다시실행',
                       ),
@@ -426,7 +426,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               padding: const EdgeInsets.only(right: 12, left: 0),
               child: _pillButton(
                 label: '저장',
-                color: Colors.amber.shade300,
+                color: Colors.white,
                 onTap: _saveMemo,
               ),
             ),
@@ -457,7 +457,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                     child: TextField(
                     controller: _contentController,
                     undoController: _undoController,
-                    cursorColor: Colors.amber,
+                    cursorColor: Colors.white,
                     cursorHeight: 18,
                     selectionControls: _largeCupertinoSelectionControls,
                     selectionHeightStyle: ui.BoxHeightStyle.includeLineSpacingMiddle,
@@ -469,12 +469,12 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                     ),
                     decoration: InputDecoration(
                       hintText: '내용을 입력하세요...',
-                      hintStyle: TextStyle(color: Colors.amber.withValues(alpha: 0.4)),
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
                       border: InputBorder.none,
                       isCollapsed: true,
                     ),
                     style: const TextStyle(
-                      color: Colors.amber,
+                      color: Colors.white,
                       fontSize: 18,
                       height: 1.5,
                       leadingDistribution: TextLeadingDistribution.even,

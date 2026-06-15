@@ -109,7 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               leading: const Icon(
                 Icons.star_rate_outlined,
-                color: Colors.amber,
+                color: Colors.white,
               ),
               title: const Text(
                 '앱 평가하기',
@@ -121,7 +121,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.chevron_right, color: Colors.amber),
+                  : const Icon(Icons.chevron_right, color: Colors.white),
               onTap: _isOpeningReviewListing ? null : _openReviewListing,
             ),
             const Divider(height: 0.5, thickness: 0.5),
@@ -181,13 +181,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               leading: const Icon(
                 Icons.backup_outlined,
-                color: Colors.amber,
+                color: Colors.white,
               ),
               title: const Text(
                 '백업 & 복원',
                 style: TextStyle(color: Colors.white),
               ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.amber),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white),
               onTap: _openBackupRestore,
             ),
             const Divider(height: 0.5, thickness: 0.5),
@@ -195,13 +195,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               leading: const Icon(
                 Icons.delete_outline,
-                color: Colors.amber,
+                color: Colors.white,
               ),
               title: const Text(
                 '휴지통',
                 style: TextStyle(color: Colors.white),
               ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.amber),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white),
               onTap: _openTrash,
             ),
             const Divider(height: 0.5, thickness: 0.5),

@@ -249,7 +249,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               child: Text(
                 'Drive 백업 선택',
                 style: TextStyle(
-                  color: Colors.amber,
+                  color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -264,7 +264,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   return ListTile(
                     leading: const Icon(
                       Icons.description_outlined,
-                      color: Colors.amber,
+                      color: Colors.white,
                     ),
                     title: Text(
                       _backupLabel(entry),
@@ -319,7 +319,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   const Icon(
                     Icons.cloud_upload_outlined,
                     size: 56,
-                    color: Colors.amber,
+                    color: Colors.white,
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -333,7 +333,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     '백업 대상: 활성 메모 ${_activeMemos.length}개 (휴지통 제외)',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.amber.shade200.withValues(alpha: 0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: 13,
                     ),
                   ),
@@ -342,7 +342,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     _lastBackupLabel(),
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.amber.shade200.withValues(alpha: 0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 12,
                     ),
                   ),
@@ -350,7 +350,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   FilledButton.icon(
                     onPressed: _isBackupRunning ? null : _handleBackup,
                     style: FilledButton.styleFrom(
-                      backgroundColor: Colors.amber,
+                      backgroundColor: Colors.white,
                       foregroundColor: Colors.black,
                       minimumSize: const Size.fromHeight(52),
                     ),
@@ -370,8 +370,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   OutlinedButton.icon(
                     onPressed: _isRestoreRunning ? null : _handleRestore,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.amber,
-                      side: const BorderSide(color: Colors.amber),
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white),
                       minimumSize: const Size.fromHeight(52),
                     ),
                     icon: _isRestoreRunning
@@ -380,7 +380,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.amber,
+                              color: Colors.white,
                             ),
                           )
                         : const Icon(Icons.restore_outlined),
