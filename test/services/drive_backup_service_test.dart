@@ -7,8 +7,6 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:mocktail/mocktail.dart';
 import 'package:simple_memo_app/services/drive_backup_service.dart';
 
-class _MockGoogleSignIn extends Mock implements GoogleSignIn {}
-
 class _MockDriveApi extends Mock implements drive.DriveApi {}
 
 class _MockFilesResource extends Mock implements drive.FilesResource {}
@@ -41,12 +39,13 @@ void main() {
     });
   });
 
-  group('DriveBackupService._obtainAuthClient', () {
-    test('signIn 이 null 반환 시 PermissionDenied', () async {
-      final gsi = _MockGoogleSignIn();
-      when(() => gsi.signIn()).thenAnswer((_) async => null);
-      final result = await DriveBackupService.obtainAuthClientForTest(gsi);
-      expect(result, isA<DriveBackupPermissionDenied>());
+  group('DriveBackupService.mapError — 인증 취소 (gsi v7)', () {
+    test('GoogleSignInException(canceled) → PermissionDenied', () {
+      const e = GoogleSignInException(
+        code: GoogleSignInExceptionCode.canceled,
+      );
+      expect(DriveBackupService.mapErrorForTest(e),
+          isA<DriveBackupPermissionDenied>());
     });
   });
 
