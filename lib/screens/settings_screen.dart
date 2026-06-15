@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/ads_service.dart';
 import '../services/app_review_service.dart';
@@ -49,6 +51,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('스토어를 열 수 없습니다')));
+    }
+  }
+
+  Future<void> _sendFeedback() async {
+    final info = await PackageInfo.fromPlatform();
+    final subject = Uri.encodeComponent('[메모요 피드백] v${info.version}+${info.buildNumber}');
+    final body = Uri.encodeComponent(
+      '\n\n\n──────────\n앱: 메모요 ${info.version}+${info.buildNumber}\n(위에 피드백을 적어주세요)',
+    );
+    final uri = Uri.parse(
+      'mailto:minusbetastudio@gmail.com?subject=$subject&body=$body',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('메일 앱을 열 수 없습니다')),
+      );
     }
   }
 
@@ -123,6 +143,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     )
                   : const Icon(Icons.chevron_right, color: Colors.white),
               onTap: _isOpeningReviewListing ? null : _openReviewListing,
+            ),
+            const Divider(height: 0.5, thickness: 0.5),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              leading: const Icon(
+                Icons.feedback_outlined,
+                color: Colors.white,
+              ),
+              title: const Text(
+                '피드백 보내기',
+                style: TextStyle(color: Colors.white),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white),
+              onTap: _sendFeedback,
             ),
             const Divider(height: 0.5, thickness: 0.5),
             ValueListenableBuilder<bool>(
