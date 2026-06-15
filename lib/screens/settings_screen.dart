@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/ads_service.dart';
 import '../services/app_review_service.dart';
 import '../services/remove_ads_purchase.dart';
+import '../services/settings_service.dart';
 import '../widgets/version_footer.dart';
 import 'backup_restore_screen.dart';
 import 'policy_screen.dart';
@@ -124,6 +125,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           children: [
+            const Divider(height: 0.5, thickness: 0.5),
+            ValueListenableBuilder<double>(
+              valueListenable: SettingsService.instance.fontScale,
+              builder: (context, scale, _) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.format_size, color: Colors.white),
+                          const SizedBox(width: 32),
+                          const Expanded(
+                            child: Text(
+                              '글자 크기',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                          Text(
+                            '${(scale * 100).round()}%',
+                            style: const TextStyle(color: Color(0xFF9A9AA2)),
+                          ),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 48, top: 2, bottom: 2),
+                        child: Text(
+                          '메모 본문이 이 크기로 보여요',
+                          style: TextStyle(
+                            color: const Color(0xFFECECEC),
+                            fontSize: 16 * scale,
+                          ),
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          const Text('가',
+                              style: TextStyle(
+                                  color: Color(0xFF9A9AA2), fontSize: 13)),
+                          Expanded(
+                            child: Slider(
+                              value: scale,
+                              min: SettingsService.minFontScale,
+                              max: SettingsService.maxFontScale,
+                              divisions: 8,
+                              activeColor: const Color(0xFF7C5CFF),
+                              label: '${(scale * 100).round()}%',
+                              onChanged: (v) =>
+                                  SettingsService.instance.fontScale.value = v,
+                              onChangeEnd: (v) =>
+                                  SettingsService.instance.setFontScale(v),
+                            ),
+                          ),
+                          const Text('가',
+                              style: TextStyle(
+                                  color: Color(0xFF9A9AA2), fontSize: 22)),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),

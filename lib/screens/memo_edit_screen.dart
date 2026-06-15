@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/memo.dart';
+import '../services/settings_service.dart';
 
 class MemoEditScreen extends StatefulWidget {
   final Memo? memo;
@@ -467,8 +468,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                     cursorHeight: 18,
                     selectionControls: _largeCupertinoSelectionControls,
                     selectionHeightStyle: ui.BoxHeightStyle.includeLineSpacingMiddle,
-                    strutStyle: const StrutStyle(
-                      fontSize: 18,
+                    strutStyle: StrutStyle(
+                      fontSize: 18 * SettingsService.instance.fontScale.value,
                       height: 1.5,
                       leading: 0,
                       forceStrutHeight: true,
@@ -479,9 +480,9 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       border: InputBorder.none,
                       isCollapsed: true,
                     ),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 18 * SettingsService.instance.fontScale.value,
                       height: 1.5,
                       leadingDistribution: TextLeadingDistribution.even,
                       letterSpacing: 0.2,

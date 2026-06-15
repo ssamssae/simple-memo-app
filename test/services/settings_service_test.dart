@@ -1,0 +1,37 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:simple_memo_app/services/settings_service.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    SettingsService.instance.fontScale.value = 1.0;
+  });
+
+  test('setFontScale 가 상한/하한을 클램프한다', () async {
+    await SettingsService.instance.setFontScale(99); // 위로 초과
+    expect(SettingsService.instance.fontScale.value,
+        SettingsService.maxFontScale);
+
+    await SettingsService.instance.setFontScale(0.0); // 아래로 초과
+    expect(SettingsService.instance.fontScale.value,
+        SettingsService.minFontScale);
+  });
+
+  test('setFontScale 가 범위 내 값을 그대로 적용하고 SharedPreferences 에 저장한다',
+      () async {
+    await SettingsService.instance.setFontScale(1.2);
+    expect(SettingsService.instance.fontScale.value, 1.2);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getDouble('font_scale'), 1.2);
+  });
+
+  test('저장된 클램프 값이 SharedPreferences 에 반영된다', () async {
+    await SettingsService.instance.setFontScale(99);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getDouble('font_scale'), SettingsService.maxFontScale);
+  });
+}
