@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/memo.dart';
 import '../services/memo_storage.dart';
 import 'memo_edit_screen.dart';
+import 'search_screen.dart';
 
 class MemoListScreen extends StatefulWidget {
   const MemoListScreen({super.key});
@@ -217,6 +218,16 @@ class MemoListScreenState extends State<MemoListScreen>
   Future<void> reloadMemos() => _loadMemos();
 
   // --- 메모 CRUD (모두 id 기반) ---
+
+  Future<void> _openSearch() async {
+    _closeAllSwipes();
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => const SearchScreen()),
+    );
+    if (!mounted) return;
+    await reloadMemos();
+  }
 
   Future<void> _addMemo() async {
     _closeAllSwipes();
@@ -482,6 +493,12 @@ class MemoListScreenState extends State<MemoListScreen>
           ),
           title: const Text('메모요', style: TextStyle(fontSize: 17)),
           actions: [
+            if (!_isEditMode)
+              IconButton(
+                icon: const Icon(Icons.search, color: Color(0xFF222228)),
+                tooltip: '검색',
+                onPressed: _openSearch,
+              ),
             if (_isEditMode) ...[
               Padding(
                 padding: const EdgeInsets.only(right: 12),
