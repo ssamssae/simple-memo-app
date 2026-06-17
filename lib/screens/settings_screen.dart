@@ -57,7 +57,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _sendFeedback() async {
     final info = await PackageInfo.fromPlatform();
-    final subject = Uri.encodeComponent('[메모요 피드백] v${info.version}+${info.buildNumber}');
+    final subject = Uri.encodeComponent(
+      '[메모요 피드백] v${info.version}+${info.buildNumber}',
+    );
     final body = Uri.encodeComponent(
       '\n\n\n──────────\n앱: 메모요 ${info.version}+${info.buildNumber}\n(위에 피드백을 적어주세요)',
     );
@@ -67,9 +69,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('메일 앱을 열 수 없습니다')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('메일 앱을 열 수 없습니다')));
     }
   }
 
@@ -82,9 +84,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _openTrash() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const TrashScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const TrashScreen()));
   }
 
   void _openBackupRestore() {
@@ -105,9 +107,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _restorePurchases() async {
     await RemoveAdsPurchase.instance.restore();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('구매 내역을 복원하고 있어요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('구매 내역을 복원하고 있어요.')));
     }
   }
 
@@ -127,8 +129,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             const Divider(height: 0.5, thickness: 0.5),
             ValueListenableBuilder<double>(
-              valueListenable: SettingsService.instance.fontScale,
-              builder: (context, scale, _) {
+              valueListenable: SettingsService.instance.bodyFontSize,
+              builder: (context, fontSize, _) {
+                final fontSizeLabel = '${fontSize.round()}sp';
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
                   child: Column(
@@ -145,43 +148,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           Text(
-                            '${(scale * 100).round()}%',
+                            fontSizeLabel,
                             style: const TextStyle(color: Color(0xFF9A9AA2)),
                           ),
                         ],
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(left: 48, top: 2, bottom: 2),
+                        padding: const EdgeInsets.only(
+                          left: 48,
+                          top: 2,
+                          bottom: 2,
+                        ),
                         child: Text(
                           '메모 본문이 이 크기로 보여요',
                           style: TextStyle(
                             color: const Color(0xFFECECEC),
-                            fontSize: 16 * scale,
+                            fontSize: fontSize,
                           ),
                         ),
                       ),
                       Row(
                         children: [
-                          const Text('가',
-                              style: TextStyle(
-                                  color: Color(0xFF9A9AA2), fontSize: 13)),
-                          Expanded(
-                            child: Slider(
-                              value: scale,
-                              min: SettingsService.minFontScale,
-                              max: SettingsService.maxFontScale,
-                              divisions: 8,
-                              activeColor: const Color(0xFF7C5CFF),
-                              label: '${(scale * 100).round()}%',
-                              onChanged: (v) =>
-                                  SettingsService.instance.fontScale.value = v,
-                              onChangeEnd: (v) =>
-                                  SettingsService.instance.setFontScale(v),
+                          const Text(
+                            '가',
+                            style: TextStyle(
+                              color: Color(0xFF9A9AA2),
+                              fontSize: 13,
                             ),
                           ),
-                          const Text('가',
-                              style: TextStyle(
-                                  color: Color(0xFF9A9AA2), fontSize: 22)),
+                          Expanded(
+                            child: Slider(
+                              value: fontSize,
+                              min: SettingsService.minBodyFontSize,
+                              max: SettingsService.maxBodyFontSize,
+                              divisions:
+                                  (SettingsService.maxBodyFontSize -
+                                          SettingsService.minBodyFontSize)
+                                      .round(),
+                              activeColor: const Color(0xFF7C5CFF),
+                              label: fontSizeLabel,
+                              onChanged:
+                                  SettingsService.instance.previewBodyFontSize,
+                              onChangeEnd: (v) {
+                                SettingsService.instance.setBodyFontSize(v);
+                              },
+                            ),
+                          ),
+                          const Text(
+                            '가',
+                            style: TextStyle(
+                              color: Color(0xFF9A9AA2),
+                              fontSize: 22,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -212,10 +231,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: const Icon(
-                Icons.feedback_outlined,
-                color: Colors.white,
-              ),
+              leading: const Icon(Icons.feedback_outlined, color: Colors.white),
               title: const Text(
                 '피드백 보내기',
                 style: TextStyle(color: Colors.white),
@@ -230,12 +246,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (removed) {
                   return const ListTile(
                     contentPadding: EdgeInsets.symmetric(horizontal: 12),
-                    leading: Icon(Icons.check_circle_outline,
-                        color: Color(0xFF7C5CFF)),
-                    title: Text('광고 제거됨',
-                        style: TextStyle(color: Colors.white)),
-                    subtitle: Text('이용해 주셔서 감사합니다',
-                        style: TextStyle(color: Color(0xFF9A9AA2))),
+                    leading: Icon(
+                      Icons.check_circle_outline,
+                      color: Color(0xFF7C5CFF),
+                    ),
+                    title: Text(
+                      '광고 제거됨',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      '이용해 주셔서 감사합니다',
+                      style: TextStyle(color: Color(0xFF9A9AA2)),
+                    ),
                   );
                 }
                 final available = RemoveAdsPurchase.instance.available;
@@ -243,32 +265,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 return Column(
                   children: [
                     ListTile(
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12),
-                      leading: const Icon(Icons.block_outlined,
-                          color: Color(0xFF7C5CFF)),
-                      title: const Text('광고 제거',
-                          style: TextStyle(color: Colors.white)),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                      leading: const Icon(
+                        Icons.block_outlined,
+                        color: Color(0xFF7C5CFF),
+                      ),
+                      title: const Text(
+                        '광고 제거',
+                        style: TextStyle(color: Colors.white),
+                      ),
                       subtitle: Text(
-                        available
-                            ? (price ?? '한 번 결제로 배너 광고 제거')
-                            : '상품 준비중',
+                        available ? (price ?? '한 번 결제로 배너 광고 제거') : '상품 준비중',
                         style: const TextStyle(color: Color(0xFF9A9AA2)),
                       ),
-                      trailing: const Icon(Icons.chevron_right,
-                          color: Color(0xFF7C5CFF)),
+                      trailing: const Icon(
+                        Icons.chevron_right,
+                        color: Color(0xFF7C5CFF),
+                      ),
                       onTap: _buyRemoveAds,
                     ),
                     const Divider(height: 0.5, thickness: 0.5),
                     ListTile(
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12),
-                      leading: const Icon(Icons.restore,
-                          color: Color(0xFF9A9AA2)),
-                      title: const Text('구매 복원',
-                          style: TextStyle(color: Colors.white)),
-                      trailing: const Icon(Icons.chevron_right,
-                          color: Color(0xFF9A9AA2)),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                      leading: const Icon(
+                        Icons.restore,
+                        color: Color(0xFF9A9AA2),
+                      ),
+                      title: const Text(
+                        '구매 복원',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      trailing: const Icon(
+                        Icons.chevron_right,
+                        color: Color(0xFF9A9AA2),
+                      ),
                       onTap: _restorePurchases,
                     ),
                   ],
@@ -278,10 +312,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: const Icon(
-                Icons.backup_outlined,
-                color: Colors.white,
-              ),
+              leading: const Icon(Icons.backup_outlined, color: Colors.white),
               title: const Text(
                 '백업 & 복원',
                 style: TextStyle(color: Colors.white),
@@ -292,14 +323,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: const Icon(
-                Icons.delete_outline,
-                color: Colors.white,
-              ),
-              title: const Text(
-                '휴지통',
-                style: TextStyle(color: Colors.white),
-              ),
+              leading: const Icon(Icons.delete_outline, color: Colors.white),
+              title: const Text('휴지통', style: TextStyle(color: Colors.white)),
               trailing: const Icon(Icons.chevron_right, color: Colors.white),
               onTap: _openTrash,
             ),
@@ -310,15 +335,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icons.description_outlined,
                 color: Colors.white70,
               ),
-              title: const Text(
-                '이용약관',
-                style: TextStyle(color: Colors.white),
-              ),
+              title: const Text('이용약관', style: TextStyle(color: Colors.white)),
               trailing: const Icon(Icons.chevron_right, color: Colors.white70),
-              onTap: () => _openPolicy(
-                '이용약관',
-                'docs/legal/terms-of-service.md',
-              ),
+              onTap: () =>
+                  _openPolicy('이용약관', 'docs/legal/terms-of-service.md'),
             ),
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
@@ -332,10 +352,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: TextStyle(color: Colors.white),
               ),
               trailing: const Icon(Icons.chevron_right, color: Colors.white70),
-              onTap: () => _openPolicy(
-                '개인정보처리방침',
-                'docs/legal/privacy-policy.md',
-              ),
+              onTap: () =>
+                  _openPolicy('개인정보처리방침', 'docs/legal/privacy-policy.md'),
             ),
             const Divider(height: 0.5, thickness: 0.5),
             const SizedBox(height: 24),
