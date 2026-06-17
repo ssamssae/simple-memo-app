@@ -573,30 +573,33 @@ class MemoListScreenState extends State<MemoListScreen>
                   ],
                 ),
               )
-            : SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
+            : Padding(
                 padding: const EdgeInsets.only(left: 12, right: 12, bottom: 16),
                 child: ClipRRect(
                   borderRadius: const BorderRadius.all(Radius.circular(14)),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Divider(
-                        height: 0.5,
-                        thickness: 0.5,
-                        indent: 0,
-                        endIndent: 0,
+                  // 드래그 핸들로 reorder 시 화면 끝에서 자동 스크롤이 먹도록
+                  // CustomScrollView + SliverReorderableList 로 구성한다.
+                  // (옛 구조: NeverScrollableScrollPhysics 인 ReorderableListView 를
+                  //  SingleChildScrollView 안에 중첩 → 드래그 시 항목이 화면 밖으로
+                  //  떠도 자동 스크롤 안 됨)
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    slivers: [
+                      const SliverToBoxAdapter(
+                        child: Divider(
+                          height: 0.5,
+                          thickness: 0.5,
+                          indent: 0,
+                          endIndent: 0,
+                        ),
                       ),
                       if (favorites.isNotEmpty)
-                        ReorderableListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
+                        SliverReorderableList(
                           itemCount: favorites.length,
                           // ignore: deprecated_member_use
                           onReorder: _onReorderFav,
-                          buildDefaultDragHandles: false,
                           proxyDecorator: (child, index, animation) {
                             return Material(elevation: 2, child: child);
                           },
@@ -622,13 +625,10 @@ class MemoListScreenState extends State<MemoListScreen>
                           },
                         ),
                       if (normals.isNotEmpty)
-                        ReorderableListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
+                        SliverReorderableList(
                           itemCount: normals.length,
                           // ignore: deprecated_member_use
                           onReorder: _onReorderNormal,
-                          buildDefaultDragHandles: false,
                           proxyDecorator: (child, index, animation) {
                             return Material(elevation: 2, child: child);
                           },
