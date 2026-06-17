@@ -1,9 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/screens/settings_screen.dart';
 import 'package:simple_memo_app/services/app_review_service.dart';
+import 'package:simple_memo_app/services/settings_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    SettingsService.instance.bodyFontSize.value =
+        SettingsService.defaultBodyFontSize;
+  });
+
+  testWidgets('설정 화면 글자 크기 슬라이더가 표시값과 저장값을 갱신한다', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+
+    expect(find.text('글자 크기'), findsOneWidget);
+    expect(find.text('18sp'), findsOneWidget);
+
+    final slider = tester.widget<Slider>(find.byType(Slider));
+    slider.onChanged?.call(20);
+    await tester.pump();
+
+    expect(find.text('20sp'), findsOneWidget);
+
+    slider.onChangeEnd?.call(20);
+    await tester.pumpAndSettle();
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getDouble('memo_body_font_size'), 20);
+  });
+
   testWidgets('설정 화면의 앱 평가하기 버튼이 스토어 리뷰 listing 콜백을 호출한다', (tester) async {
     var openCount = 0;
 

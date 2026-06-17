@@ -7,31 +7,38 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    SettingsService.instance.fontScale.value = 1.0;
+    SettingsService.instance.bodyFontSize.value =
+        SettingsService.defaultBodyFontSize;
   });
 
-  test('setFontScale 가 상한/하한을 클램프한다', () async {
-    await SettingsService.instance.setFontScale(99); // 위로 초과
-    expect(SettingsService.instance.fontScale.value,
-        SettingsService.maxFontScale);
+  test('setBodyFontSize 가 상한/하한을 클램프한다', () async {
+    await SettingsService.instance.setBodyFontSize(99); // 위로 초과
+    expect(
+      SettingsService.instance.bodyFontSize.value,
+      SettingsService.maxBodyFontSize,
+    );
 
-    await SettingsService.instance.setFontScale(0.0); // 아래로 초과
-    expect(SettingsService.instance.fontScale.value,
-        SettingsService.minFontScale);
+    await SettingsService.instance.setBodyFontSize(0.0); // 아래로 초과
+    expect(
+      SettingsService.instance.bodyFontSize.value,
+      SettingsService.minBodyFontSize,
+    );
   });
 
-  test('setFontScale 가 범위 내 값을 그대로 적용하고 SharedPreferences 에 저장한다',
-      () async {
-    await SettingsService.instance.setFontScale(1.2);
-    expect(SettingsService.instance.fontScale.value, 1.2);
+  test('setBodyFontSize 가 범위 내 값을 그대로 적용하고 SharedPreferences 에 저장한다', () async {
+    await SettingsService.instance.setBodyFontSize(20);
+    expect(SettingsService.instance.bodyFontSize.value, 20);
 
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getDouble('font_scale'), 1.2);
+    expect(prefs.getDouble('memo_body_font_size'), 20);
   });
 
   test('저장된 클램프 값이 SharedPreferences 에 반영된다', () async {
-    await SettingsService.instance.setFontScale(99);
+    await SettingsService.instance.setBodyFontSize(99);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getDouble('font_scale'), SettingsService.maxFontScale);
+    expect(
+      prefs.getDouble('memo_body_font_size'),
+      SettingsService.maxBodyFontSize,
+    );
   });
 }

@@ -180,10 +180,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     if (content.isEmpty) return null;
 
     if (_isEditing && widget.memo != null) {
-      return widget.memo!.copyWith(
-        content: content,
-        updatedAt: DateTime.now(),
-      );
+      return widget.memo!.copyWith(content: content, updatedAt: DateTime.now());
     } else {
       return Memo.create(content: content);
     }
@@ -237,9 +234,9 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('공유 실패: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('공유 실패: $e')));
     }
   }
 
@@ -267,7 +264,9 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     Navigator.pop(context);
   }
 
-  Future<void> _handlePasteWithNewline(EditableTextState editableTextState) async {
+  Future<void> _handlePasteWithNewline(
+    EditableTextState editableTextState,
+  ) async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text ?? '';
     if (text.isNotEmpty) {
@@ -310,10 +309,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: color, fontSize: 16),
               ),
             ],
           ],
@@ -326,13 +322,12 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   Widget build(BuildContext context) {
     final titleText = _isEditing ? '메모수정' : '새메모';
     final appBarTheme = Theme.of(context).appBarTheme;
-    final baseTitleStyle = appBarTheme.titleTextStyle ??
+    final baseTitleStyle =
+        appBarTheme.titleTextStyle ??
         Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: appBarTheme.foregroundColor ?? Colors.white,
-            );
-    final titleStyle = baseTitleStyle?.copyWith(
-      fontSize: 17,
-    );
+          color: appBarTheme.foregroundColor ?? Colors.white,
+        );
+    final titleStyle = baseTitleStyle?.copyWith(fontSize: 17);
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
@@ -448,119 +443,136 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
             }
           },
           child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
-            child: LayoutBuilder(
-              builder: (context, constraints) => SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Listener(
-                    onPointerDown: (e) => _lastTouchPosition = e.position,
-                    onPointerUp: (e) => _lastTouchPosition = e.position,
-                    child: TextField(
-                    controller: _contentController,
-                    undoController: _undoController,
-                    cursorColor: Colors.white,
-                    cursorHeight: 18,
-                    selectionControls: _largeCupertinoSelectionControls,
-                    selectionHeightStyle: ui.BoxHeightStyle.includeLineSpacingMiddle,
-                    strutStyle: StrutStyle(
-                      fontSize: 18 * SettingsService.instance.fontScale.value,
-                      height: 1.5,
-                      leading: 0,
-                      forceStrutHeight: true,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: '내용을 입력하세요...',
-                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
-                      border: InputBorder.none,
-                      isCollapsed: true,
-                    ),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18 * SettingsService.instance.fontScale.value,
-                      height: 1.5,
-                      leadingDistribution: TextLeadingDistribution.even,
-                      letterSpacing: 0.2,
-                      decoration: TextDecoration.none,
-                      decorationColor: Colors.transparent,
-                      decorationThickness: 0,
-                    ),
-                    maxLines: null,
-                    autofocus: !_isEditing,
-                    contextMenuBuilder: (context, editableTextState) {
-                      final items = List<ContextMenuButtonItem>.from(
-                        editableTextState.contextMenuButtonItems,
-                      );
-                      if (!Platform.isIOS) {
-                        for (var i = 0; i < items.length; i++) {
-                          if (items[i].type == ContextMenuButtonType.paste) {
-                            items[i] = ContextMenuButtonItem(
-                              type: ContextMenuButtonType.paste,
-                              onPressed: () =>
-                                  _handlePasteWithNewline(editableTextState),
-                            );
-                          }
-                        }
-                      }
-                      final sel = editableTextState.textEditingValue.selection;
-                      final text = editableTextState.textEditingValue.text;
-                      items.removeWhere(
-                        (item) => item.type == ContextMenuButtonType.selectAll,
-                      );
-                      final allSelected = sel.isValid &&
-                          sel.start == 0 &&
-                          sel.end == text.length;
-                      if (text.isNotEmpty && !allSelected) {
-                        final selectAll = ContextMenuButtonItem(
-                          type: ContextMenuButtonType.selectAll,
-                          label: 'Select All',
-                          onPressed: () {
-                            editableTextState
-                                .selectAll(SelectionChangedCause.toolbar);
-                          },
-                        );
-                        final pasteIdx = items.indexWhere(
-                          (item) => item.type == ContextMenuButtonType.paste,
-                        );
-                        if (pasteIdx >= 0) {
-                          items.insert(pasteIdx, selectAll);
-                        } else {
-                          items.add(selectAll);
-                        }
-                      }
-
-                      var anchors = editableTextState.contextMenuAnchors;
-                      if (allSelected) {
-                        final s = MediaQuery.of(context).size;
-                        final mid = Offset(s.width / 2, s.height / 2);
-                        anchors = TextSelectionToolbarAnchors(
-                          primaryAnchor: mid,
-                          secondaryAnchor: mid,
-                        );
-                      } else if (sel.isValid && _lastTouchPosition != null) {
-                        anchors = TextSelectionToolbarAnchors(
-                          primaryAnchor: _lastTouchPosition!,
-                          secondaryAnchor: _lastTouchPosition!,
-                        );
-                      }
-
-                      return AdaptiveTextSelectionToolbar.buttonItems(
-                        anchors: anchors,
-                        buttonItems: items,
-                      );
-                    },
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
                   ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: Listener(
+                      onPointerDown: (e) => _lastTouchPosition = e.position,
+                      onPointerUp: (e) => _lastTouchPosition = e.position,
+                      child: ValueListenableBuilder<double>(
+                        valueListenable: SettingsService.instance.bodyFontSize,
+                        builder: (context, bodyFontSize, _) => TextField(
+                          controller: _contentController,
+                          undoController: _undoController,
+                          cursorColor: Colors.white,
+                          cursorHeight: bodyFontSize,
+                          selectionControls: _largeCupertinoSelectionControls,
+                          selectionHeightStyle:
+                              ui.BoxHeightStyle.includeLineSpacingMiddle,
+                          strutStyle: StrutStyle(
+                            fontSize: bodyFontSize,
+                            height: 1.5,
+                            leading: 0,
+                            forceStrutHeight: true,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: '내용을 입력하세요...',
+                            hintStyle: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.4),
+                            ),
+                            border: InputBorder.none,
+                            isCollapsed: true,
+                          ),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: bodyFontSize,
+                            height: 1.5,
+                            leadingDistribution: TextLeadingDistribution.even,
+                            letterSpacing: 0.2,
+                            decoration: TextDecoration.none,
+                            decorationColor: Colors.transparent,
+                            decorationThickness: 0,
+                          ),
+                          maxLines: null,
+                          autofocus: !_isEditing,
+                          contextMenuBuilder: (context, editableTextState) {
+                            final items = List<ContextMenuButtonItem>.from(
+                              editableTextState.contextMenuButtonItems,
+                            );
+                            if (!Platform.isIOS) {
+                              for (var i = 0; i < items.length; i++) {
+                                if (items[i].type ==
+                                    ContextMenuButtonType.paste) {
+                                  items[i] = ContextMenuButtonItem(
+                                    type: ContextMenuButtonType.paste,
+                                    onPressed: () => _handlePasteWithNewline(
+                                      editableTextState,
+                                    ),
+                                  );
+                                }
+                              }
+                            }
+                            final sel =
+                                editableTextState.textEditingValue.selection;
+                            final text =
+                                editableTextState.textEditingValue.text;
+                            items.removeWhere(
+                              (item) =>
+                                  item.type == ContextMenuButtonType.selectAll,
+                            );
+                            final allSelected =
+                                sel.isValid &&
+                                sel.start == 0 &&
+                                sel.end == text.length;
+                            if (text.isNotEmpty && !allSelected) {
+                              final selectAll = ContextMenuButtonItem(
+                                type: ContextMenuButtonType.selectAll,
+                                label: 'Select All',
+                                onPressed: () {
+                                  editableTextState.selectAll(
+                                    SelectionChangedCause.toolbar,
+                                  );
+                                },
+                              );
+                              final pasteIdx = items.indexWhere(
+                                (item) =>
+                                    item.type == ContextMenuButtonType.paste,
+                              );
+                              if (pasteIdx >= 0) {
+                                items.insert(pasteIdx, selectAll);
+                              } else {
+                                items.add(selectAll);
+                              }
+                            }
+
+                            var anchors = editableTextState.contextMenuAnchors;
+                            if (allSelected) {
+                              final s = MediaQuery.of(context).size;
+                              final mid = Offset(s.width / 2, s.height / 2);
+                              anchors = TextSelectionToolbarAnchors(
+                                primaryAnchor: mid,
+                                secondaryAnchor: mid,
+                              );
+                            } else if (sel.isValid &&
+                                _lastTouchPosition != null) {
+                              anchors = TextSelectionToolbarAnchors(
+                                primaryAnchor: _lastTouchPosition!,
+                                secondaryAnchor: _lastTouchPosition!,
+                              );
+                            }
+
+                            return AdaptiveTextSelectionToolbar.buttonItems(
+                              anchors: anchors,
+                              buttonItems: items,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
         ),
       ),
     );
@@ -602,10 +614,7 @@ class _LargeCupertinoSelectionControls extends CupertinoTextSelectionControls {
 
   @override
   Size getHandleSize(double textLineHeight) {
-    return Size(
-      _radius * 2,
-      textLineHeight + _radius * 2 - _overlap,
-    );
+    return Size(_radius * 2, textLineHeight + _radius * 2 - _overlap);
   }
 
   @override
