@@ -499,10 +499,13 @@ class MemoListScreenState extends State<MemoListScreen>
           title: const Text('메모요', style: TextStyle(fontSize: 17)),
           actions: [
             if (!_isEditMode)
-              IconButton(
-                icon: const Icon(Icons.search, color: Color(0xFF222228)),
-                tooltip: '검색',
-                onPressed: _openSearch,
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: IconButton(
+                  icon: const Icon(Icons.search, color: Color(0xFF9A9AA2)),
+                  tooltip: '검색',
+                  onPressed: _openSearch,
+                ),
               ),
             if (_isEditMode) ...[
               Padding(

@@ -160,7 +160,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           bottom: 2,
                         ),
                         child: Text(
-                          '메모 본문이 이 크기로 보여요',
+                          '메모 본문 크기',
                           style: TextStyle(
                             color: const Color(0xFFECECEC),
                             fontSize: fontSize,
