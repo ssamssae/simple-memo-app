@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.10+32
+version: 1.0.11+33
 
 environment:
   sdk: ^3.10.4
@@ -64,6 +64,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   mocktail: ^1.0.4
   flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.0
 
 # 앱 아이콘 (T-260614, 다크 노트패드 — GPT 앱 생성 → full-bleed 처리)
 flutter_launcher_icons:
@@ -74,6 +75,20 @@ flutter_launcher_icons:
   adaptive_icon_background: "#2F333C"
   adaptive_icon_foreground: "assets/icon/app_icon.png"
   min_sdk_android: 21
+
+# 네이티브 스플래시 (T-260622, 이중 스플래시 깜빡임 fix) — OS 시스템 스플래시를
+# 인앱 스플래시(splash_screen.dart: 검은 배경 + assets/images/app_icon.png)와 동일하게
+# 맞춰 "OS 자동 스플래시 → 인앱 스플래시" 핸드오프 깜빡임 제거. 안드로이드 한정.
+flutter_native_splash:
+  color: "#000000"
+  image: assets/images/app_icon.png
+  android_12:
+    image: assets/images/app_icon.png
+    color: "#000000"
+    icon_background_color: "#000000"
+  android: true
+  ios: false
+  web: false
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
