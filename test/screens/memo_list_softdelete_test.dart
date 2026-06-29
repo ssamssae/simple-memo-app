@@ -13,7 +13,8 @@ import 'package:simple_memo_app/screens/memo_list_screen.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Memo active(String id, String content, DateTime t, {bool fav = false}) => Memo(
+  Memo active(String id, String content, DateTime t, {bool fav = false}) =>
+      Memo(
         id: id,
         content: content,
         createdAt: t,
@@ -133,7 +134,7 @@ void main() {
       expect(find.text('N3 일반 셋째'), findsOneWidget);
 
       final reorderable = tester
-          .widgetList<ReorderableListView>(find.byType(ReorderableListView))
+          .widgetList<SliverReorderableList>(find.byType(SliverReorderableList))
           .first;
       expect(reorderable.onReorder, isA<ReorderCallback>());
 
@@ -145,11 +146,16 @@ void main() {
         (await SharedPreferences.getInstance()).getString('memos')!,
       );
       // 활성 표시 순서는 [N3, N1] 로 바뀌고, 휴지통 nTrash 는 보존된다.
-      final activeIds =
-          saved.where((m) => m.deletedAt == null).map((m) => m.id).toList();
+      final activeIds = saved
+          .where((m) => m.deletedAt == null)
+          .map((m) => m.id)
+          .toList();
       expect(activeIds, ['n3', 'n1'], reason: '활성만 정확히 reorder (nTrash 미건드림)');
-      expect(saved.any((m) => m.id == 'nTrash' && m.deletedAt != null), isTrue,
-          reason: '휴지통 항목 보존');
+      expect(
+        saved.any((m) => m.id == 'nTrash' && m.deletedAt != null),
+        isTrue,
+        reason: '휴지통 항목 보존',
+      );
 
       // 화면에서도 N3 가 N1 보다 위
       expect(
