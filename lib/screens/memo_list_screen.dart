@@ -449,6 +449,7 @@ class MemoListScreenState extends State<MemoListScreen>
     final active = _memos.where((m) => m.deletedAt == null).toList();
     final favorites = active.where((m) => m.isFavorite).toList();
     final normals = active.where((m) => !m.isFavorite).toList();
+    final canEdit = active.isNotEmpty;
 
     return Listener(
       onPointerDown: (event) {
@@ -473,29 +474,31 @@ class MemoListScreenState extends State<MemoListScreen>
           centerTitle: true,
           scrolledUnderElevation: 0,
           surfaceTintColor: Colors.transparent,
-          leadingWidth: 90,
-          leading: Padding(
-            padding: const EdgeInsets.only(left: 12),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: GestureDetector(
-                onTap: _toggleEditMode,
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  alignment: Alignment.center,
-                  child: Text(
-                    _isEditMode ? '취소' : '편집',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color(0xFF9A9AA2),
-                      fontSize: 16,
+          leadingWidth: canEdit ? 90 : null,
+          leading: canEdit
+              ? Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: GestureDetector(
+                      onTap: _toggleEditMode,
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        alignment: Alignment.center,
+                        child: Text(
+                          _isEditMode ? '취소' : '편집',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Color(0xFF9A9AA2),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ),
-          ),
+                )
+              : null,
           title: const Text('메모요', style: TextStyle(fontSize: 17)),
           actions: [
             if (!_isEditMode)
