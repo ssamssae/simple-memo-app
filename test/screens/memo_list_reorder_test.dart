@@ -12,16 +12,16 @@ import 'package:simple_memo_app/screens/memo_list_screen.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  /// favorites / normal 양쪽 섹션 모두 ReorderableListView 인스턴스를 갖는다.
+  /// favorites / normal 양쪽 섹션 모두 SliverReorderableList 인스턴스를 갖는다.
   /// 인덱스 순서대로 [favorites, normals] 가 나옴 (build 순서).
-  Future<ReorderableListView> pumpAndFindReorderable(
+  Future<SliverReorderableList> pumpAndFindReorderable(
     WidgetTester tester, {
     required int index,
   }) async {
     await tester.pumpWidget(const MaterialApp(home: MemoListScreen()));
     await tester.pumpAndSettle();
     final widgets = tester
-        .widgetList<ReorderableListView>(find.byType(ReorderableListView))
+        .widgetList<SliverReorderableList>(find.byType(SliverReorderableList))
         .toList();
     expect(widgets.length, greaterThan(index));
     return widgets[index];
@@ -57,9 +57,7 @@ void main() {
           isFavorite: true,
         ),
       ];
-      SharedPreferences.setMockInitialValues({
-        'memos': Memo.encodeList(favs),
-      });
+      SharedPreferences.setMockInitialValues({'memos': Memo.encodeList(favs)});
 
       final reorderable = await pumpAndFindReorderable(tester, index: 0);
       // 콜백 wiring 자체 — 사이클 #3 회귀 직접 방어. ReorderCallback 타입.
@@ -75,9 +73,11 @@ void main() {
       final saved = prefs.getString('memos');
       expect(saved, isNotNull);
       final restored = Memo.decodeList(saved!);
-      expect(restored.map((m) => m.id).toList(),
-          equals(['fav-2', 'fav-1', 'fav-3']),
-          reason: 'F1 을 인덱스 1 로 이동하면 [F2, F1, F3] 가 SharedPreferences 에 영속');
+      expect(
+        restored.map((m) => m.id).toList(),
+        equals(['fav-2', 'fav-1', 'fav-3']),
+        reason: 'F1 을 인덱스 1 로 이동하면 [F2, F1, F3] 가 SharedPreferences 에 영속',
+      );
 
       // 화면 visible 순서도 동일하게 변경됐는지 — F2 첫 줄이 F1 첫 줄보다 위에 그려짐
       final f2Pos = tester.getTopLeft(find.text('F2 즐겨찾기 둘째'));
@@ -114,7 +114,7 @@ void main() {
         'memos': Memo.encodeList(normals),
       });
 
-      // favorites 가 없으므로 ReorderableListView 인스턴스 1개 (normals).
+      // favorites 가 없으므로 SliverReorderableList 인스턴스 1개 (normals).
       final reorderable = await pumpAndFindReorderable(tester, index: 0);
       expect(reorderable.onReorder, isA<ReorderCallback>());
 
@@ -126,9 +126,11 @@ void main() {
       final saved = prefs.getString('memos');
       expect(saved, isNotNull);
       final restored = Memo.decodeList(saved!);
-      expect(restored.map((m) => m.id).toList(),
-          equals(['n-3', 'n-1', 'n-2']),
-          reason: 'N3 을 맨 앞으로 이동하면 [N3, N1, N2] 영속');
+      expect(
+        restored.map((m) => m.id).toList(),
+        equals(['n-3', 'n-1', 'n-2']),
+        reason: 'N3 을 맨 앞으로 이동하면 [N3, N1, N2] 영속',
+      );
 
       final n3Pos = tester.getTopLeft(find.text('N3 일반 셋째'));
       final n1Pos = tester.getTopLeft(find.text('N1 일반 첫째'));
