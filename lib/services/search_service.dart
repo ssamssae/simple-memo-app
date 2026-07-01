@@ -10,6 +10,9 @@ import '../models/memo.dart';
 ///   - 빈/공백 쿼리 → 입력 메모 그대로 반환.
 /// 랭킹(§3.4 옵션 C): 즐겨찾기 > 제목(첫 줄) 매치 > 본문 매치 → updatedAt desc.
 class SearchService {
+  static final _whitespaceRun = RegExp(r'\s+');
+  static final _whitespaceChar = RegExp(r'\s');
+
   /// 활성 메모를 query 로 검색·랭킹해 반환.
   static List<Memo> search(List<Memo> memos, String query) {
     final q = _normalize(query);
@@ -40,9 +43,10 @@ class SearchService {
   static SearchExcerpt excerpt(String source, String query, {int context = 30}) {
     final q = _normalize(query);
     if (q.isEmpty) return SearchExcerpt(source, -1, 0);
-    final idx = source.toLowerCase().indexOf(q);
-    if (idx < 0) return SearchExcerpt(source, -1, 0);
+    final span = _normalizedSourceSpan(source, q);
+    if (span == null) return SearchExcerpt(source, -1, 0);
 
+    final idx = span.start;
     var startCtx = idx - context;
     var prefix = '';
     if (startCtx > 0) {
@@ -50,7 +54,7 @@ class SearchService {
     } else {
       startCtx = 0;
     }
-    var endCtx = idx + q.length + context;
+    var endCtx = span.end + context;
     var suffix = '';
     if (endCtx < source.length) {
       suffix = '…';
@@ -59,7 +63,7 @@ class SearchService {
     }
     final text = '$prefix${source.substring(startCtx, endCtx)}$suffix';
     final matchStart = prefix.length + (idx - startCtx);
-    return SearchExcerpt(text, matchStart, q.length);
+    return SearchExcerpt(text, matchStart, span.end - span.start);
   }
 
   static bool _titleHit(Memo m, String normQuery) =>
@@ -70,7 +74,47 @@ class SearchService {
 
   // 소문자화 + 트림 + 다중 공백 단일화 (§2.3). 한글 자소 분리는 하지 않음.
   static String _normalize(String s) =>
-      s.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
+      s.toLowerCase().trim().replaceAll(_whitespaceRun, ' ');
+
+  static _SourceSpan? _normalizedSourceSpan(String source, String normQuery) {
+    final normalized = _normalizeSourceWithMap(source);
+    final normalizedStart = normalized.text.indexOf(normQuery);
+    if (normalizedStart < 0) return null;
+    final normalizedEnd = normalizedStart + normQuery.length - 1;
+    return _SourceSpan(
+      normalized.sourceIndexes[normalizedStart],
+      normalized.sourceIndexes[normalizedEnd] + 1,
+    );
+  }
+
+  static _NormalizedSource _normalizeSourceWithMap(String source) {
+    final text = StringBuffer();
+    final indexes = <int>[];
+    var hasOutput = false;
+    var pendingSpace = false;
+    var pendingSpaceIndex = -1;
+
+    for (var i = 0; i < source.length; i++) {
+      final char = source[i];
+      if (_whitespaceChar.hasMatch(char)) {
+        if (hasOutput && !pendingSpace) {
+          pendingSpace = true;
+          pendingSpaceIndex = i;
+        }
+        continue;
+      }
+      if (pendingSpace) {
+        text.write(' ');
+        indexes.add(pendingSpaceIndex);
+        pendingSpace = false;
+      }
+      text.write(char.toLowerCase());
+      indexes.add(i);
+      hasOutput = true;
+    }
+
+    return _NormalizedSource(text.toString(), indexes);
+  }
 }
 
 /// excerpt 결과: 발췌 텍스트 + 매치 시작 index/길이(text 내부 기준). start -1 = 매치 없음.
@@ -79,4 +123,16 @@ class SearchExcerpt {
   final String text;
   final int start;
   final int length;
+}
+
+class _NormalizedSource {
+  const _NormalizedSource(this.text, this.sourceIndexes);
+  final String text;
+  final List<int> sourceIndexes;
+}
+
+class _SourceSpan {
+  const _SourceSpan(this.start, this.end);
+  final int start;
+  final int end;
 }
