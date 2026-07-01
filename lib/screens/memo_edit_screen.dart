@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
@@ -24,6 +25,7 @@ class MemoEditScreen extends StatefulWidget {
 class _MemoEditScreenState extends State<MemoEditScreen> {
   late final TextEditingController _contentController;
   final UndoHistoryController _undoController = UndoHistoryController();
+  final ScrollController _contentScrollController = ScrollController();
   StreamSubscription<AccelerometerEvent>? _accelSub;
   DateTime _lastShakeAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _shakeDialogOpen = false;
@@ -55,6 +57,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     _accelSub?.cancel();
     _contentController.removeListener(_clampSelectionTrailingNewline);
     _contentController.dispose();
+    _contentScrollController.dispose();
     _undoController.dispose();
     super.dispose();
   }
@@ -285,6 +288,18 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     editableTextState.hideToolbar();
   }
 
+  void _handleContentPointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent || !_contentScrollController.hasClients) {
+      return;
+    }
+    final position = _contentScrollController.position;
+    final target = (position.pixels + event.scrollDelta.dy)
+        .clamp(position.minScrollExtent, position.maxScrollExtent)
+        .toDouble();
+    if (target == position.pixels) return;
+    position.jumpTo(target);
+  }
+
   Widget _pillButton({
     String? label,
     IconData? icon,
@@ -448,6 +463,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
               child: LayoutBuilder(
                 builder: (context, constraints) => SingleChildScrollView(
+                  controller: _contentScrollController,
                   physics: const AlwaysScrollableScrollPhysics(
                     parent: BouncingScrollPhysics(),
                   ),
@@ -458,6 +474,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                     child: Listener(
                       onPointerDown: (e) => _lastTouchPosition = e.position,
                       onPointerUp: (e) => _lastTouchPosition = e.position,
+                      onPointerSignal: _handleContentPointerSignal,
                       child: ValueListenableBuilder<double>(
                         valueListenable: SettingsService.instance.bodyFontSize,
                         builder: (context, bodyFontSize, _) => TextField(
@@ -466,6 +483,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                           cursorColor: Colors.white,
                           cursorHeight: bodyFontSize,
                           selectionControls: _largeCupertinoSelectionControls,
+                          scrollPhysics: const NeverScrollableScrollPhysics(),
                           selectionHeightStyle:
                               ui.BoxHeightStyle.includeLineSpacingMiddle,
                           strutStyle: StrutStyle(
