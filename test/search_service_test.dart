@@ -132,5 +132,11 @@ void main() {
       expect(e.text, 'Karpathy');
       expect(e.start, 0);
     });
+
+    test('검색과 동일하게 원문 다중 공백을 단일 공백 쿼리로 하이라이트', () {
+      final e = SearchService.excerpt('Alpha   Beta memo', 'alpha beta');
+      expect(e.start, 0);
+      expect(e.text.substring(e.start, e.start + e.length), 'Alpha   Beta');
+    });
   });
 }
