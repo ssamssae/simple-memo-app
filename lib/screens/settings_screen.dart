@@ -278,6 +278,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
             const Divider(height: 0.5, thickness: 0.5),
+            ValueListenableBuilder<ThemeMode>(
+              valueListenable: SettingsService.instance.themeMode,
+              builder: (context, themeMode, _) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.contrast, color: Colors.white),
+                      const SizedBox(width: 32),
+                      const Text('테마', style: TextStyle(color: Colors.white)),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: SegmentedButton<ThemeMode>(
+                          showSelectedIcon: false,
+                          selected: {themeMode},
+                          style: const ButtonStyle(
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          segments: const [
+                            ButtonSegment<ThemeMode>(
+                              value: ThemeMode.system,
+                              label: Text('시스템'),
+                            ),
+                            ButtonSegment<ThemeMode>(
+                              value: ThemeMode.light,
+                              label: Text('라이트'),
+                            ),
+                            ButtonSegment<ThemeMode>(
+                              value: ThemeMode.dark,
+                              label: Text('다크'),
+                            ),
+                          ],
+                          onSelectionChanged: (selection) {
+                            if (selection.isEmpty) return;
+                            SettingsService.instance.setThemeMode(
+                              selection.first,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const Divider(height: 0.5, thickness: 0.5),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               leading: const Icon(
