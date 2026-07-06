@@ -12,6 +12,13 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     SettingsService.instance.bodyFontSize.value =
         SettingsService.defaultBodyFontSize;
+    SettingsService.instance.languageCode.value = 'ko';
+    SettingsService.instance.onboardingCompleted.value = true;
+  });
+
+  tearDown(() {
+    SettingsService.instance.languageCode.value = 'ko';
+    SettingsService.instance.onboardingCompleted.value = true;
   });
 
   testWidgets('설정 화면 글자 크기 슬라이더가 표시값과 저장값을 갱신한다', (tester) async {
@@ -69,5 +76,46 @@ void main() {
     await tester.pump();
 
     expect(find.text('스토어를 열 수 없습니다'), findsOneWidget);
+  });
+
+  testWidgets('언어 메뉴에서 English 선택 시 설정 화면 문구가 영어로 바뀌고 저장된다', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+
+    await tester.scrollUntilVisible(
+      find.text('언어'),
+      160,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('언어'), findsOneWidget);
+    await tester.tap(find.text('언어'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('English'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Language'), findsOneWidget);
+    expect(find.text('Help & FAQ'), findsOneWidget);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('app_language'), 'en');
+  });
+
+  testWidgets('설정 화면의 도움말/FAQ 항목이 Help 화면으로 이동한다', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+
+    await tester.scrollUntilVisible(
+      find.text('도움말 / FAQ'),
+      160,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('도움말 / FAQ'), findsOneWidget);
+    await tester.tap(find.text('도움말 / FAQ'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('도움말 / FAQ'), findsWidgets);
+    expect(find.textContaining('메모는 어디에 저장되나요'), findsOneWidget);
   });
 }

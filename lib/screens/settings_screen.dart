@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/app_strings.dart';
 import '../services/ads_service.dart';
 import '../services/app_review_service.dart';
 import '../services/remove_ads_purchase.dart';
 import '../services/settings_service.dart';
 import '../widgets/version_footer.dart';
 import 'backup_restore_screen.dart';
+import 'help_faq_screen.dart';
 import 'policy_screen.dart';
 import 'trash_screen.dart';
 
@@ -49,19 +51,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     if (result == AppReviewListingResult.unavailable) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('스토어를 열 수 없습니다')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.of(context).storeUnavailable)),
+      );
     }
   }
 
   Future<void> _sendFeedback() async {
+    final strings = AppStrings.of(context);
     final info = await PackageInfo.fromPlatform();
     final subject = Uri.encodeComponent(
-      '[메모요 피드백] v${info.version}+${info.buildNumber}',
+      '${strings.feedbackSubject} v${info.version}+${info.buildNumber}',
     );
     final body = Uri.encodeComponent(
-      '\n\n\n──────────\n앱: 메모요 ${info.version}+${info.buildNumber}\n(위에 피드백을 적어주세요)',
+      strings.feedbackBody(info.version, info.buildNumber),
     );
     final uri = Uri.parse(
       'mailto:minusbetastudio@gmail.com?subject=$subject&body=$body',
@@ -71,7 +74,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } else if (mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('메일 앱을 열 수 없습니다')));
+      ).showSnackBar(SnackBar(content: Text(strings.mailUnavailable)));
     }
   }
 
@@ -95,11 +98,67 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _openHelp() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const HelpFaqScreen()));
+  }
+
+  Future<void> _openLanguageMenu() async {
+    final strings = AppStrings.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A1E),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(title: Text(strings.language), textColor: Colors.white),
+            _languageOption(
+              sheetContext: sheetContext,
+              code: 'ko',
+              label: strings.korean,
+            ),
+            _languageOption(
+              sheetContext: sheetContext,
+              code: 'en',
+              label: strings.english,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _languageOption({
+    required BuildContext sheetContext,
+    required String code,
+    required String label,
+  }) {
+    final selected = SettingsService.instance.languageCode.value == code;
+    return ListTile(
+      textColor: Colors.white,
+      title: Text(label),
+      trailing: selected
+          ? const Icon(Icons.check, color: Color(0xFF7C5CFF))
+          : null,
+      onTap: () => _selectLanguage(sheetContext, code),
+    );
+  }
+
+  Future<void> _selectLanguage(BuildContext sheetContext, String code) async {
+    final navigator = Navigator.of(sheetContext);
+    await SettingsService.instance.setLanguageCode(code);
+    if (!mounted) return;
+    navigator.pop();
+    setState(() {});
+  }
+
   Future<void> _buyRemoveAds() async {
     final ok = await RemoveAdsPurchase.instance.buy();
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('지금은 상품을 준비 중이에요. 잠시 후 다시 시도해주세요.')),
+        SnackBar(content: Text(AppStrings.of(context).productUnavailable)),
       );
     }
   }
@@ -107,21 +166,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _restorePurchases() async {
     await RemoveAdsPurchase.instance.restore();
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('구매 내역을 복원하고 있어요.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.of(context).restoringPurchases)),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
         automaticallyImplyLeading: !widget.embedded,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: const Text('설정', style: TextStyle(fontSize: 17)),
+        title: Text(strings.settings, style: const TextStyle(fontSize: 17)),
       ),
       body: SafeArea(
         child: ListView(
@@ -141,10 +201,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         children: [
                           const Icon(Icons.format_size, color: Colors.white),
                           const SizedBox(width: 32),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              '글자 크기',
-                              style: TextStyle(color: Colors.white),
+                              strings.fontSize,
+                              style: const TextStyle(color: Colors.white),
                             ),
                           ),
                           Text(
@@ -160,7 +220,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           bottom: 2,
                         ),
                         child: Text(
-                          '메모 본문 크기',
+                          strings.memoBodySize,
                           style: TextStyle(
                             color: const Color(0xFFECECEC),
                             fontSize: fontSize,
@@ -215,9 +275,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icons.star_rate_outlined,
                 color: Colors.white,
               ),
-              title: const Text(
-                '앱 평가하기',
-                style: TextStyle(color: Colors.white),
+              title: Text(
+                strings.rateApp,
+                style: const TextStyle(color: Colors.white),
               ),
               trailing: _isOpeningReviewListing
                   ? const SizedBox(
@@ -232,9 +292,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               leading: const Icon(Icons.feedback_outlined, color: Colors.white),
-              title: const Text(
-                '피드백 보내기',
-                style: TextStyle(color: Colors.white),
+              title: Text(
+                strings.sendFeedback,
+                style: const TextStyle(color: Colors.white),
               ),
               trailing: const Icon(Icons.chevron_right, color: Colors.white),
               onTap: _sendFeedback,
@@ -244,19 +304,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               valueListenable: AdsService.instance.removeAds,
               builder: (context, removed, _) {
                 if (removed) {
-                  return const ListTile(
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12),
-                    leading: Icon(
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    leading: const Icon(
                       Icons.check_circle_outline,
                       color: Color(0xFF7C5CFF),
                     ),
                     title: Text(
-                      '광고 제거됨',
-                      style: TextStyle(color: Colors.white),
+                      strings.removeAdsDone,
+                      style: const TextStyle(color: Colors.white),
                     ),
                     subtitle: Text(
-                      '이용해 주셔서 감사합니다',
-                      style: TextStyle(color: Color(0xFF9A9AA2)),
+                      strings.thanksForUsing,
+                      style: const TextStyle(color: Color(0xFF9A9AA2)),
                     ),
                   );
                 }
@@ -272,12 +332,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Icons.block_outlined,
                         color: Color(0xFF7C5CFF),
                       ),
-                      title: const Text(
-                        '광고 제거',
-                        style: TextStyle(color: Colors.white),
+                      title: Text(
+                        strings.removeAds,
+                        style: const TextStyle(color: Colors.white),
                       ),
                       subtitle: Text(
-                        available ? (price ?? '한 번 결제로 배너 광고 제거') : '상품 준비중',
+                        available
+                            ? (price ?? strings.removeAdsOneTime)
+                            : strings.removeAdsPrepared,
                         style: const TextStyle(color: Color(0xFF9A9AA2)),
                       ),
                       trailing: const Icon(
@@ -295,9 +357,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Icons.restore,
                         color: Color(0xFF9A9AA2),
                       ),
-                      title: const Text(
-                        '구매 복원',
-                        style: TextStyle(color: Colors.white),
+                      title: Text(
+                        strings.restorePurchases,
+                        style: const TextStyle(color: Colors.white),
                       ),
                       trailing: const Icon(
                         Icons.chevron_right,
@@ -313,9 +375,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               leading: const Icon(Icons.backup_outlined, color: Colors.white),
-              title: const Text(
-                '백업 & 복원',
-                style: TextStyle(color: Colors.white),
+              title: Text(
+                strings.backupRestore,
+                style: const TextStyle(color: Colors.white),
               ),
               trailing: const Icon(Icons.chevron_right, color: Colors.white),
               onTap: _openBackupRestore,
@@ -324,9 +386,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               leading: const Icon(Icons.delete_outline, color: Colors.white),
-              title: const Text('휴지통', style: TextStyle(color: Colors.white)),
+              title: Text(
+                strings.trash,
+                style: const TextStyle(color: Colors.white),
+              ),
               trailing: const Icon(Icons.chevron_right, color: Colors.white),
               onTap: _openTrash,
+            ),
+            const Divider(height: 0.5, thickness: 0.5),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              leading: const Icon(Icons.translate, color: Colors.white),
+              title: Text(
+                strings.language,
+                style: const TextStyle(color: Colors.white),
+              ),
+              subtitle: Text(
+                SettingsService.instance.languageCode.value == 'en'
+                    ? strings.english
+                    : strings.korean,
+                style: const TextStyle(color: Color(0xFF9A9AA2)),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white),
+              onTap: _openLanguageMenu,
+            ),
+            const Divider(height: 0.5, thickness: 0.5),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              leading: const Icon(Icons.help_outline, color: Colors.white),
+              title: Text(
+                strings.helpFaq,
+                style: const TextStyle(color: Colors.white),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.white),
+              onTap: _openHelp,
             ),
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
@@ -335,10 +428,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icons.description_outlined,
                 color: Colors.white70,
               ),
-              title: const Text('이용약관', style: TextStyle(color: Colors.white)),
+              title: Text(
+                strings.terms,
+                style: const TextStyle(color: Colors.white),
+              ),
               trailing: const Icon(Icons.chevron_right, color: Colors.white70),
               onTap: () =>
-                  _openPolicy('이용약관', 'docs/legal/terms-of-service.md'),
+                  _openPolicy(strings.terms, 'docs/legal/terms-of-service.md'),
             ),
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
@@ -347,13 +443,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icons.privacy_tip_outlined,
                 color: Colors.white70,
               ),
-              title: const Text(
-                '개인정보처리방침',
-                style: TextStyle(color: Colors.white),
+              title: Text(
+                strings.privacy,
+                style: const TextStyle(color: Colors.white),
               ),
               trailing: const Icon(Icons.chevron_right, color: Colors.white70),
               onTap: () =>
-                  _openPolicy('개인정보처리방침', 'docs/legal/privacy-policy.md'),
+                  _openPolicy(strings.privacy, 'docs/legal/privacy-policy.md'),
             ),
             const Divider(height: 0.5, thickness: 0.5),
             const SizedBox(height: 24),

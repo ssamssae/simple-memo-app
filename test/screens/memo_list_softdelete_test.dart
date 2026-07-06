@@ -27,7 +27,7 @@ void main() {
 
   group('리스트 필터 — 휴지통 항목 제외', () {
     testWidgets('deletedAt != null 메모는 일반 리스트에 표시되지 않는다', (tester) async {
-      final now = DateTime(2026, 6, 4, 10);
+      final now = DateTime.now().subtract(const Duration(days: 1));
       SharedPreferences.setMockInitialValues({
         'memos': Memo.encodeList([
           active('a', '활성 메모', now),
@@ -43,7 +43,7 @@ void main() {
     });
 
     testWidgets('모든 메모가 휴지통이면 빈 상태 화면', (tester) async {
-      final now = DateTime(2026, 6, 4, 10);
+      final now = DateTime.now().subtract(const Duration(days: 1));
       SharedPreferences.setMockInitialValues({
         'memos': Memo.encodeList([trashed('a', '휴지통만', now)]),
       });
@@ -58,7 +58,7 @@ void main() {
 
   group('삭제 = soft-delete (durable, hard-delete 아님)', () {
     testWidgets('스와이프 삭제 시 저장소에서 제거되지 않고 deletedAt 마킹된다', (tester) async {
-      final now = DateTime(2026, 6, 4, 10);
+      final now = DateTime.now().subtract(const Duration(days: 1));
       SharedPreferences.setMockInitialValues({
         'memos': Memo.encodeList([active('a', '삭제될 메모', now)]),
       });
@@ -86,7 +86,7 @@ void main() {
     });
 
     testWidgets('UNDO(실행 취소) 시 deletedAt 가 지워지고 리스트에 복귀', (tester) async {
-      final now = DateTime(2026, 6, 4, 10);
+      final now = DateTime.now().subtract(const Duration(days: 1));
       SharedPreferences.setMockInitialValues({
         'memos': Memo.encodeList([active('a', '복구될 메모', now)]),
       });
@@ -117,7 +117,7 @@ void main() {
       // 저장소 순서: n1(활성) · nTrash(휴지통) · n3(활성). 모두 일반 그룹.
       // 화면 표시 = [n1, n3]. nTrash 가 _memos[1] 에 끼어 있어 인덱스 필터가
       // 없으면 reorder(1,0) 이 nTrash 를 건드려 어긋난다 — 필터 정합성 검증.
-      final now = DateTime(2026, 6, 4, 10);
+      final now = DateTime.now().subtract(const Duration(days: 1));
       SharedPreferences.setMockInitialValues({
         'memos': Memo.encodeList([
           active('n1', 'N1 일반 첫째', now),
