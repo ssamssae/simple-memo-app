@@ -4,12 +4,15 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_strings.dart';
 import '../services/ads_service.dart';
+import '../services/premium_purchase.dart';
+import '../services/premium_service.dart';
 import '../services/app_review_service.dart';
 import '../services/remove_ads_purchase.dart';
 import '../services/settings_service.dart';
 import '../widgets/version_footer.dart';
 import 'backup_restore_screen.dart';
 import 'help_faq_screen.dart';
+import 'paywall_screen.dart';
 import 'policy_screen.dart';
 import 'trash_screen.dart';
 
@@ -104,6 +107,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ).push(MaterialPageRoute<void>(builder: (_) => const HelpFaqScreen()));
   }
 
+  void _openPaywall() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const PaywallScreen()));
+  }
+
   Future<void> _openLanguageMenu() async {
     final strings = AppStrings.of(context);
     await showModalBottomSheet<void>(
@@ -164,7 +173,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _restorePurchases() async {
-    await RemoveAdsPurchase.instance.restore();
+    await PremiumPurchase.instance.restore();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppStrings.of(context).restoringPurchases)),
@@ -298,6 +307,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               trailing: const Icon(Icons.chevron_right, color: Colors.white),
               onTap: _sendFeedback,
+            ),
+            const Divider(height: 0.5, thickness: 0.5),
+            ValueListenableBuilder(
+              valueListenable: PremiumService.instance.entitlement,
+              builder: (context, entitlement, _) {
+                final expiresAt = entitlement.expiresAt;
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  leading: Icon(
+                    entitlement.active
+                        ? Icons.verified_outlined
+                        : Icons.auto_awesome_outlined,
+                    color: const Color(0xFF7C5CFF),
+                  ),
+                  title: Text(
+                    strings.premiumTitle,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  subtitle: Text(
+                    entitlement.active && expiresAt != null
+                        ? strings.premiumExpires(expiresAt)
+                        : strings.premiumSubtitle,
+                    style: const TextStyle(color: Color(0xFF9A9AA2)),
+                  ),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    color: Color(0xFF7C5CFF),
+                  ),
+                  onTap: _openPaywall,
+                );
+              },
             ),
             const Divider(height: 0.5, thickness: 0.5),
             ValueListenableBuilder<bool>(
