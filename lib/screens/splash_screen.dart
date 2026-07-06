@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
+import '../services/settings_service.dart';
 import 'home_shell.dart';
+import 'onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -25,15 +28,17 @@ class _SplashScreenState extends State<SplashScreen>
     _timer = Timer(const Duration(milliseconds: 750), () {
       _fadeController.forward().then((_) {
         if (mounted) {
+          final showOnboarding =
+              !SettingsService.instance.onboardingCompleted.value;
           Navigator.pushReplacement(
             context,
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) =>
-                  const HomeShell(),
+                  showOnboarding ? const OnboardingScreen() : const HomeShell(),
               transitionsBuilder:
                   (context, animation, secondaryAnimation, child) {
-                return FadeTransition(opacity: animation, child: child);
-              },
+                    return FadeTransition(opacity: animation, child: child);
+                  },
               transitionDuration: const Duration(milliseconds: 500),
             ),
           );
@@ -51,6 +56,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
     return Scaffold(
       backgroundColor: Colors.black,
       body: Center(
@@ -66,8 +72,8 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              '메모요',
+            Text(
+              strings.appName,
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w600,

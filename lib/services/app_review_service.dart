@@ -2,6 +2,8 @@ import 'package:in_app_review/in_app_review.dart';
 
 enum AppReviewListingResult { opened, unavailable }
 
+enum AppReviewPromptResult { requested, unavailable }
+
 class AppReviewService {
   AppReviewService({InAppReview? inAppReview})
     : _inAppReview = inAppReview ?? InAppReview.instance;
@@ -16,6 +18,18 @@ class AppReviewService {
       return AppReviewListingResult.opened;
     } catch (_) {
       return AppReviewListingResult.unavailable;
+    }
+  }
+
+  Future<AppReviewPromptResult> requestInAppReview() async {
+    try {
+      if (!await _inAppReview.isAvailable()) {
+        return AppReviewPromptResult.unavailable;
+      }
+      await _inAppReview.requestReview();
+      return AppReviewPromptResult.requested;
+    } catch (_) {
+      return AppReviewPromptResult.unavailable;
     }
   }
 }

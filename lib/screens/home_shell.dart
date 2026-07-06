@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../widgets/ad_banner.dart';
 import 'memo_list_screen.dart';
 import 'settings_screen.dart';
@@ -49,6 +50,7 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     // 바텀바 하이라이트는 메모(0)/설정(2)만. 새메모(1)는 항상 비활성 톤.
     final barCurrent = _bodyIndex == 0 ? 0 : 2;
+    final strings = AppStrings.of(context);
     return Scaffold(
       body: IndexedStack(
         index: _bodyIndex,
@@ -70,20 +72,20 @@ class _HomeShellState extends State<HomeShell> {
             unselectedItemColor: _inactive,
             selectedFontSize: 11,
             unselectedFontSize: 11,
-            items: const [
+            items: [
               BottomNavigationBarItem(
-                icon: Icon(Icons.sticky_note_2_outlined),
-                activeIcon: Icon(Icons.sticky_note_2),
-                label: '메모',
+                icon: const Icon(Icons.sticky_note_2_outlined),
+                activeIcon: const Icon(Icons.sticky_note_2),
+                label: strings.memoTab,
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.add_box_outlined),
-                label: '새메모',
+                icon: const Icon(Icons.add_box_outlined),
+                label: strings.newMemoTab,
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.settings_outlined),
-                activeIcon: Icon(Icons.settings),
-                label: '설정',
+                icon: const Icon(Icons.settings_outlined),
+                activeIcon: const Icon(Icons.settings),
+                label: strings.settings,
               ),
             ],
           ),

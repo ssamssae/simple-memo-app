@@ -1,12 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../models/memo.dart';
+import '../services/app_review_service.dart';
 import '../services/memo_storage.dart';
 import '../services/settings_service.dart';
 import 'memo_edit_screen.dart';
 import 'search_screen.dart';
 
 class MemoListScreen extends StatefulWidget {
-  const MemoListScreen({super.key});
+  const MemoListScreen({super.key, this.requestReviewPrompt});
+
+  final Future<AppReviewPromptResult> Function()? requestReviewPrompt;
 
   @override
   State<MemoListScreen> createState() => MemoListScreenState();
@@ -18,6 +24,7 @@ class MemoListScreenState extends State<MemoListScreen>
   List<Memo> _memos = [];
   bool _isLoading = true;
   final ValueNotifier<int> _closeSwipeNotifier = ValueNotifier(0);
+  final AppReviewService _appReviewService = AppReviewService();
   final Set<String> _openSwipeIds = {};
   bool _buttonTapped = false;
   Offset? _pointerDownPos;
@@ -155,6 +162,14 @@ class MemoListScreenState extends State<MemoListScreen>
     await MemoStorage.saveMemos(_memos);
   }
 
+  Future<void> _maybeRequestReviewAfterMemoSaved() async {
+    final shouldRequest = await SettingsService.instance
+        .recordMemoSavedForReviewPrompt();
+    if (!shouldRequest || !mounted) return;
+    await (widget.requestReviewPrompt ??
+        _appReviewService.requestInAppReview)();
+  }
+
   // soft-delete 복구(UNDO): 해당 id 들의 deletedAt 만 지운다. 제자리 마킹이라
   // _memos 순서가 보존돼 원위치(즐겨찾기/일반 그룹 내 위치)로 그대로 복귀한다.
   Future<void> _restoreFromTrash(List<String> ids) async {
@@ -248,7 +263,9 @@ class MemoListScreenState extends State<MemoListScreen>
                 _memos.insert(firstNormalIndex, newMemo);
               }
             });
-            _saveMemos();
+            unawaited(
+              _saveMemos().then((_) => _maybeRequestReviewAfterMemoSaved()),
+            );
           },
         ),
       ),
@@ -450,6 +467,7 @@ class MemoListScreenState extends State<MemoListScreen>
     final favorites = active.where((m) => m.isFavorite).toList();
     final normals = active.where((m) => !m.isFavorite).toList();
     final canEdit = active.isNotEmpty;
+    final strings = AppStrings.of(context);
 
     return Listener(
       onPointerDown: (event) {
@@ -499,7 +517,7 @@ class MemoListScreenState extends State<MemoListScreen>
                   ),
                 )
               : null,
-          title: const Text('메모요', style: TextStyle(fontSize: 17)),
+          title: Text(strings.appName, style: const TextStyle(fontSize: 17)),
           actions: [
             if (!_isEditMode)
               Padding(

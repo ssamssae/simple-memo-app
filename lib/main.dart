@@ -3,12 +3,13 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'l10n/app_strings.dart';
 import 'screens/splash_screen.dart';
 import 'services/ads_service.dart';
 import 'services/remove_ads_purchase.dart';
 import 'services/settings_service.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
@@ -26,17 +27,20 @@ void main() {
     return true;
   };
 
-  runZonedGuarded(() {
-    // 수익화 초기화 (배너 광고 / 광고제거 IAP) — 스플래시를 막지 않도록 비동기.
-    AdsService.instance.init();
-    RemoveAdsPurchase.instance.init();
-    SettingsService.instance.init();
-    runApp(const MemoApp());
-  }, (Object error, StackTrace stack) {
-    // Zone 에러 핸들링 (runZonedGuarded 내 미처리 비동기 에러)
-    debugPrint('[ZoneError] $error');
-    debugPrint('[ZoneError] $stack');
-  });
+  runZonedGuarded(
+    () async {
+      // 수익화 초기화 (배너 광고 / 광고제거 IAP) — 스플래시를 막지 않도록 비동기.
+      AdsService.instance.init();
+      RemoveAdsPurchase.instance.init();
+      await SettingsService.instance.init();
+      runApp(const MemoApp());
+    },
+    (Object error, StackTrace stack) {
+      // Zone 에러 핸들링 (runZonedGuarded 내 미처리 비동기 에러)
+      debugPrint('[ZoneError] $error');
+      debugPrint('[ZoneError] $stack');
+    },
+  );
 }
 
 class MemoApp extends StatelessWidget {
@@ -44,38 +48,44 @@ class MemoApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '메모요',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        // Obsidian 톤: 다크 무채색 미니멀 + 퍼플 액센트 (#7C5CFF).
-        // 대부분의 chrome 은 무채색 회색/흰색, 퍼플은 강조에만 절제 사용.
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF7C5CFF),
-          brightness: Brightness.dark,
-        ),
-        scaffoldBackgroundColor: const Color(0xFF0F0F12),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0F0F12),
-          foregroundColor: Color(0xFFECECEC),
-          iconTheme: IconThemeData(color: Color(0xFF9A9AA2)),
-        ),
-        cardTheme: const CardThemeData(
-          color: Color(0xFF1A1A1E),
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Color(0xFF7C5CFF),
-          foregroundColor: Color(0xFFECECEC),
-        ),
-        textSelectionTheme: const TextSelectionThemeData(
-          cursorColor: Color(0xFF7C5CFF),
-          selectionColor: Color(0x597C5CFF),
-          selectionHandleColor: Color(0xFF7C5CFF),
-        ),
-        useMaterial3: true,
-        brightness: Brightness.dark,
-      ),
-      home: const SplashScreen(),
+    return ValueListenableBuilder<String>(
+      valueListenable: SettingsService.instance.languageCode,
+      builder: (context, languageCode, _) {
+        final strings = AppStrings.fromCode(languageCode);
+        return MaterialApp(
+          title: strings.appName,
+          locale: Locale(languageCode),
+          supportedLocales: const [Locale('ko'), Locale('en')],
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            // Obsidian 톤: 다크 무채색 미니멀 + 퍼플 액센트 (#7C5CFF).
+            // 대부분의 chrome 은 무채색 회색/흰색, 퍼플은 강조에만 절제 사용.
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF7C5CFF),
+              brightness: Brightness.dark,
+            ),
+            scaffoldBackgroundColor: const Color(0xFF0F0F12),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFF0F0F12),
+              foregroundColor: Color(0xFFECECEC),
+              iconTheme: IconThemeData(color: Color(0xFF9A9AA2)),
+            ),
+            cardTheme: const CardThemeData(color: Color(0xFF1A1A1E)),
+            floatingActionButtonTheme: const FloatingActionButtonThemeData(
+              backgroundColor: Color(0xFF7C5CFF),
+              foregroundColor: Color(0xFFECECEC),
+            ),
+            textSelectionTheme: const TextSelectionThemeData(
+              cursorColor: Color(0xFF7C5CFF),
+              selectionColor: Color(0x597C5CFF),
+              selectionHandleColor: Color(0xFF7C5CFF),
+            ),
+            useMaterial3: true,
+            brightness: Brightness.dark,
+          ),
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }
