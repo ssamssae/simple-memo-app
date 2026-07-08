@@ -1,13 +1,15 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// 사용자 표시 설정의 단일 소스. 현재는 본문 글자 크기만 관리.
+/// 사용자 표시 설정의 단일 소스. 본문 글자 크기와 앱 테마 모드를 관리.
 /// AdsService 와 동일한 싱글턴 + ValueNotifier + SharedPreferences 패턴.
 class SettingsService {
   SettingsService._();
   static final SettingsService instance = SettingsService._();
 
   static const String _bodyFontSizePrefKey = 'memo_body_font_size';
+  static const String _themeModePrefKey = 'theme_mode';
   static const String _legacyFontScalePrefKey = 'font_scale';
   static const String _languagePrefKey = 'app_language';
   static const String _onboardingCompletedPrefKey = 'onboarding_completed';
@@ -27,6 +29,11 @@ class SettingsService {
   );
   final ValueNotifier<String> languageCode = ValueNotifier<String>('ko');
   final ValueNotifier<bool> onboardingCompleted = ValueNotifier<bool>(false);
+
+  /// MaterialApp.themeMode 와 연결되는 앱 테마 선택값.
+  final ValueNotifier<ThemeMode> themeMode = ValueNotifier<ThemeMode>(
+    ThemeMode.system,
+  );
 
   bool _initialized = false;
   Future<void>? _initFuture;
@@ -50,6 +57,7 @@ class SettingsService {
     );
     onboardingCompleted.value =
         prefs.getBool(_onboardingCompletedPrefKey) ?? false;
+    themeMode.value = _themeModeFromPref(prefs.getString(_themeModePrefKey));
     _initialized = true;
     _initFuture = null;
   }
@@ -90,10 +98,49 @@ class SettingsService {
     return true;
   }
 
+  Future<void> setThemeMode(ThemeMode value) async {
+    themeMode.value = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themeModePrefKey, _themeModeToPref(value));
+  }
+
   double bodyFontScale() => bodyFontSize.value / defaultBodyFontSize;
 
   double _clampBodyFontSize(double value) =>
       value.clamp(minBodyFontSize, maxBodyFontSize).toDouble();
 
   String _normalizeLanguageCode(String? value) => value == 'en' ? 'en' : 'ko';
+
+  ThemeMode _themeModeFromPref(String? value) {
+    switch (value) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      case 'system':
+      default:
+        return ThemeMode.system;
+    }
+  }
+
+  String _themeModeToPref(ThemeMode value) {
+    switch (value) {
+      case ThemeMode.light:
+        return 'light';
+      case ThemeMode.dark:
+        return 'dark';
+      case ThemeMode.system:
+        return 'system';
+    }
+  }
+
+  @visibleForTesting
+  void resetForTesting() {
+    _initialized = false;
+    _initFuture = null;
+    bodyFontSize.value = defaultBodyFontSize;
+    languageCode.value = 'ko';
+    onboardingCompleted.value = false;
+    themeMode.value = ThemeMode.system;
+  }
 }

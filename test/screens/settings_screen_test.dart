@@ -10,13 +10,12 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    SettingsService.instance.bodyFontSize.value =
-        SettingsService.defaultBodyFontSize;
-    SettingsService.instance.languageCode.value = 'ko';
+    SettingsService.instance.resetForTesting();
     SettingsService.instance.onboardingCompleted.value = true;
   });
 
   tearDown(() {
+    SettingsService.instance.resetForTesting();
     SettingsService.instance.languageCode.value = 'ko';
     SettingsService.instance.onboardingCompleted.value = true;
   });
@@ -38,6 +37,23 @@ void main() {
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getDouble('memo_body_font_size'), 20);
+  });
+
+  testWidgets('설정 화면 테마 선택이 표시값과 저장값을 갱신한다', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+
+    expect(find.text('테마'), findsOneWidget);
+    expect(find.text('시스템'), findsOneWidget);
+    expect(find.text('라이트'), findsOneWidget);
+    expect(find.text('다크'), findsOneWidget);
+
+    await tester.tap(find.text('라이트'));
+    await tester.pumpAndSettle();
+
+    expect(SettingsService.instance.themeMode.value, ThemeMode.light);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('theme_mode'), 'light');
   });
 
   testWidgets('설정 화면의 앱 평가하기 버튼이 스토어 리뷰 listing 콜백을 호출한다', (tester) async {
