@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'l10n/app_strings.dart';
 import 'screens/splash_screen.dart';
 import 'services/ads_service.dart';
+import 'services/premium_purchase.dart';
+import 'services/premium_service.dart';
 import 'services/remove_ads_purchase.dart';
 import 'services/settings_service.dart';
 
@@ -31,7 +33,9 @@ Future<void> main() async {
     () async {
       // 수익화 초기화 (배너 광고 / 광고제거 IAP) — 스플래시를 막지 않도록 비동기.
       AdsService.instance.init();
+      PremiumService.instance.init();
       RemoveAdsPurchase.instance.init();
+      PremiumPurchase.instance.init();
       await SettingsService.instance.init();
       runApp(const MemoApp());
     },

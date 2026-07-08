@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 import 'ads_service.dart';
+import 'premium_service.dart';
 
 /// '광고 제거' 비소모성 인앱결제 래퍼.
 ///
@@ -46,6 +47,11 @@ class RemoveAdsPurchase {
       if (p.status == PurchaseStatus.purchased ||
           p.status == PurchaseStatus.restored) {
         await AdsService.instance.setRemoveAds(true);
+        try {
+          await PremiumService.instance.claimRemoveAdsCoupon(p);
+        } catch (_) {
+          // 광고 제거 엔티틀먼트는 기존 권리라 유지한다. 쿠폰 검증은 복원 시 재시도 가능.
+        }
       }
       if (p.pendingCompletePurchase) {
         await _iap.completePurchase(p);

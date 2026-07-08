@@ -118,4 +118,18 @@ void main() {
     expect(find.text('도움말 / FAQ'), findsWidgets);
     expect(find.textContaining('메모는 어디에 저장되나요'), findsOneWidget);
   });
+
+  testWidgets('설정 화면에 메모요 프리미엄 구독 진입점이 표시된다', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+
+    await tester.scrollUntilVisible(
+      find.text('메모요 프리미엄'),
+      160,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('메모요 프리미엄'), findsOneWidget);
+    expect(find.textContaining('월 ₩1,900'), findsOneWidget);
+  });
 }

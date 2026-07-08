@@ -36,6 +36,33 @@ class AppStrings {
   String get removeAdsPrepared => isEnglish ? 'Preparing product' : '상품 준비중';
   String get removeAdsOneTime =>
       isEnglish ? 'Remove banner ads with one purchase' : '한 번 결제로 배너 광고 제거';
+  String get premiumTitle => isEnglish ? 'Memoyo Premium' : '메모요 프리미엄';
+  String get premiumSubtitle => isEnglish
+      ? 'AI summary and semantic search · ₩1,900/month'
+      : 'AI 요약과 말로 검색 · 월 ₩1,900';
+  String get premiumActive => isEnglish ? 'Premium active' : '프리미엄 사용 중';
+  String premiumExpires(DateTime expiresAt) => isEnglish
+      ? 'Available until ${expiresAt.toLocal().year}-${expiresAt.toLocal().month.toString().padLeft(2, '0')}-${expiresAt.toLocal().day.toString().padLeft(2, '0')}'
+      : '${expiresAt.toLocal().year}.${expiresAt.toLocal().month.toString().padLeft(2, '0')}.${expiresAt.toLocal().day.toString().padLeft(2, '0')}까지 사용 가능';
+  String get premiumPaywallTitle =>
+      isEnglish ? 'Upgrade to Premium' : '프리미엄으로 업그레이드';
+  String get premiumPaywallBody => isEnglish
+      ? 'Premium unlocks the AI features planned for Memoyo: summaries first, semantic search next.'
+      : '프리미엄은 메모요 AI 기능을 여는 구독입니다. 먼저 요약, 다음 단계로 말로 검색이 올라갑니다.';
+  String get premiumSubscribe => isEnglish ? 'Subscribe monthly' : '월 구독 시작';
+  String premiumPrice(String price) =>
+      isEnglish ? '$price / month' : '월 $price';
+  String get premiumStorePriceFallback =>
+      isEnglish ? '₩1,900 / month' : '월 ₩1,900';
+  String get premiumPrepared =>
+      isEnglish ? 'Subscription product is being prepared' : '구독 상품을 준비 중이에요';
+  String get premiumRestore => isEnglish ? 'Restore Premium' : '프리미엄 복원';
+  String get premiumCouponNote => isEnglish
+      ? 'If you bought Remove ads, restore purchases to apply a one-month thank-you coupon once.'
+      : '광고 제거 구매자는 구매 복원 시 1개월 감사 쿠폰이 1회 자동 적용됩니다.';
+  String get premiumTermsNote => isEnglish
+      ? 'Auto-renews monthly. Manage or cancel in your App Store or Google Play subscription settings.'
+      : '매월 자동 갱신됩니다. 해지와 관리는 App Store 또는 Google Play 구독 설정에서 할 수 있습니다.';
   String get restorePurchases => isEnglish ? 'Restore purchases' : '구매 복원';
   String get backupRestore => isEnglish ? 'Backup & restore' : '백업 & 복원';
   String get trash => isEnglish ? 'Trash' : '휴지통';
