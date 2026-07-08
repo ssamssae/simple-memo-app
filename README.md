@@ -56,6 +56,11 @@ flutter run -d android
 ```
 lib/
   main.dart                # 앱 진입점 (MemoApp + 글로벌 에러 핸들러)
+  features/                # 신규 기능부터 적용하는 도메인별 파일 배치
+    README.md              # 도메인 폴더 운영 규칙
+    memos/                 # 메모 도메인 시범 폴더 (신규 메모 기능 착지점)
+      README.md
+      AGENTS.md
   models/memo.dart         # Memo 데이터 모델 (copyWith / JSON 직렬화)
   screens/
     splash_screen.dart       # 스플래시 → 목록 화면 전환
@@ -68,3 +73,5 @@ lib/
 test/
   widget_test.dart         # Memo 모델 단위 테스트
 ```
+
+`lib/features/`는 신규 기능부터 쓰는 시범 구조입니다. 기존 파일을 대규모로 이동하지 않고, 새 메모 도메인 작업부터 `lib/features/memos/`의 README/AGENTS 규칙을 따른다는 계약만 추가했습니다.
