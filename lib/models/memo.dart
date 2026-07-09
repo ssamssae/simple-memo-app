@@ -13,6 +13,9 @@ class Memo {
   DateTime updatedAt;
   // null = 활성 메모, 값 있음 = 휴지통(soft-deleted)에 들어간 시각.
   DateTime? deletedAt;
+  final List<double>? semanticEmbedding;
+  final String? semanticEmbeddingModel;
+  final String? semanticEmbeddingSource;
 
   Memo({
     required this.id,
@@ -21,13 +24,17 @@ class Memo {
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
-  });
+    List<double>? semanticEmbedding,
+    this.semanticEmbeddingModel,
+    this.semanticEmbeddingSource,
+  }) : semanticEmbedding = semanticEmbedding == null
+           ? null
+           : List<double>.unmodifiable(semanticEmbedding);
 
   String get firstLine {
-    final line = content.split('\n').firstWhere(
-      (l) => l.trim().isNotEmpty,
-      orElse: () => '새 메모',
-    );
+    final line = content
+        .split('\n')
+        .firstWhere((l) => l.trim().isNotEmpty, orElse: () => '새 메모');
     return line.trim();
   }
 
@@ -46,6 +53,9 @@ class Memo {
   // deletedAt 의 "미지정(기존값 유지)" 과 "명시적 null(휴지통에서 복구)" 을
   // 구분하기 위한 sentinel. content/isFavorite/updatedAt 은 기존 동작 유지.
   static const _undefinedDeletedAt = Object();
+  static const _undefinedSemanticEmbedding = Object();
+  static const _undefinedSemanticEmbeddingModel = Object();
+  static const _undefinedSemanticEmbeddingSource = Object();
 
   // copyWith: 불변 방식으로 필드 변경
   Memo copyWith({
@@ -53,6 +63,9 @@ class Memo {
     bool? isFavorite,
     DateTime? updatedAt,
     Object? deletedAt = _undefinedDeletedAt,
+    Object? semanticEmbedding = _undefinedSemanticEmbedding,
+    Object? semanticEmbeddingModel = _undefinedSemanticEmbeddingModel,
+    Object? semanticEmbeddingSource = _undefinedSemanticEmbeddingSource,
   }) {
     return Memo(
       id: id,
@@ -63,6 +76,18 @@ class Memo {
       deletedAt: identical(deletedAt, _undefinedDeletedAt)
           ? this.deletedAt
           : deletedAt as DateTime?,
+      semanticEmbedding:
+          identical(semanticEmbedding, _undefinedSemanticEmbedding)
+          ? this.semanticEmbedding
+          : _parseEmbedding(semanticEmbedding),
+      semanticEmbeddingModel:
+          identical(semanticEmbeddingModel, _undefinedSemanticEmbeddingModel)
+          ? this.semanticEmbeddingModel
+          : semanticEmbeddingModel as String?,
+      semanticEmbeddingSource:
+          identical(semanticEmbeddingSource, _undefinedSemanticEmbeddingSource)
+          ? this.semanticEmbeddingSource
+          : semanticEmbeddingSource as String?,
     );
   }
 
@@ -86,6 +111,11 @@ class Memo {
     'updatedAt': updatedAt.toIso8601String(),
     // 활성 메모는 키 자체를 안 박음 — 1.0.6 이하 JSON 과 동일(백워드 호환).
     if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
+    if (semanticEmbedding != null) 'semanticEmbedding': semanticEmbedding,
+    if (semanticEmbeddingModel != null)
+      'semanticEmbeddingModel': semanticEmbeddingModel,
+    if (semanticEmbeddingSource != null)
+      'semanticEmbeddingSource': semanticEmbeddingSource,
   };
 
   factory Memo.fromJson(Map<String, dynamic> json) {
@@ -98,7 +128,20 @@ class Memo {
       updatedAt: DateTime.tryParse(json['updatedAt'] ?? '') ?? now,
       // deletedAt 키 없으면(1.0.6 이하·활성) null. 파싱 실패도 null(활성 취급, 안전).
       deletedAt: DateTime.tryParse(json['deletedAt'] ?? ''),
+      semanticEmbedding: _parseEmbedding(json['semanticEmbedding']),
+      semanticEmbeddingModel: json['semanticEmbeddingModel'] as String?,
+      semanticEmbeddingSource: json['semanticEmbeddingSource'] as String?,
     );
+  }
+
+  static List<double>? _parseEmbedding(Object? raw) {
+    if (raw is! List || raw.isEmpty) return null;
+    final values = <double>[];
+    for (final value in raw) {
+      if (value is! num || !value.isFinite) return null;
+      values.add(value.toDouble());
+    }
+    return values;
   }
 
   static String encodeList(List<Memo> memos) =>
