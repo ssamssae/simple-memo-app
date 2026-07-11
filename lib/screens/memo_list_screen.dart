@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../models/memo.dart';
 import '../services/memo_storage.dart';
@@ -17,6 +18,7 @@ class MemoListScreenState extends State<MemoListScreen>
   // [요구사항 1] 단일 리스트로만 관리. 즐겨찾기가 앞, 일반이 뒤 순서 유지.
   List<Memo> _memos = [];
   bool _isLoading = true;
+  final ScrollController _listScrollController = ScrollController();
   final ValueNotifier<int> _closeSwipeNotifier = ValueNotifier(0);
   final Set<String> _openSwipeIds = {};
   bool _buttonTapped = false;
@@ -29,6 +31,33 @@ class MemoListScreenState extends State<MemoListScreen>
 
   bool _isEditMode = false;
   final Set<String> _selectedIds = {};
+
+  // 이동(드래그) 중 휠 스크롤 지원용 활성 드래그 포인터 추적.
+  // 드래그를 시작한 마우스 포인터의 id·최근 위치를 기억해 뒀다가,
+  // 휠로 리스트를 움직인 직후 같은 위치로 delta-0 move 를 주입해
+  // SliverReorderableList 가 insert 인덱스를 재계산하게 만든다 (아래 주석 참조).
+  int? _dragPointerId;
+  Offset? _dragPointerPosition;
+  int _dragPointerButtons = kPrimaryButton;
+  bool _reorderDragActive = false;
+
+  void _onPointerDownForDragTracking(PointerDownEvent event) {
+    if (event.kind != PointerDeviceKind.mouse) return;
+    _dragPointerId = event.pointer;
+    _dragPointerPosition = event.position;
+    _dragPointerButtons = event.buttons;
+  }
+
+  void _onPointerMoveForDragTracking(PointerMoveEvent event) {
+    if (event.pointer != _dragPointerId) return;
+    _dragPointerPosition = event.position;
+  }
+
+  void _onPointerEndForDragTracking(PointerEvent event) {
+    if (event.pointer != _dragPointerId) return;
+    _dragPointerId = null;
+    _dragPointerPosition = null;
+  }
 
   void _toggleEditMode() {
     setState(() {
@@ -101,8 +130,57 @@ class MemoListScreenState extends State<MemoListScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _listScrollController.dispose();
     _closeSwipeNotifier.dispose();
     super.dispose();
+  }
+
+  // 이동(reorder) 드래그 중에는 드래그 프록시가 휠 이벤트를 가로채
+  // 리스트 Scrollable 의 기본 휠 처리가 못 받는다 (아니키 재보고 2026-07-11,
+  // 편집 화면 PR#76 과 동일 패턴). 프록시에서 받은 휠을 리스트 스크롤로 넘긴다.
+  void _handleListPointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent || !_listScrollController.hasClients) {
+      return;
+    }
+    final position = _listScrollController.position;
+    final target = (position.pixels + event.scrollDelta.dy)
+        .clamp(position.minScrollExtent, position.maxScrollExtent)
+        .toDouble();
+    if (target == position.pixels) return;
+    position.jumpTo(target);
+    _syncReorderDragAfterScroll();
+  }
+
+  // SliverReorderableList 는 포인터 move·자체 edge auto-scroll 때만 insert
+  // 인덱스를 재계산한다. 외부 jumpTo 뒤 포인터가 안 움직인 채 드롭되면
+  // stale 인덱스의 아이템이 이미 뷰포트 밖에서 dispose 돼
+  // _itemOffsetAt 의 null 크래시가 난다 (Flutter 3.41 reorderable_list.dart:1027).
+  // 드래그 포인터 위치 그대로 delta-0 move 를 주입해 재계산 경로를 태운다 —
+  // 커서 아래 드롭 슬롯(gap)도 휠 직후 바로 갱신되는 효과.
+  void _syncReorderDragAfterScroll() {
+    if (!_reorderDragActive) return;
+    final pointer = _dragPointerId;
+    final position = _dragPointerPosition;
+    if (pointer == null || position == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_reorderDragActive || _dragPointerId != pointer) return;
+      GestureBinding.instance.handlePointerEvent(
+        PointerMoveEvent(
+          pointer: pointer,
+          position: position,
+          kind: PointerDeviceKind.mouse,
+          buttons: _dragPointerButtons,
+        ),
+      );
+    });
+  }
+
+  Widget _dragProxyDecorator(Widget child, int index, Animation<double> a) {
+    return Listener(
+      onPointerSignal: _handleListPointerSignal,
+      onPointerMove: _onPointerMoveForDragTracking,
+      child: Material(elevation: 2, child: child),
+    );
   }
 
   // 앱이 다시 활성화될 때 휴지통 30일 만료분 purge + 재로드.
@@ -588,78 +666,87 @@ class MemoListScreenState extends State<MemoListScreen>
                   // (옛 구조: NeverScrollableScrollPhysics 인 ReorderableListView 를
                   //  SingleChildScrollView 안에 중첩 → 드래그 시 항목이 화면 밖으로
                   //  떠도 자동 스크롤 안 됨)
-                  child: CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    slivers: [
-                      const SliverToBoxAdapter(
-                        child: Divider(
-                          height: 0.5,
-                          thickness: 0.5,
-                          indent: 0,
-                          endIndent: 0,
-                        ),
+                  child: Listener(
+                    onPointerDown: _onPointerDownForDragTracking,
+                    onPointerMove: _onPointerMoveForDragTracking,
+                    onPointerUp: _onPointerEndForDragTracking,
+                    onPointerCancel: _onPointerEndForDragTracking,
+                    child: CustomScrollView(
+                      controller: _listScrollController,
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
                       ),
-                      if (favorites.isNotEmpty)
-                        SliverReorderableList(
-                          itemCount: favorites.length,
-                          // ignore: deprecated_member_use
-                          onReorder: _onReorderFav,
-                          proxyDecorator: (child, index, animation) {
-                            return Material(elevation: 2, child: child);
-                          },
-                          itemBuilder: (context, index) {
-                            final memo = favorites[index];
-                            return _MemoSwipeItem(
-                              key: ValueKey(memo.id),
-                              memo: memo,
-                              index: index,
-                              closeNotifier: _closeSwipeNotifier,
-                              onTap: () => _editMemo(memo.id),
-                              onDelete: () => _deleteMemo(memo.id),
-                              onToggleFavorite: () => _toggleFavorite(memo.id),
-                              onButtonTapped: _onButtonTapped,
-                              onSwipeOpened: _onSwipeOpened,
-                              onSwipeClosed: _onSwipeClosed,
-                              hasOtherOpen: _hasOtherOpen,
-                              closeAllSwipes: _closeAllSwipes,
-                              isEditMode: _isEditMode,
-                              isSelected: _selectedIds.contains(memo.id),
-                              onToggleSelect: () => _toggleSelected(memo.id),
-                            );
-                          },
+                      slivers: [
+                        const SliverToBoxAdapter(
+                          child: Divider(
+                            height: 0.5,
+                            thickness: 0.5,
+                            indent: 0,
+                            endIndent: 0,
+                          ),
                         ),
-                      if (normals.isNotEmpty)
-                        SliverReorderableList(
-                          itemCount: normals.length,
-                          // ignore: deprecated_member_use
-                          onReorder: _onReorderNormal,
-                          proxyDecorator: (child, index, animation) {
-                            return Material(elevation: 2, child: child);
-                          },
-                          itemBuilder: (context, index) {
-                            final memo = normals[index];
-                            return _MemoSwipeItem(
-                              key: ValueKey(memo.id),
-                              memo: memo,
-                              index: index,
-                              closeNotifier: _closeSwipeNotifier,
-                              onTap: () => _editMemo(memo.id),
-                              onDelete: () => _deleteMemo(memo.id),
-                              onToggleFavorite: () => _toggleFavorite(memo.id),
-                              onButtonTapped: _onButtonTapped,
-                              onSwipeOpened: _onSwipeOpened,
-                              onSwipeClosed: _onSwipeClosed,
-                              hasOtherOpen: _hasOtherOpen,
-                              closeAllSwipes: _closeAllSwipes,
-                              isEditMode: _isEditMode,
-                              isSelected: _selectedIds.contains(memo.id),
-                              onToggleSelect: () => _toggleSelected(memo.id),
-                            );
-                          },
-                        ),
-                    ],
+                        if (favorites.isNotEmpty)
+                          SliverReorderableList(
+                            itemCount: favorites.length,
+                            // ignore: deprecated_member_use
+                            onReorder: _onReorderFav,
+                            onReorderStart: (_) => _reorderDragActive = true,
+                            onReorderEnd: (_) => _reorderDragActive = false,
+                            proxyDecorator: _dragProxyDecorator,
+                            itemBuilder: (context, index) {
+                              final memo = favorites[index];
+                              return _MemoSwipeItem(
+                                key: ValueKey(memo.id),
+                                memo: memo,
+                                index: index,
+                                closeNotifier: _closeSwipeNotifier,
+                                onTap: () => _editMemo(memo.id),
+                                onDelete: () => _deleteMemo(memo.id),
+                                onToggleFavorite: () =>
+                                    _toggleFavorite(memo.id),
+                                onButtonTapped: _onButtonTapped,
+                                onSwipeOpened: _onSwipeOpened,
+                                onSwipeClosed: _onSwipeClosed,
+                                hasOtherOpen: _hasOtherOpen,
+                                closeAllSwipes: _closeAllSwipes,
+                                isEditMode: _isEditMode,
+                                isSelected: _selectedIds.contains(memo.id),
+                                onToggleSelect: () => _toggleSelected(memo.id),
+                              );
+                            },
+                          ),
+                        if (normals.isNotEmpty)
+                          SliverReorderableList(
+                            itemCount: normals.length,
+                            // ignore: deprecated_member_use
+                            onReorder: _onReorderNormal,
+                            onReorderStart: (_) => _reorderDragActive = true,
+                            onReorderEnd: (_) => _reorderDragActive = false,
+                            proxyDecorator: _dragProxyDecorator,
+                            itemBuilder: (context, index) {
+                              final memo = normals[index];
+                              return _MemoSwipeItem(
+                                key: ValueKey(memo.id),
+                                memo: memo,
+                                index: index,
+                                closeNotifier: _closeSwipeNotifier,
+                                onTap: () => _editMemo(memo.id),
+                                onDelete: () => _deleteMemo(memo.id),
+                                onToggleFavorite: () =>
+                                    _toggleFavorite(memo.id),
+                                onButtonTapped: _onButtonTapped,
+                                onSwipeOpened: _onSwipeOpened,
+                                onSwipeClosed: _onSwipeClosed,
+                                hasOtherOpen: _hasOtherOpen,
+                                closeAllSwipes: _closeAllSwipes,
+                                isEditMode: _isEditMode,
+                                isSelected: _selectedIds.contains(memo.id),
+                                onToggleSelect: () => _toggleSelected(memo.id),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
