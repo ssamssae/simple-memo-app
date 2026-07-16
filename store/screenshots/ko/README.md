@@ -1,44 +1,38 @@
-# 메모요 Play Store 스크린샷 후보 (ko) — 2026-06-04
+# 메모요 스토어 스크린샷 (ko) — 2026-07-16
 
-자동 캡처 + 한글 캡션 합성한 **후보 세트**. (실제 스토어 업로드는 게이트 — 아니키/본진 픽 후)
+Flutter 3.44.0으로 iPhone 17 Pro Max(iOS 26.4)에서 실제 앱 화면을 캡처한 1.0.13 세트다. 원본은 1320×2868 RGB이며, Play용 이미지는 실제 화면을 1080×1920 캔버스에 비율 유지로 배치했다.
 
-현재 스토어 후보(`01_dark_main`~`04_settings`)는 **Android 에뮬레이터(Pixel 7, API 34, arm64) 정석 캡처** 기준. (이전 iOS 시뮬 캡처는 `raw/ios/` 에 보존.)
+## Play용 1080×1920
 
-## 후보 (1080×1920, Play-safe 9:16)
 | 파일 | 기능 | 캡션 |
-|------|------|------|
-| 01_dark_main.png | 다크 메인(메모 리스트) | 어두운 화면, 눈이 편하게 |
-| 02_quick_write.png | 즉시 입력(켜자마자 작성) | 켜자마자 바로 한 줄 |
-| 03_drive_backup.png | Google Drive 백업 메뉴 | 한 번에 구글 드라이브 백업 |
-| 04_settings.png | 설정(약관·정책·평가) | 약관·정책까지 투명하게 |
+| --- | --- | --- |
+| `01_dark_main.png` | 다크 메모 목록 | 생각난 순간 바로 기록 |
+| `02_quick_write.png` | 새 메모 입력 | 제목 없이 빠르게 쓰기 |
+| `03_ai_summary.png` | AI 요약 결과 | 긴 메모도 AI로 한눈에 |
+| `04_semantic_search.png` | 뜻으로 찾기 | 기억나는 말로 메모 찾기 |
+| `05_premium.png` | 프리미엄 월 구독 | 월 구독으로 AI 기능 열기 |
+| `06_drive_backup.png` | Google Drive 백업 | 내 Drive에 간편하게 백업 |
+| `07_settings.png` | 구독·복원·정책 | 구독·복원·정책까지 투명하게 |
 
-## raw 원본
-- `raw/android/` = 캡션 없는 Android 원본 캡처(1080×2337, Pixel 7 에뮬 실제 화면) — **현재 후보의 소스**.
-- `raw/ios/` = 이전 iOS 시뮬(iPhone 17) 원본 캡처(1206×2622) — 히스토리 보존.
+## 원본
 
-## 생성 방법(재현)
-1. Android 에뮬레이터 준비 (맥미니 M1 = arm64):
-   ```
-   sdkmanager "emulator" "system-images;android-34;google_apis;arm64-v8a"
-   avdmanager create avd -n memoyo_pixel7 \
-     -k "system-images;android-34;google_apis;arm64-v8a" -d pixel_7
-   emulator -avd memoyo_pixel7 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
-   adb shell cmd uimode night yes   # 다크모드
-   ```
-2. integration_test 하니스로 부팅된 에뮬에서 실제 화면 캡처(목업 합성 X):
-   ```
-   flutter drive --driver test_driver/integration_test.dart \
-     --target integration_test/screenshot_test.dart -d emulator-5554
-   ```
-   → 데모 메모 시드 + 4화면 네비게이션 + takeScreenshot → `build/screenshots/*.png`
-3. PIL 합성으로 1080×1920 Play-safe 캔버스에 amber 한글 캡션 헤더 + 스크린샷 레터박스:
-   ```
-   python3 scripts/compose_store_screenshots.py \
-     --raw build/screenshots --out store/screenshots/ko \
-     --raw-out store/screenshots/ko/raw/android
-   ```
+- `raw/ios-current-1.0.13/`: 이번 세트의 캡션 없는 실제 렌더 원본.
+- `raw/android/`, `raw/ios/`: 2026-06-04 이전 세트의 이력 보존본이며 이번 제출 소스가 아니다.
+- `fastlane/screenshots/ko/iPhone 6.9 Display/`: App Store용 1320×2868 RGB 원본.
 
-## 주의 / 후속
-- ⚠️ 원본 비율(1080×2337 = 1:2.16)은 Play 상한(≤2:1)을 살짝 초과 → 1080×1920 캔버스 합성으로 해소.
-- "vdev · 강대종" 푸터는 **앱 화면 자체**에 렌더되는 워터마크 — 합성 스크립트가 별도로 추가하지 않음(이중 방지).
-- 캡션 카피는 기본안 확정.
+## 재현
+
+```sh
+flutter drive \
+  --driver test_driver/integration_test.dart \
+  --target integration_test/screenshot_test.dart \
+  -d <ios-sim-udid>
+
+python3 scripts/compose_store_screenshots.py \
+  --raw build/screenshots \
+  --out store/screenshots/ko \
+  --raw-out store/screenshots/ko/raw/ios-current-1.0.13 \
+  --ios-out "fastlane/screenshots/ko/iPhone 6.9 Display"
+```
+
+하니스는 데모 메모와 프리미엄 테스트 상태를 로컬에만 주입한다. 결제·네트워크 요청 없이 앱의 실제 위젯과 테스트 전송 계층으로 AI 요약·뜻으로 찾기 결과를 렌더한다.

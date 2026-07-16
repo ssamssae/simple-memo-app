@@ -36,10 +36,13 @@ UNDERLINE_H = 7
 
 # 하니스 raw 이름 → (최종 파일명, 캡션)
 SCENES = [
-    ("01-main",     "01_dark_main.png",    "어두운 화면, 눈이 편하게"),
-    ("04-edit",     "02_quick_write.png",  "켜자마자 바로 한 줄"),
-    ("02-menu",     "03_drive_backup.png", "한 번에 구글 드라이브 백업"),
-    ("03-settings", "04_settings.png",     "약관·정책까지 투명하게"),
+    ("01-main",            "01_dark_main.png",       "생각난 순간 바로 기록"),
+    ("05-edit",            "02_quick_write.png",     "제목 없이 빠르게 쓰기"),
+    ("06-ai-summary",      "03_ai_summary.png",      "긴 메모도 AI로 한눈에"),
+    ("07-semantic-search", "04_semantic_search.png", "기억나는 말로 메모 찾기"),
+    ("04-premium",         "05_premium.png",         "월 구독으로 AI 기능 열기"),
+    ("03-backup",          "06_drive_backup.png",    "내 Drive에 간편하게 백업"),
+    ("02-settings",        "07_settings.png",        "구독·복원·정책까지 투명하게"),
 ]
 
 
@@ -85,11 +88,15 @@ def main():
                     help="최종 합성본 출력 디렉토리")
     ap.add_argument("--raw-out", default=None,
                     help="raw 원본 복사 디렉토리 (옵션)")
+    ap.add_argument("--ios-out", default=None,
+                    help="App Store용 원본 크기 RGB 복사 디렉토리 (옵션)")
     args = ap.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
     if args.raw_out:
         os.makedirs(args.raw_out, exist_ok=True)
+    if args.ios_out:
+        os.makedirs(args.ios_out, exist_ok=True)
 
     for raw_name, out_name, caption in SCENES:
         raw_path = os.path.join(args.raw, raw_name + ".png")
@@ -100,6 +107,10 @@ def main():
         print(f"  {out_name}  {size}  <- {raw_name}.png  ({caption})")
         if args.raw_out:
             Image.open(raw_path).save(os.path.join(args.raw_out, raw_name + ".png"))
+        if args.ios_out:
+            Image.open(raw_path).convert("RGB").save(
+                os.path.join(args.ios_out, out_name)
+            )
 
 
 if __name__ == "__main__":

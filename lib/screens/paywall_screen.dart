@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_strings.dart';
 import '../services/ads_service.dart';
@@ -6,14 +7,33 @@ import '../services/premium_purchase.dart';
 import '../services/premium_service.dart';
 
 class PaywallScreen extends StatefulWidget {
-  const PaywallScreen({super.key});
+  const PaywallScreen({super.key, this.storePreviewPrice});
+
+  @visibleForTesting
+  final String? storePreviewPrice;
 
   @override
   State<PaywallScreen> createState() => _PaywallScreenState();
 }
 
 class _PaywallScreenState extends State<PaywallScreen> {
+  static final Uri _termsUri = Uri.parse(
+    'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
+  );
+  static final Uri _privacyUri = Uri.parse(
+    'https://github.com/ssamssae/simple-memo-app/blob/main/docs/legal/privacy-policy.md',
+  );
+
   bool _busy = false;
+
+  Future<void> _openLegal(Uri uri) async {
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.of(context).storeUnavailable)),
+      );
+    }
+  }
 
   Future<void> _subscribe() async {
     if (_busy) return;
@@ -42,7 +62,10 @@ class _PaywallScreenState extends State<PaywallScreen> {
   @override
   Widget build(BuildContext context) {
     final strings = AppStrings.of(context);
-    final productPrice = PremiumPurchase.instance.price;
+    final productPrice =
+        widget.storePreviewPrice ?? PremiumPurchase.instance.price;
+    final productAvailable =
+        widget.storePreviewPrice != null || PremiumPurchase.instance.available;
     final priceText = productPrice == null
         ? strings.premiumStorePriceFallback
         : strings.premiumPrice(productPrice);
@@ -116,10 +139,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                 ),
                 const SizedBox(height: 26),
                 FilledButton.icon(
-                  onPressed:
-                      _busy ||
-                          entitlement.active ||
-                          !PremiumPurchase.instance.available
+                  onPressed: _busy || entitlement.active || !productAvailable
                       ? null
                       : _subscribe,
                   icon: _busy
@@ -130,7 +150,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                         )
                       : const Icon(Icons.workspace_premium_outlined),
                   label: Text(
-                    PremiumPurchase.instance.available
+                    productAvailable
                         ? '${strings.premiumSubscribe} · $priceText'
                         : strings.premiumPrepared,
                   ),
@@ -160,6 +180,20 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     fontSize: 12,
                     height: 1.45,
                   ),
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: () => _openLegal(_termsUri),
+                      child: Text(strings.terms),
+                    ),
+                    TextButton(
+                      onPressed: () => _openLegal(_privacyUri),
+                      child: Text(strings.privacy),
+                    ),
+                  ],
                 ),
               ],
             );

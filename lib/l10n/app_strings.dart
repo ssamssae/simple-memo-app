@@ -47,8 +47,8 @@ class AppStrings {
   String get premiumPaywallTitle =>
       isEnglish ? 'Upgrade to Premium' : '프리미엄으로 업그레이드';
   String get premiumPaywallBody => isEnglish
-      ? 'Premium unlocks the AI features planned for Memoyo: summaries first, semantic search next.'
-      : '프리미엄은 메모요 AI 기능을 여는 구독입니다. 먼저 요약, 다음 단계로 말로 검색이 올라갑니다.';
+      ? 'Use AI summaries and semantic search, and focus without banner ads while Premium is active.'
+      : 'AI 요약과 말로 검색을 이용하고, 프리미엄 기간에는 배너 광고 없이 메모에 집중하세요.';
   String get premiumSubscribe => isEnglish ? 'Subscribe monthly' : '월 구독 시작';
   String premiumPrice(String price) =>
       isEnglish ? '$price / month' : '월 $price';
