@@ -39,6 +39,13 @@ void main() {
     expect(prefs.getDouble('memo_body_font_size'), 20);
   });
 
+  testWidgets('기본 gemini 플래그에서는 온디바이스 모델 UI가 완전히 숨겨진다', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+
+    expect(find.byKey(const Key('minilm-model-tile')), findsNothing);
+    expect(find.text('기기 내 뜻 검색 모델'), findsNothing);
+  });
+
   testWidgets('설정 화면 테마 선택이 표시값과 저장값을 갱신한다', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
 
