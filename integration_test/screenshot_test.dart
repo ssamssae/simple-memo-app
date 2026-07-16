@@ -7,16 +7,70 @@
 //     --driver test_driver/integration_test.dart \
 //     --target integration_test/screenshot_test.dart \
 //     -d <ios-sim-udid>
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:simple_memo_app/main.dart';
+import 'package:simple_memo_app/features/memos/services/memoyo_embedding_client.dart';
+import 'package:simple_memo_app/features/memos/services/memoyo_summary_client.dart';
 import 'package:simple_memo_app/models/memo.dart';
+import 'package:simple_memo_app/screens/memo_edit_screen.dart';
+import 'package:simple_memo_app/screens/paywall_screen.dart';
+import 'package:simple_memo_app/screens/search_screen.dart';
+import 'package:simple_memo_app/services/ads_service.dart';
 import 'package:simple_memo_app/services/memo_storage.dart';
+import 'package:simple_memo_app/services/premium_entitlement_client.dart';
+import 'package:simple_memo_app/services/premium_service.dart';
+import 'package:simple_memo_app/services/settings_service.dart';
+
+const _captureWindowSeconds = int.fromEnvironment(
+  'STORE_CAPTURE_SECONDS',
+  defaultValue: 12,
+);
+const _lastCaptureWindowSeconds = int.fromEnvironment(
+  'STORE_LAST_CAPTURE_SECONDS',
+  defaultValue: _captureWindowSeconds,
+);
+const _captureTargets = String.fromEnvironment('STORE_CAPTURE_TARGETS');
+const _targetCaptureWindowSeconds = int.fromEnvironment(
+  'STORE_TARGET_CAPTURE_SECONDS',
+  defaultValue: _captureWindowSeconds,
+);
+
+Future<void> pumpUi(
+  WidgetTester tester, [
+  Duration wait = const Duration(milliseconds: 700),
+]) async {
+  await tester.pump();
+  await tester.pump(wait);
+  await tester.pump();
+}
+
+Future<void> openExternalCaptureWindow(
+  WidgetTester tester,
+  String name, {
+  bool isLast = false,
+}) async {
+  debugPrint('[store-shot-ready] $name');
+  final isTarget = _captureTargets.split(',').contains(name);
+  await tester.runAsync(
+    () => Future<void>.delayed(
+      Duration(
+        seconds: isTarget
+            ? _targetCaptureWindowSeconds
+            : isLast
+            ? _lastCaptureWindowSeconds
+            : _captureWindowSeconds,
+      ),
+    ),
+  );
+}
 
 void main() {
-  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('store screenshots (dark)', (tester) async {
     // ── 데모 메모 시드 (실제 저장소) ──
@@ -55,40 +109,149 @@ void main() {
       ),
     ];
     await MemoStorage.saveMemos(demo);
+    await SettingsService.instance.setLanguageCode('ko');
+    await SettingsService.instance.setThemeMode(ThemeMode.dark);
+    await SettingsService.instance.setOnboardingCompleted(true);
+    // 캡처 중 네이티브 광고 로드가 프레임 정착을 막지 않게 기존 광고 제거
+    // 구매자 상태를 사용한다. 설정/페이월에는 평생 광고 제거·감사 쿠폰이 함께 보인다.
+    AdsService.instance.removeAds.value = true;
 
     await tester.pumpWidget(const MemoApp());
-    // iOS 시뮬에서 takeScreenshot 위해 surface→image 전환(1회).
-    await binding.convertFlutterSurfaceToImage();
 
-    // 스플래시(750ms) + 전환(500ms) 통과
+    // 스플래시 타이머(750ms) 뒤 fade-out(400ms), HomeShell route fade(500ms) 통과.
+    // 타이머 콜백에서 각 애니메이션이 시작되므로 구간별로 펌프해야 한다.
     await tester.pump(const Duration(milliseconds: 900));
-    await tester.pumpAndSettle(const Duration(milliseconds: 700));
+    await tester.pump(const Duration(milliseconds: 500));
+    await pumpUi(tester, const Duration(milliseconds: 600));
+    await tester.tap(find.text('메모').last);
+    await pumpUi(tester);
 
     // ① 메인 메모 리스트 (다크)
-    await binding.takeScreenshot('01-main');
+    await openExternalCaptureWindow(tester, '01-main');
 
-    // ② 메뉴 (Drive 백업 등) 노출
-    await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
-    await binding.takeScreenshot('02-menu');
+    // ② 설정 탭 (프리미엄·구매 복원·정책 포함)
+    await tester.tap(find.text('설정').last);
+    await pumpUi(tester);
+    await openExternalCaptureWindow(tester, '02-settings');
 
-    // ③ 설정 화면 (정책/평가 포함) — 팝업의 '설정' 탭
-    await tester.tap(find.text('설정'));
-    await tester.pumpAndSettle();
-    await binding.takeScreenshot('03-settings');
-
-    // 설정 → 리스트 복귀 (표준 AppBar back)
+    // ③ Drive 백업·복원 화면
+    await tester.tap(find.text('백업 & 복원'));
+    await pumpUi(tester);
+    await openExternalCaptureWindow(tester, '03-backup');
     await tester.tap(find.byType(BackButton));
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
-    // ④ 빠른 편집 / 즉시 입력 (FAB → 새 메모, autofocus) — 마지막(복귀 불요)
-    await tester.tap(find.byTooltip('새 메모'));
-    await tester.pumpAndSettle();
+    // ④ 프리미엄 구독 화면 — 심사 캡처용 가격만 주입, 결제 호출 없음.
+    final settingsContext = tester.element(find.byType(Scaffold).last);
+    unawaited(
+      Navigator.of(settingsContext).push<void>(
+        MaterialPageRoute(
+          builder: (_) => const PaywallScreen(storePreviewPrice: '₩1,900'),
+        ),
+      ),
+    );
+    await pumpUi(tester);
+    await openExternalCaptureWindow(tester, '04-premium');
+
+    // 프리미엄 → 설정 → 메모 탭 복귀
+    await tester.tap(find.byType(BackButton));
+    await pumpUi(tester);
+    await tester.tap(find.text('메모').last);
+    await pumpUi(tester);
+
+    // ⑤ 빠른 편집 / 즉시 입력 (바텀바 새메모 → autofocus)
+    await tester.tap(find.text('새메모'));
+    await pumpUi(tester);
     await tester.enterText(
       find.byType(TextField).first,
       '오후 3시 약속\n카페에서 기획안 리뷰',
     );
-    await tester.pumpAndSettle();
-    await binding.takeScreenshot('04-edit');
+    await pumpUi(tester);
+    await pumpUi(tester, const Duration(milliseconds: 300));
+    await openExternalCaptureWindow(tester, '05-edit');
+
+    // 편집 화면을 닫고 AI 기능 캡처용 프리미엄 권한을 로컬 테스트 상태로 설정.
+    await tester.tap(find.text('뒤로'));
+    await pumpUi(tester);
+    PremiumService.instance.entitlement.value = PremiumEntitlement(
+      premium: true,
+      productId: PremiumEntitlementClient.premiumProductId,
+      expiresAt: DateTime(2999),
+      source: PremiumEntitlementSource.subscription,
+    );
+
+    // ⑥ AI 요약 결과 — 실제 MemoEditScreen + 테스트 전송계층.
+    final summaryClient = MemoyoSummaryClient(
+      transport: (_, _) async => {
+        'model': 'claude-haiku-4-5-20251001',
+        'summary': '다음 분기 핵심 목표 3가지를 확정했고, 각 목표의 담당자를 배정했습니다.',
+        'usage': {
+          'date': '2026-07-16',
+          'used': 1,
+          'limit': 30,
+          'remaining': 29,
+        },
+      },
+    );
+    final listContext = tester.element(find.byType(Scaffold).last);
+    unawaited(
+      Navigator.of(listContext).push<void>(
+        MaterialPageRoute(
+          builder: (_) => MemoEditScreen(
+            memo: demo[1],
+            summaryClient: summaryClient,
+            summaryUserId: () async => 'store-screenshot-user',
+          ),
+        ),
+      ),
+    );
+    await pumpUi(tester);
+    await tester.tap(find.byTooltip('AI 요약'));
+    await pumpUi(tester);
+    await openExternalCaptureWindow(tester, '06-ai-summary');
+    Navigator.of(tester.element(find.text('오늘 29회 남음 · 일일 30회'))).pop();
+    await pumpUi(tester);
+    await tester.tap(find.text('뒤로'));
+    await pumpUi(tester);
+
+    // ⑦ 뜻으로 찾기 — 실제 SearchScreen + 테스트 임베딩 전송계층.
+    final embeddingClient = MemoyoEmbeddingClient(
+      transport: (_, payload) async {
+        final texts = (payload['texts'] as List).cast<String>();
+        return {
+          'model': 'gemini-embedding-001',
+          'dimensions': 2,
+          'embeddings': texts
+              .map(
+                (text) =>
+                    text.contains('회의') ||
+                        text.contains('분기') ||
+                        text.contains('프로젝트')
+                    ? [1.0, 0.0]
+                    : [0.0, 1.0],
+              )
+              .toList(),
+        };
+      },
+    );
+    final searchContext = tester.element(find.byType(Scaffold).last);
+    unawaited(
+      Navigator.of(searchContext).push<void>(
+        MaterialPageRoute(
+          builder: (_) => SearchScreen(embeddingClient: embeddingClient),
+        ),
+      ),
+    );
+    await pumpUi(tester);
+    await tester.tap(find.text('뜻으로 찾기'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), '프로젝트 계획');
+    await tester.pump(const Duration(milliseconds: 350));
+    await pumpUi(tester);
+    await pumpUi(tester, const Duration(milliseconds: 300));
+    await openExternalCaptureWindow(tester, '07-semantic-search', isLast: true);
+
+    PremiumService.instance.entitlement.value =
+        const PremiumEntitlement.inactive();
   });
 }
