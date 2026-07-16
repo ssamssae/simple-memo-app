@@ -42,6 +42,7 @@ class MiniLmModelController extends MiniLmModelManager {
   MiniLmModelState _state = MiniLmModelState.checking;
   double _progress = 0;
   String? _errorCode;
+  bool _disposed = false;
 
   @override
   MiniLmModelState get state => _state;
@@ -82,7 +83,7 @@ class MiniLmModelController extends MiniLmModelManager {
       await _installer.install(
         onProgress: (value) {
           _progress = value.fraction;
-          notifyListeners();
+          if (!_disposed) notifyListeners();
         },
       );
       _progress = 1;
@@ -115,11 +116,12 @@ class MiniLmModelController extends MiniLmModelManager {
   void _setState(MiniLmModelState value, {String? errorCode}) {
     _state = value;
     _errorCode = errorCode;
-    notifyListeners();
+    if (!_disposed) notifyListeners();
   }
 
   @override
   void dispose() {
+    _disposed = true;
     unawaited(_runtime.close());
     super.dispose();
   }
