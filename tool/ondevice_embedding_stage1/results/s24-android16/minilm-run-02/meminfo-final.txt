@@ -1,0 +1,68 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 534978313 Realtime: 2315239825
+
+** MEMINFO in pid 28041 [com.daejongkang.memoyo_embedding_stage1] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   224225   224180       32       28   225672   292740   183856   103541
+  Dalvik Heap     5772     2584     2064       18     9116    27668     3092    24576
+ Dalvik Other     9676     3008       24        0    16816                           
+        Stack     1812     1812        0        0     1820                           
+       Ashmem       11        0        0        0      552                           
+    Other dev      347      268       16        0     1004                           
+     .so mmap    13457      280    11092       44    39296                           
+    .jar mmap     7271        0     4556        0    43320                           
+    .apk mmap    27055     1080    25780        0    28400                           
+    .ttf mmap     7119        0     7016        0     7288                           
+    .dex mmap        7        0        0        0      756                           
+    .oat mmap       53        0       16        0     1432                           
+    .art mmap     8378     7664      328       13    22600                           
+   Other mmap    52487        4    52404        0    53332                           
+   EGL mtrack    35485    35485        0        0    35485                           
+    GL mtrack   111612   111612        0        0   111612                           
+      Unknown   219427   217484     1664       31   225048                           
+        TOTAL   724328   605461   104992      134   823549   320408   186948   128117
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    10576                          31716
+         Native Heap:   224180                         225672
+                Code:    50096                         134048
+               Stack:     1812                           1820
+            Graphics:   147097                         147097
+       Private Other:   276692
+              System:    13875
+             Unknown:                                  283196
+ 
+           TOTAL PSS:   724328            TOTAL RSS:   823549       TOTAL SWAP PSS:      134
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        5           Activities:        1
+              Assets:       32        AssetManagers:        0
+       Local Binders:       20        Proxy Binders:       71
+       Parcel memory:        9         Parcel count:       39
+    Death Recipients:        0             WebViews:        0
+ 
+ Native Allocations
+                         Count                       Total(kB)
+                        ------                         ------
+    Other (malloced):      344                             31
+ Other (nonmalloced):       95                             70
+ 
+ SQL
+         MEMORY_USED:      311
+  PAGECACHE_OVERFLOW:       84          MALLOC_SIZE:       46
+ 
+ DATABASES
+      pgsz     dbsz   Lookaside(b) cache hits cache misses cache size  Dbname
+PER CONNECTION STATS
+         4      104            123    11    69    12  /data/user/0/com.daejongkang.memoyo_embedding_stage1/no_backup/androidx.work.workdb
+         4        8                    0     0     0    (attached) temp
+         4      104             74    10    23     6  /data/user/0/com.daejongkang.memoyo_embedding_stage1/no_backup/androidx.work.workdb (1)
+POOL STATS
+     cache hits  cache misses    cache size  Dbname
+             21            96            18  /data/user/0/com.daejongkang.memoyo_embedding_stage1/no_backup/androidx.work.workdb
+ 

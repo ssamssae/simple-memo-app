@@ -1,0 +1,27 @@
+sample_utc=2026-07-16T13:23:20Z elapsed_sec=0
+        TOTAL   469945   355475   102240      510   565923   118999    54526    60041
+           TOTAL PSS:   469945            TOTAL RSS:   565923       TOTAL SWAP PSS:      510
+sample_utc=2026-07-16T13:23:25Z elapsed_sec=5
+        TOTAL  1114495   999783   101424      134  1213491   724720   593695   125704
+           TOTAL PSS:  1114495            TOTAL RSS:  1213491       TOTAL SWAP PSS:      134
+sample_utc=2026-07-16T13:23:30Z elapsed_sec=10
+        TOTAL  1122366  1007667   101392      134  1221395   727056   596008   125704
+           TOTAL PSS:  1122366            TOTAL RSS:  1221395       TOTAL SWAP PSS:      134
+sample_utc=2026-07-16T13:23:36Z elapsed_sec=15
+        TOTAL  1124398  1009615   101400      134  1223503   727056   596036   125675
+           TOTAL PSS:  1124398            TOTAL RSS:  1223503       TOTAL SWAP PSS:      134
+sample_utc=2026-07-16T13:23:41Z elapsed_sec=20
+        TOTAL  1118462  1003679   101400      134  1217567   727056   601246   120465
+           TOTAL PSS:  1118462            TOTAL RSS:  1217567       TOTAL SWAP PSS:      134
+sample_utc=2026-07-16T13:23:47Z elapsed_sec=25
+        TOTAL  1114564   999781   101400      134  1213669   723936   592993   125630
+           TOTAL PSS:  1114564            TOTAL RSS:  1213669       TOTAL SWAP PSS:      134
+sample_utc=2026-07-16T13:23:52Z elapsed_sec=30
+        TOTAL  1117966  1003185   101396      134  1217073   723936   593008   125615
+           TOTAL PSS:  1117966            TOTAL RSS:  1217073       TOTAL SWAP PSS:      134
+sample_utc=2026-07-16T13:23:58Z elapsed_sec=35
+        TOTAL  1111132   996349   101396      134  1210265   724192   593023   125792
+           TOTAL PSS:  1111132            TOTAL RSS:  1210265       TOTAL SWAP PSS:      134
+sample_utc=2026-07-16T13:24:03Z elapsed_sec=40
+        TOTAL  1106980   992197   101396      134  1206109   726532   595385   125746
+           TOTAL PSS:  1106980            TOTAL RSS:  1206109       TOTAL SWAP PSS:      134

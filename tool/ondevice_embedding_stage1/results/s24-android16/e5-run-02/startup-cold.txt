@@ -1,0 +1,7 @@
+Starting: Intent { cmp=com.daejongkang.memoyo_embedding_stage1/.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.daejongkang.memoyo_embedding_stage1/.MainActivity
+TotalTime: 1102
+WaitTime: 1105
+Complete

@@ -1,0 +1,3 @@
+sample_utc=2026-07-16T13:25:06Z elapsed_sec=0
+        TOTAL   718543   595375   110400      508   814987   259468   195142    58832
+           TOTAL PSS:   718543            TOTAL RSS:   814987       TOTAL SWAP PSS:      508

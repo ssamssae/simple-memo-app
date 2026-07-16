@@ -1,0 +1,5 @@
+{"schemaVersion":1,"task":"T-260713-55","phase":"verifying-artifacts","engine":"multilingual_e5_small_onnx","timestampUtc":"2026-07-16T13:23:18.110393Z"}
+{"schemaVersion":1,"task":"T-260713-55","phase":"artifacts-verified","engine":"multilingual_e5_small_onnx","timestampUtc":"2026-07-16T13:23:23.749269Z"}
+{"schemaVersion":1,"task":"T-260713-55","phase":"model-loaded","engine":"multilingual_e5_small_onnx","timestampUtc":"2026-07-16T13:23:24.978822Z"}
+{"schemaVersion":1,"task":"T-260713-55","phase":"reindexing-100","engine":"multilingual_e5_small_onnx","timestampUtc":"2026-07-16T13:23:27.590816Z"}
+{"schemaVersion":1,"task":"T-260713-55","phase":"complete","engine":"multilingual_e5_small_onnx","timestampUtc":"2026-07-16T13:24:07.873292Z"}
