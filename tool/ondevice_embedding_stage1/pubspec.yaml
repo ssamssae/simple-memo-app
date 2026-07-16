@@ -1,0 +1,27 @@
+name: memoyo_embedding_stage1
+description: Experimental on-device embedding stage1 benchmark; not for production merge.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: ">=3.44.0"
+
+dependencies:
+  crypto: 3.0.6
+  dart_sentencepiece_tokenizer: 1.3.2
+  flutter:
+    sdk: flutter
+  flutter_gemma: 1.0.1
+  flutter_gemma_embeddings: 1.0.1
+  flutter_onnxruntime: 1.8.2
+  path_provider: 2.1.5
+  unorm_dart: 0.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: 6.0.0
+
+flutter:
+  uses-material-design: true
