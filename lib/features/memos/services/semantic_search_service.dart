@@ -2,8 +2,11 @@ import 'dart:math' as math;
 
 import '../../../models/memo.dart';
 
+typedef SemanticSimilarity = double Function(List<double> a, List<double> b);
+
 class SemanticSearchService {
-  static const model = 'gemini-embedding-001';
+  static const geminiModel = 'gemini-embedding-001';
+  static const model = geminiModel;
   static const defaultMinScore = 0.2;
 
   static String embeddingSourceFor(Memo memo) {
@@ -11,11 +14,16 @@ class SemanticSearchService {
     return '${memo.updatedAt.toUtc().toIso8601String()}:$hash';
   }
 
-  static Iterable<Memo> staleMemos(Iterable<Memo> memos) {
+  static Iterable<Memo> staleMemos(
+    Iterable<Memo> memos, {
+    String engineId = geminiModel,
+    int? dimensions,
+  }) {
     return memos.where((memo) {
       final embedding = memo.semanticEmbedding;
       if (embedding == null || embedding.isEmpty) return true;
-      return memo.semanticEmbeddingModel != model ||
+      return memo.semanticEmbeddingModel != engineId ||
+          (dimensions != null && embedding.length != dimensions) ||
           memo.semanticEmbeddingSource != embeddingSourceFor(memo);
     });
   }
@@ -24,14 +32,21 @@ class SemanticSearchService {
     List<Memo> memos,
     List<double> queryEmbedding, {
     double minScore = defaultMinScore,
+    String engineId = geminiModel,
+    int? dimensions,
+    SemanticSimilarity similarity = cosineSimilarity,
   }) {
+    final expectedDimensions = dimensions ?? queryEmbedding.length;
+    if (queryEmbedding.length != expectedDimensions) return const [];
     final scored = <_ScoredMemo>[];
     for (final memo in memos) {
       final embedding = memo.semanticEmbedding;
-      if (embedding == null || embedding.length != queryEmbedding.length) {
+      if (memo.semanticEmbeddingModel != engineId ||
+          embedding == null ||
+          embedding.length != expectedDimensions) {
         continue;
       }
-      final score = cosineSimilarity(queryEmbedding, embedding);
+      final score = similarity(queryEmbedding, embedding);
       if (score >= minScore) scored.add(_ScoredMemo(memo, score));
     }
     scored.sort((a, b) {

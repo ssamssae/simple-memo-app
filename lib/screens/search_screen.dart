@@ -2,8 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../features/memos/services/embedding_engine.dart';
+import '../features/memos/services/gemini_embedding_engine.dart';
 import '../features/memos/services/memoyo_embedding_client.dart';
-import '../features/memos/services/semantic_search_service.dart';
+import '../features/memos/services/mini_lm_embedding_engine.dart';
+import '../features/memos/services/mini_lm_model_installer.dart';
+import '../features/memos/services/mini_lm_runtime.dart';
+import '../features/memos/services/semantic_search_coordinator.dart';
 import '../models/memo.dart';
 import '../services/memo_storage.dart';
 import '../services/premium_service.dart';
@@ -16,9 +21,14 @@ import 'paywall_screen.dart';
 /// AppBar morph 대신 별 화면 push — 뒤로가기 = 검색 이탈(§6.1 step 6). 활성 메모만 대상(§4.1 A).
 /// 입력 디바운스 300ms(§2.4), 결과 카드 RichText amber 하이라이트(§3.3/§3.5), 빈 결과 empty state(§3.7).
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key, this.embeddingClient});
+  const SearchScreen({
+    super.key,
+    this.embeddingClient,
+    this.semanticCoordinator,
+  });
 
   final MemoyoEmbeddingClient? embeddingClient;
+  final SemanticSearchCoordinator? semanticCoordinator;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -45,6 +55,29 @@ class _SearchScreenState extends State<SearchScreen> {
 
   late final MemoyoEmbeddingClient _embeddingClient =
       widget.embeddingClient ?? MemoyoEmbeddingClient();
+  late final SemanticSearchCoordinator _semanticCoordinator =
+      widget.semanticCoordinator ?? _buildSemanticCoordinator();
+
+  SemanticSearchCoordinator _buildSemanticCoordinator() {
+    final policy = SemanticEnginePolicy.configured;
+    MiniLmEmbeddingEngine? onDeviceEngine;
+    if (policy == SemanticEnginePolicy.ondevicePreferred) {
+      final runtime = MethodChannelMiniLmRuntime();
+      final installer = MiniLmModelInstaller(
+        freeSpaceProvider: runtime.availableBytes,
+      );
+      onDeviceEngine = MiniLmEmbeddingEngine(
+        installer: installer,
+        runtime: runtime,
+      );
+    }
+    return SemanticSearchCoordinator(
+      policy: policy,
+      geminiEngineFactory: (userId) =>
+          GeminiEmbeddingEngine(client: _embeddingClient, userId: userId),
+      onDeviceEngine: onDeviceEngine,
+    );
+  }
 
   @override
   void initState() {
@@ -111,33 +144,32 @@ class _SearchScreenState extends State<SearchScreen> {
 
     setState(() {
       _query = query;
+      _results = SearchService.search(_all, query);
       _semanticBusy = true;
       _semanticFallbackCode = null;
     });
 
     try {
       final userId = await PremiumService.instance.userId();
-      final refresh = await _refreshStaleEmbeddings(userId, _all);
-      final queryResult = await _embeddingClient.embedTexts(
+      final outcome = await _semanticCoordinator.search(
         userId: userId,
-        texts: [query.trim()],
+        query: query,
+        memos: _all,
+        persist: (memos) async {
+          await MemoStorage.saveMemos(memos);
+          if (!mounted || ticket != _searchTicket) return;
+          setState(() {
+            _all = List<Memo>.of(memos);
+            _results = SearchService.search(_all, query);
+          });
+        },
       );
-      final queryEmbedding = queryResult.embeddings.first;
-      if (refresh.changed) {
-        await MemoStorage.saveMemos(refresh.memos);
-      }
       if (!mounted || ticket != _searchTicket) return;
       setState(() {
-        _all = refresh.memos;
-        _results = SemanticSearchService.search(_all, queryEmbedding);
+        _all = outcome.memos;
+        _results = outcome.results;
         _semanticBusy = false;
-      });
-    } on MemoyoEmbeddingFallbackException catch (e) {
-      if (!mounted || ticket != _searchTicket) return;
-      setState(() {
-        _results = SearchService.search(_all, query);
-        _semanticBusy = false;
-        _semanticFallbackCode = e.code;
+        _semanticFallbackCode = outcome.semantic ? null : outcome.fallbackCode;
       });
     } catch (_) {
       if (!mounted || ticket != _searchTicket) return;
@@ -147,41 +179,6 @@ class _SearchScreenState extends State<SearchScreen> {
         _semanticFallbackCode = 'MEMOYO_EMBED_FAILED';
       });
     }
-  }
-
-  Future<_EmbeddingRefresh> _refreshStaleEmbeddings(
-    String userId,
-    List<Memo> memos,
-  ) async {
-    final stale = SemanticSearchService.staleMemos(memos).toList();
-    if (stale.isEmpty) return _EmbeddingRefresh(memos, changed: false);
-
-    final updated = List<Memo>.of(memos);
-    const batchSize = 16;
-    for (var start = 0; start < stale.length; start += batchSize) {
-      final batch = stale.skip(start).take(batchSize).toList();
-      final result = await _embeddingClient.embedTexts(
-        userId: userId,
-        texts: batch.map((memo) => memo.content).toList(),
-      );
-      for (var i = 0; i < batch.length; i++) {
-        final memo = batch[i];
-        final vector = result.embeddings[i];
-        final targetIndex = updated.indexWhere(
-          (candidate) => candidate.id == memo.id,
-        );
-        if (targetIndex == -1) continue;
-        final current = updated[targetIndex];
-        updated[targetIndex] = current.copyWith(
-          semanticEmbedding: vector,
-          semanticEmbeddingModel: result.model,
-          semanticEmbeddingSource: SemanticSearchService.embeddingSourceFor(
-            current,
-          ),
-        );
-      }
-    }
-    return _EmbeddingRefresh(updated, changed: true);
   }
 
   Future<void> _openMemo(Memo memo) async {
@@ -326,13 +323,6 @@ class _SearchScreenState extends State<SearchScreen> {
       ],
     );
   }
-}
-
-class _EmbeddingRefresh {
-  const _EmbeddingRefresh(this.memos, {required this.changed});
-
-  final List<Memo> memos;
-  final bool changed;
 }
 
 class _CenterHint extends StatelessWidget {

@@ -1,8 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_strings.dart';
+import '../features/memos/services/embedding_engine.dart';
+import '../features/memos/services/mini_lm_model_controller.dart';
+import '../features/memos/services/mini_lm_model_installer.dart';
+import '../features/memos/services/mini_lm_runtime.dart';
+import '../features/memos/widgets/mini_lm_model_settings_tile.dart';
 import '../services/ads_service.dart';
 import '../services/premium_purchase.dart';
 import '../services/premium_service.dart';
@@ -21,6 +28,7 @@ class SettingsScreen extends StatefulWidget {
     super.key,
     this.openReviewListing,
     this.embedded = false,
+    this.miniLmModelManager,
   });
 
   final Future<AppReviewListingResult> Function()? openReviewListing;
@@ -28,6 +36,7 @@ class SettingsScreen extends StatefulWidget {
   /// HomeShell 바텀바의 탭으로 임베드된 경우 true — 뒤로가기 버튼을 숨기고
   /// 버전 풋터를 바텀바 슬롯 대신 본문 하단에 렌더한다.
   final bool embedded;
+  final MiniLmModelManager? miniLmModelManager;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -36,6 +45,34 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final AppReviewService _appReviewService = AppReviewService();
   bool _isOpeningReviewListing = false;
+  MiniLmModelManager? _miniLmModelManager;
+  bool _ownsMiniLmModelManager = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.miniLmModelManager != null) {
+      _miniLmModelManager = widget.miniLmModelManager;
+    } else if (SemanticEnginePolicy.configured ==
+        SemanticEnginePolicy.ondevicePreferred) {
+      final runtime = MethodChannelMiniLmRuntime();
+      _miniLmModelManager = MiniLmModelController(
+        installer: MiniLmModelInstaller(
+          freeSpaceProvider: runtime.availableBytes,
+        ),
+        runtime: runtime,
+      );
+      _ownsMiniLmModelManager = true;
+    }
+    final manager = _miniLmModelManager;
+    if (manager != null) unawaited(manager.refresh());
+  }
+
+  @override
+  void dispose() {
+    if (_ownsMiniLmModelManager) _miniLmModelManager?.dispose();
+    super.dispose();
+  }
 
   Future<void> _openReviewListing() async {
     if (_isOpeningReviewListing) return;
@@ -387,6 +424,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
             const Divider(height: 0.5, thickness: 0.5),
+            if (_miniLmModelManager case final manager?) ...[
+              MiniLmModelSettingsTile(manager: manager),
+              const Divider(height: 0.5, thickness: 0.5),
+            ],
             ValueListenableBuilder<bool>(
               valueListenable: AdsService.instance.removeAds,
               builder: (context, removed, _) {
