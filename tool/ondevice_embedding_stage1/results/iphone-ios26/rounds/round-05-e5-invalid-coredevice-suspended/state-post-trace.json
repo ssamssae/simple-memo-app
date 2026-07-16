@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "task": "T-260713-55",
+  "phase": "reindexing-100",
+  "engine": "multilingual_e5_small_onnx",
+  "timestampUtc": "2026-07-16T14:41:51.788349Z"
+}

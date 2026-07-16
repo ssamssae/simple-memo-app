@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "task": "T-260713-55",
+  "engine": "paraphrase_multilingual_minilm_onnx",
+  "revision": "e8f8c211226b894fcb81acc59f3b34ba3efd5f42",
+  "license": "Apache-2.0",
+  "modelSha256": "783fea82d71a58179b830a4dbd2d58447e640609e98eedf9ffa12622d375a672",
+  "tokenizerSha256": "cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865",
+  "startedAtUtc": "2026-07-16T14:48:05.436327Z",
+  "completedAtUtc": "2026-07-16T14:48:08.366849Z",
+  "platform": "ios Version 26.5.2 (Build 23F84)",
+  "coldModelLoadMs": 367.33,
+  "coldFirstInferenceMs": 19.261,
+  "warmInferenceSamplesMs": [
+    18.835,
+    19.357,
+    14.58,
+    14.546,
+    15.107
+  ],
+  "warmInferenceMedianMs": 15.107,
+  "reindex100Ms": 1697.642,
+  "memoCount": 100,
+  "dimensions": 384,
+  "maxSequenceLength": 128
+}

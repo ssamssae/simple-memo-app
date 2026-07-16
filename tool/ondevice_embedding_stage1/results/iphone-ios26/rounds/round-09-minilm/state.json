@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "task": "T-260713-55",
+  "phase": "complete",
+  "engine": "paraphrase_multilingual_minilm_onnx",
+  "timestampUtc": "2026-07-16T14:50:29.563884Z"
+}

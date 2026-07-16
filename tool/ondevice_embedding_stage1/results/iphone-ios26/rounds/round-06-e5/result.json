@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "task": "T-260713-55",
+  "engine": "multilingual_e5_small_onnx",
+  "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
+  "license": "MIT",
+  "modelSha256": "ca456c06b3a9505ddfd9131408916dd79290368331e7d76bb621f1cba6bc8665",
+  "tokenizerSha256": "cfc8146abe2a0488e9e2a0c56de7952f7c11ab059eca145a0a727afce0db2865",
+  "startedAtUtc": "2026-07-16T14:45:44.247373Z",
+  "completedAtUtc": "2026-07-16T14:46:10.828109Z",
+  "platform": "ios Version 26.5.2 (Build 23F84)",
+  "coldModelLoadMs": 559.484,
+  "coldFirstInferenceMs": 237.129,
+  "warmInferenceSamplesMs": [
+    207.811,
+    208.095,
+    203.672,
+    204.184,
+    202.371
+  ],
+  "warmInferenceMedianMs": 204.184,
+  "reindex100Ms": 21679.103,
+  "memoCount": 100,
+  "dimensions": 384,
+  "maxSequenceLength": 512
+}
