@@ -8,6 +8,23 @@ import 'package:simple_memo_app/services/settings_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  Color effectiveTextColor(WidgetTester tester, Finder finder) {
+    final text = tester.widget<Text>(finder);
+    final inheritedStyle = DefaultTextStyle.of(tester.element(finder)).style;
+    return inheritedStyle.merge(text.style).color!;
+  }
+
+  double contrastRatio(Color foreground, Color background) {
+    final lighter =
+        foreground.computeLuminance() > background.computeLuminance()
+        ? foreground.computeLuminance()
+        : background.computeLuminance();
+    final darker = foreground.computeLuminance() > background.computeLuminance()
+        ? background.computeLuminance()
+        : foreground.computeLuminance();
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     SettingsService.instance.resetForTesting();
@@ -61,6 +78,57 @@ void main() {
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('theme_mode'), 'light');
+  });
+
+  testWidgets('iPad 820x1180 시스템 라이트에서 설정 주요 텍스트가 배경과 충분히 대비된다', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1640, 2360);
+    tester.view.devicePixelRatio = 2;
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+    const background = Color(0xFFF8F8FA);
+    await tester.pumpWidget(
+      MaterialApp(
+        themeMode: ThemeMode.system,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF7C5CFF),
+            brightness: Brightness.light,
+          ),
+          scaffoldBackgroundColor: background,
+          useMaterial3: true,
+        ),
+        darkTheme: ThemeData.dark(useMaterial3: true),
+        home: const SettingsScreen(embedded: true),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    for (final label in <String>[
+      '글자 크기',
+      '테마',
+      '앱 평가하기',
+      '피드백 보내기',
+      '메모요 프리미엄',
+      '광고 제거',
+      '구매 복원',
+    ]) {
+      final finder = find.text(label);
+      expect(finder, findsOneWidget);
+      final ratio = contrastRatio(
+        effectiveTextColor(tester, finder),
+        background,
+      );
+      expect(
+        ratio,
+        greaterThanOrEqualTo(4.5),
+        reason: '$label 대비율 ${ratio.toStringAsFixed(2)}:1',
+      );
+    }
   });
 
   testWidgets('설정 화면의 앱 평가하기 버튼이 스토어 리뷰 listing 콜백을 호출한다', (tester) async {

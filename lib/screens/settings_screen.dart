@@ -221,6 +221,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final strings = AppStrings.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final primaryColor = colorScheme.onSurface;
+    final secondaryColor = colorScheme.onSurfaceVariant;
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -245,17 +248,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.format_size, color: Colors.white),
+                          Icon(Icons.format_size, color: primaryColor),
                           const SizedBox(width: 32),
                           Expanded(
                             child: Text(
                               strings.fontSize,
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(color: primaryColor),
                             ),
                           ),
                           Text(
                             fontSizeLabel,
-                            style: const TextStyle(color: Color(0xFF9A9AA2)),
+                            style: TextStyle(color: secondaryColor),
                           ),
                         ],
                       ),
@@ -268,17 +271,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Text(
                           strings.memoBodySize,
                           style: TextStyle(
-                            color: const Color(0xFFECECEC),
+                            color: primaryColor,
                             fontSize: fontSize,
                           ),
                         ),
                       ),
                       Row(
                         children: [
-                          const Text(
+                          Text(
                             '가',
                             style: TextStyle(
-                              color: Color(0xFF9A9AA2),
+                              color: secondaryColor,
                               fontSize: 13,
                             ),
                           ),
@@ -300,10 +303,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               },
                             ),
                           ),
-                          const Text(
+                          Text(
                             '가',
                             style: TextStyle(
-                              color: Color(0xFF9A9AA2),
+                              color: secondaryColor,
                               fontSize: 22,
                             ),
                           ),
@@ -322,9 +325,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                   child: Row(
                     children: [
-                      const Icon(Icons.contrast, color: Colors.white),
+                      Icon(Icons.contrast, color: primaryColor),
                       const SizedBox(width: 32),
-                      const Text('테마', style: TextStyle(color: Colors.white)),
+                      Text('테마', style: TextStyle(color: primaryColor)),
                       const SizedBox(width: 16),
                       Expanded(
                         child: SegmentedButton<ThemeMode>(
@@ -364,13 +367,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: const Icon(
-                Icons.star_rate_outlined,
-                color: Colors.white,
-              ),
+              leading: Icon(Icons.star_rate_outlined, color: primaryColor),
               title: Text(
                 strings.rateApp,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: primaryColor),
               ),
               trailing: _isOpeningReviewListing
                   ? const SizedBox(
@@ -378,18 +378,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.chevron_right, color: Colors.white),
+                  : Icon(Icons.chevron_right, color: primaryColor),
               onTap: _isOpeningReviewListing ? null : _openReviewListing,
             ),
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: const Icon(Icons.feedback_outlined, color: Colors.white),
+              leading: Icon(Icons.feedback_outlined, color: primaryColor),
               title: Text(
                 strings.sendFeedback,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: primaryColor),
               ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white),
+              trailing: Icon(Icons.chevron_right, color: primaryColor),
               onTap: _sendFeedback,
             ),
             const Divider(height: 0.5, thickness: 0.5),
@@ -407,13 +407,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   title: Text(
                     strings.premiumTitle,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: primaryColor),
                   ),
                   subtitle: Text(
                     entitlement.active && expiresAt != null
                         ? strings.premiumExpires(expiresAt)
                         : strings.premiumSubtitle,
-                    style: const TextStyle(color: Color(0xFF9A9AA2)),
+                    style: TextStyle(color: secondaryColor),
                   ),
                   trailing: const Icon(
                     Icons.chevron_right,
@@ -440,11 +440,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     title: Text(
                       strings.removeAdsDone,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: primaryColor),
                     ),
                     subtitle: Text(
                       strings.thanksForUsing,
-                      style: const TextStyle(color: Color(0xFF9A9AA2)),
+                      style: TextStyle(color: secondaryColor),
                     ),
                   );
                 }
@@ -462,13 +462,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       title: Text(
                         strings.removeAds,
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(color: primaryColor),
                       ),
                       subtitle: Text(
                         available
                             ? (price ?? strings.removeAdsOneTime)
                             : strings.removeAdsPrepared,
-                        style: const TextStyle(color: Color(0xFF9A9AA2)),
+                        style: TextStyle(color: secondaryColor),
                       ),
                       trailing: const Icon(
                         Icons.chevron_right,
@@ -481,17 +481,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
                       ),
-                      leading: const Icon(
-                        Icons.restore,
-                        color: Color(0xFF9A9AA2),
-                      ),
+                      leading: Icon(Icons.restore, color: secondaryColor),
                       title: Text(
                         strings.restorePurchases,
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(color: primaryColor),
                       ),
-                      trailing: const Icon(
+                      trailing: Icon(
                         Icons.chevron_right,
-                        color: Color(0xFF9A9AA2),
+                        color: secondaryColor,
                       ),
                       onTap: _restorePurchases,
                     ),
@@ -502,80 +499,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: const Icon(Icons.backup_outlined, color: Colors.white),
+              leading: Icon(Icons.backup_outlined, color: primaryColor),
               title: Text(
                 strings.backupRestore,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: primaryColor),
               ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white),
+              trailing: Icon(Icons.chevron_right, color: primaryColor),
               onTap: _openBackupRestore,
             ),
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: const Icon(Icons.delete_outline, color: Colors.white),
-              title: Text(
-                strings.trash,
-                style: const TextStyle(color: Colors.white),
-              ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white),
+              leading: Icon(Icons.delete_outline, color: primaryColor),
+              title: Text(strings.trash, style: TextStyle(color: primaryColor)),
+              trailing: Icon(Icons.chevron_right, color: primaryColor),
               onTap: _openTrash,
             ),
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: const Icon(Icons.translate, color: Colors.white),
+              leading: Icon(Icons.translate, color: primaryColor),
               title: Text(
                 strings.language,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: primaryColor),
               ),
               subtitle: Text(
                 SettingsService.instance.languageCode.value == 'en'
                     ? strings.english
                     : strings.korean,
-                style: const TextStyle(color: Color(0xFF9A9AA2)),
+                style: TextStyle(color: secondaryColor),
               ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white),
+              trailing: Icon(Icons.chevron_right, color: primaryColor),
               onTap: _openLanguageMenu,
             ),
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: const Icon(Icons.help_outline, color: Colors.white),
+              leading: Icon(Icons.help_outline, color: primaryColor),
               title: Text(
                 strings.helpFaq,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: primaryColor),
               ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white),
+              trailing: Icon(Icons.chevron_right, color: primaryColor),
               onTap: _openHelp,
             ),
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: const Icon(
-                Icons.description_outlined,
-                color: Colors.white70,
-              ),
-              title: Text(
-                strings.terms,
-                style: const TextStyle(color: Colors.white),
-              ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+              leading: Icon(Icons.description_outlined, color: secondaryColor),
+              title: Text(strings.terms, style: TextStyle(color: primaryColor)),
+              trailing: Icon(Icons.chevron_right, color: secondaryColor),
               onTap: () =>
                   _openPolicy(strings.terms, 'docs/legal/terms-of-service.md'),
             ),
             const Divider(height: 0.5, thickness: 0.5),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: const Icon(
-                Icons.privacy_tip_outlined,
-                color: Colors.white70,
-              ),
+              leading: Icon(Icons.privacy_tip_outlined, color: secondaryColor),
               title: Text(
                 strings.privacy,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: primaryColor),
               ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+              trailing: Icon(Icons.chevron_right, color: secondaryColor),
               onTap: () =>
                   _openPolicy(strings.privacy, 'docs/legal/privacy-policy.md'),
             ),
