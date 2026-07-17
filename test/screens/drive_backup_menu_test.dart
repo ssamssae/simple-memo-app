@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,8 +10,21 @@ import 'package:simple_memo_app/screens/home_shell.dart';
 // 아니라 설정 → "백업 & 복원" 화면 안에 있다.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  const miniLmChannel = MethodChannel('memoyo/minilm');
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
   setUp(() {
+    messenger.setMockMethodCallHandler(miniLmChannel, (call) async {
+      return switch (call.method) {
+        'isSupported' => false,
+        'close' => null,
+        _ => throw PlatformException(
+          code: 'UNEXPECTED_MINILM_TEST_CALL',
+          message: call.method,
+        ),
+      };
+    });
     SharedPreferences.setMockInitialValues({});
     PackageInfo.setMockInitialValues(
       appName: 'simple_memo_app',
@@ -19,6 +33,10 @@ void main() {
       buildNumber: '1',
       buildSignature: '',
     );
+  });
+
+  tearDown(() {
+    messenger.setMockMethodCallHandler(miniLmChannel, null);
   });
 
   testWidgets(
@@ -37,6 +55,12 @@ void main() {
       await tester.pumpAndSettle();
 
       // 설정 화면 안에 "백업 & 복원"(Drive 통합 진입점) 존재.
+      await tester.scrollUntilVisible(
+        find.text('백업 & 복원'),
+        160,
+        scrollable: find.byType(Scrollable),
+      );
+      await tester.pumpAndSettle();
       expect(find.text('백업 & 복원'), findsOneWidget);
 
       // Drive 빠른 메뉴 항목은 어디에도 없다 (설정 → 백업&복원 화면 안에만).

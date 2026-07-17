@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/screens/settings_screen.dart';
@@ -7,6 +8,9 @@ import 'package:simple_memo_app/services/settings_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  const miniLmChannel = MethodChannel('memoyo/minilm');
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
   Color effectiveTextColor(WidgetTester tester, Finder finder) {
     final text = tester.widget<Text>(finder);
@@ -26,12 +30,23 @@ void main() {
   }
 
   setUp(() {
+    messenger.setMockMethodCallHandler(miniLmChannel, (call) async {
+      return switch (call.method) {
+        'isSupported' => false,
+        'close' => null,
+        _ => throw PlatformException(
+          code: 'UNEXPECTED_MINILM_TEST_CALL',
+          message: call.method,
+        ),
+      };
+    });
     SharedPreferences.setMockInitialValues({});
     SettingsService.instance.resetForTesting();
     SettingsService.instance.onboardingCompleted.value = true;
   });
 
   tearDown(() {
+    messenger.setMockMethodCallHandler(miniLmChannel, null);
     SettingsService.instance.resetForTesting();
     SettingsService.instance.languageCode.value = 'ko';
     SettingsService.instance.onboardingCompleted.value = true;
@@ -56,11 +71,15 @@ void main() {
     expect(prefs.getDouble('memo_body_font_size'), 20);
   });
 
-  testWidgets('기본 gemini 플래그에서는 온디바이스 모델 UI가 완전히 숨겨진다', (tester) async {
+  testWidgets('기본 ondevice 플래그에서 미지원 기기는 Gemini 폴백을 표시한다', (
+    tester,
+  ) async {
     await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+    await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('minilm-model-tile')), findsNothing);
-    expect(find.text('기기 내 뜻 검색 모델'), findsNothing);
+    expect(find.byKey(const Key('minilm-model-tile')), findsOneWidget);
+    expect(find.text('기기 내 뜻 검색 모델'), findsOneWidget);
+    expect(find.text('이 기기에서는 Gemini 검색을 사용합니다'), findsOneWidget);
   });
 
   testWidgets('설정 화면 테마 선택이 표시값과 저장값을 갱신한다', (tester) async {

@@ -13,8 +13,11 @@ Memo _memo() {
 Future<void> _persist(List<Memo> _) async {}
 
 void main() {
-  test('default flag remains Gemini and parser accepts all three policies', () {
-    expect(SemanticEnginePolicy.configured, SemanticEnginePolicy.gemini);
+  test('default flag is ondevice_preferred and parser accepts all three policies', () {
+    expect(
+      SemanticEnginePolicy.configured,
+      SemanticEnginePolicy.ondevicePreferred,
+    );
     expect(
       SemanticEnginePolicy.fromValue('ondevice_preferred'),
       SemanticEnginePolicy.ondevicePreferred,

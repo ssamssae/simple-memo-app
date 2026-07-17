@@ -5,7 +5,7 @@ enum SemanticEnginePolicy {
 
   static const configuredValue = String.fromEnvironment(
     'MEMOYO_SEMANTIC_ENGINE_POLICY',
-    defaultValue: 'gemini',
+    defaultValue: 'ondevice_preferred',
   );
 
   static SemanticEnginePolicy get configured => fromValue(configuredValue);
