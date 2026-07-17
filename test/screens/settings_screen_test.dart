@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/screens/settings_screen.dart';
@@ -7,6 +8,9 @@ import 'package:simple_memo_app/services/settings_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  const miniLmChannel = MethodChannel('memoyo/minilm');
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
   Color effectiveTextColor(WidgetTester tester, Finder finder) {
     final text = tester.widget<Text>(finder);
@@ -26,12 +30,23 @@ void main() {
   }
 
   setUp(() {
+    messenger.setMockMethodCallHandler(miniLmChannel, (call) async {
+      return switch (call.method) {
+        'isSupported' => false,
+        'close' => null,
+        _ => throw PlatformException(
+          code: 'UNEXPECTED_MINILM_TEST_CALL',
+          message: call.method,
+        ),
+      };
+    });
     SharedPreferences.setMockInitialValues({});
     SettingsService.instance.resetForTesting();
     SettingsService.instance.onboardingCompleted.value = true;
   });
 
   tearDown(() {
+    messenger.setMockMethodCallHandler(miniLmChannel, null);
     SettingsService.instance.resetForTesting();
     SettingsService.instance.languageCode.value = 'ko';
     SettingsService.instance.onboardingCompleted.value = true;

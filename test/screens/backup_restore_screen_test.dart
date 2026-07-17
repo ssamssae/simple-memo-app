@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/models/memo.dart';
@@ -9,6 +10,26 @@ import 'package:simple_memo_app/services/drive_backup_service.dart';
 // 1.0.7 ① Drive 백업 1버튼화 — 백업 & 복원 화면.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  const miniLmChannel = MethodChannel('memoyo/minilm');
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+
+  setUp(() {
+    messenger.setMockMethodCallHandler(miniLmChannel, (call) async {
+      return switch (call.method) {
+        'isSupported' => false,
+        'close' => null,
+        _ => throw PlatformException(
+          code: 'UNEXPECTED_MINILM_TEST_CALL',
+          message: call.method,
+        ),
+      };
+    });
+  });
+
+  tearDown(() {
+    messenger.setMockMethodCallHandler(miniLmChannel, null);
+  });
 
   Memo active(String id, {bool fav = false}) {
     final t = DateTime(2026, 6, 4, 12);

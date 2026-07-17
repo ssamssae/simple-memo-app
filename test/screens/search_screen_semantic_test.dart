@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:simple_memo_app/features/memos/services/embedding_engine.dart';
+import 'package:simple_memo_app/features/memos/services/gemini_embedding_engine.dart';
 import 'package:simple_memo_app/features/memos/services/memoyo_embedding_client.dart';
+import 'package:simple_memo_app/features/memos/services/semantic_search_coordinator.dart';
 import 'package:simple_memo_app/models/memo.dart';
 import 'package:simple_memo_app/screens/paywall_screen.dart';
 import 'package:simple_memo_app/screens/search_screen.dart';
@@ -66,9 +69,19 @@ void main() {
           };
         },
       );
+      final coordinator = SemanticSearchCoordinator(
+        policy: SemanticEnginePolicy.gemini,
+        geminiEngineFactory: (userId) =>
+            GeminiEmbeddingEngine(client: client, userId: userId),
+      );
 
       await tester.pumpWidget(
-        MaterialApp(home: SearchScreen(embeddingClient: client)),
+        MaterialApp(
+          home: SearchScreen(
+            embeddingClient: client,
+            semanticCoordinator: coordinator,
+          ),
+        ),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text('뜻으로 찾기'));
