@@ -37,7 +37,6 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
     await tester.pumpAndSettle();
 
-    expect(find.text('휴지통'), findsOneWidget, reason: '설정에 휴지통 진입점 노출');
     await tester.scrollUntilVisible(
       find.text('휴지통'),
       160,
@@ -45,6 +44,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('휴지통'), findsOneWidget, reason: '설정에 휴지통 진입점 노출');
     await tester.tap(find.text('휴지통'));
     await tester.pumpAndSettle();
 

@@ -62,6 +62,13 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.text('백업 & 복원'),
+      160,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('백업 & 복원'), findsOneWidget, reason: '설정에 백업&복원 진입점');
     await tester.tap(find.text('백업 & 복원'));
     await tester.pumpAndSettle();
