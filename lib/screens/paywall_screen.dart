@@ -125,17 +125,15 @@ class _PaywallScreenState extends State<PaywallScreen> {
                 const SizedBox(height: 26),
                 _FeatureRow(
                   icon: Icons.summarize_outlined,
-                  label: strings.isEnglish ? 'AI summaries' : 'AI 요약',
+                  label: strings.premiumFeatureAiSummaries,
                 ),
                 _FeatureRow(
                   icon: Icons.manage_search_outlined,
-                  label: strings.isEnglish ? 'Semantic search' : '말로 검색',
+                  label: strings.premiumFeatureSemanticSearch,
                 ),
                 _FeatureRow(
                   icon: Icons.block_outlined,
-                  label: strings.isEnglish
-                      ? 'No banner ads while Premium is active'
-                      : '프리미엄 기간 광고 숨김',
+                  label: strings.premiumFeatureAdFree,
                 ),
                 const SizedBox(height: 26),
                 FilledButton.icon(

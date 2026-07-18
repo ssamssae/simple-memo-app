@@ -279,7 +279,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Row(
                         children: [
                           Text(
-                            '가',
+                            AppStrings.of(context).fontSample,
                             style: TextStyle(
                               color: secondaryColor,
                               fontSize: 13,
@@ -304,7 +304,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           Text(
-                            '가',
+                            AppStrings.of(context).fontSample,
                             style: TextStyle(
                               color: secondaryColor,
                               fontSize: 22,
@@ -327,7 +327,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       Icon(Icons.contrast, color: primaryColor),
                       const SizedBox(width: 32),
-                      Text('테마', style: TextStyle(color: primaryColor)),
+                      Text(AppStrings.of(context).theme, style: TextStyle(color: primaryColor)),
                       const SizedBox(width: 16),
                       Expanded(
                         child: SegmentedButton<ThemeMode>(
@@ -337,18 +337,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             visualDensity: VisualDensity.compact,
                           ),
-                          segments: const [
+                          segments: [
                             ButtonSegment<ThemeMode>(
                               value: ThemeMode.system,
-                              label: Text('시스템'),
+                              label: Text(AppStrings.of(context).themeSystem),
                             ),
                             ButtonSegment<ThemeMode>(
                               value: ThemeMode.light,
-                              label: Text('라이트'),
+                              label: Text(AppStrings.of(context).themeLight),
                             ),
                             ButtonSegment<ThemeMode>(
                               value: ThemeMode.dark,
-                              label: Text('다크'),
+                              label: Text(AppStrings.of(context).themeDark),
                             ),
                           ],
                           onSelectionChanged: (selection) {

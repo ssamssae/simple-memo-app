@@ -7,6 +7,8 @@ import '../services/drive_backup_service.dart';
 import '../services/export_import_service.dart';
 import '../services/memo_storage.dart';
 import '../widgets/version_footer.dart';
+import '../l10n/app_strings.dart';
+
 
 // 백업 & 복원 화면 (1.0.7 ① Drive 백업 1버튼화).
 // 기존에 메모 리스트 overflow 메뉴에 흩어져 있던 Drive 백업/가져오기/되돌리기를
@@ -64,7 +66,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     if (_isBackupRunning) return;
     if (_activeMemos.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('내보낼 메모가 없습니다')),
+        SnackBar(content: Text(AppStrings.of(context).noMemosToExport)),
       );
       return;
     }
@@ -73,8 +75,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
-          content: Text('Drive 백업을 시작합니다'),
+        SnackBar(
+          content: Text(AppStrings.of(context).driveBackupStarting),
           duration: Duration(seconds: 30),
         ),
       );
@@ -109,9 +111,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       case DriveBackupSuccess(:final folderUrl):
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Drive 에 저장됐어요'),
+            content: Text(AppStrings.of(context).driveSaved),
             action: SnackBarAction(
-              label: 'Memoyo 폴더 열기',
+              label: AppStrings.of(context).openMemoyoFolder,
               onPressed: () async {
                 final uri = Uri.parse(folderUrl);
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -121,19 +123,19 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         );
       case DriveBackupNetworkError():
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('인터넷 연결을 확인해주세요')),
+          SnackBar(content: Text(AppStrings.of(context).checkInternet)),
         );
       case DriveBackupPermissionDenied():
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Drive 권한이 필요해요')),
+          SnackBar(content: Text(AppStrings.of(context).drivePermissionNeeded)),
         );
       case DriveBackupQuotaExceeded():
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Drive 용량이 부족해요')),
+          SnackBar(content: Text(AppStrings.of(context).driveQuotaExceeded)),
         );
       case DriveBackupUnknown(:final message):
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Drive 백업 실패: $message')),
+          SnackBar(content: Text(AppStrings.of(context).driveBackupFailed(message))),
         );
     }
   }
@@ -149,12 +151,12 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     switch (listResult) {
       case DriveBackupListFailure(:final error):
         setState(() => _isRestoreRunning = false);
-        _showDriveError(error, actionLabel: 'Drive 가져오기');
+        _showDriveError(error, actionLabel: AppStrings.of(context).driveImportLabel);
       case DriveBackupListSuccess(:final entries):
         if (entries.isEmpty) {
           setState(() => _isRestoreRunning = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Drive 에 백업 파일이 없어요')),
+            SnackBar(content: Text(AppStrings.of(context).noBackupFileOnDrive)),
           );
           return;
         }
@@ -180,7 +182,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       if (!mounted) return;
       if (incoming == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('가져올 메모가 없습니다')),
+          SnackBar(content: Text(AppStrings.of(context).noMemosToImport)),
         );
         return;
       }
@@ -189,9 +191,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('메모 $incoming개 가져왔습니다 (전체 $total개)'),
+          content: Text(AppStrings.of(context).importedMemos(incoming, total)),
           action: SnackBarAction(
-            label: '되돌리기',
+            label: AppStrings.of(context).undo,
             onPressed: _handleUndoImport,
           ),
         ),
@@ -199,13 +201,13 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     } on FormatException {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('올바른 메모요 백업 파일이 아닙니다')),
+        SnackBar(content: Text(AppStrings.of(context).invalidBackupFile)),
       );
     } catch (e) {
       if (!mounted) return;
       _showDriveError(
         DriveBackupService.mapErrorForTest(e),
-        actionLabel: 'Drive 가져오기',
+        actionLabel: AppStrings.of(context).driveImportLabel,
       );
     }
   }
@@ -216,20 +218,21 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     await _load();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('이전 메모 ${restored.length}개로 되돌렸습니다')),
+      SnackBar(content: Text(AppStrings.of(context).restoredPrevious(restored.length))),
     );
   }
 
   void _showDriveError(
     DriveBackupResult error, {
-    String actionLabel = 'Drive 백업',
+    String? actionLabel,
   }) {
+    final label = actionLabel ?? AppStrings.of(context).driveBackupLabel;
     final message = switch (error) {
-      DriveBackupNetworkError() => '인터넷 연결을 확인해주세요',
-      DriveBackupPermissionDenied() => 'Drive 권한이 필요해요',
-      DriveBackupQuotaExceeded() => 'Drive 용량이 부족해요',
-      DriveBackupUnknown(:final message) => '$actionLabel 실패: $message',
-      DriveBackupSuccess() => '$actionLabel 완료',
+      DriveBackupNetworkError() => AppStrings.of(context).checkInternet,
+      DriveBackupPermissionDenied() => AppStrings.of(context).drivePermissionNeeded,
+      DriveBackupQuotaExceeded() => AppStrings.of(context).driveQuotaExceeded,
+      DriveBackupUnknown(:final message) => AppStrings.of(context).actionFailed(label, message),
+      DriveBackupSuccess() => AppStrings.of(context).actionDone(label),
     };
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
@@ -244,10 +247,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'Drive 백업 선택',
+                AppStrings.of(context).driveBackupChoose,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -293,10 +296,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
   String _lastBackupLabel() {
     final at = _lastBackupAt;
-    if (at == null) return '아직 백업한 적 없어요';
+    if (at == null) return AppStrings.of(context).neverBackedUp;
     String two(int n) => n.toString().padLeft(2, '0');
-    return '마지막 백업: ${at.year}.${two(at.month)}.${two(at.day)} '
-        '${two(at.hour)}:${two(at.minute)}';
+    return AppStrings.of(context).lastBackupAt(
+        '${at.year}.${two(at.month)}.${two(at.day)} ${two(at.hour)}:${two(at.minute)}');
   }
 
   @override
@@ -307,7 +310,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         centerTitle: true,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: const Text('백업 & 복원', style: TextStyle(fontSize: 17)),
+        title: Text(AppStrings.of(context).backupRestore, style: const TextStyle(fontSize: 17)),
       ),
       body: SafeArea(
         child: _isLoading
@@ -322,15 +325,14 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     color: Colors.white,
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    '메모를 Google Drive 에 안전하게 백업하고,\n'
-                    '필요할 때 다시 복원할 수 있어요.',
+                  Text(
+                    AppStrings.of(context).backupIntro,
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    '백업 대상: 활성 메모 ${_activeMemos.length}개 (휴지통 제외)',
+                    AppStrings.of(context).backupTarget(_activeMemos.length),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.8),
@@ -364,7 +366,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                             ),
                           )
                         : const Icon(Icons.backup_outlined),
-                    label: Text(_isBackupRunning ? '백업 중…' : '지금 백업'),
+                    label: Text(_isBackupRunning ? AppStrings.of(context).backingUp : AppStrings.of(context).backupNow),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
@@ -384,7 +386,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                             ),
                           )
                         : const Icon(Icons.restore_outlined),
-                    label: Text(_isRestoreRunning ? '복원 중…' : '복원'),
+                    label: Text(_isRestoreRunning ? AppStrings.of(context).restoring : AppStrings.of(context).restore),
                   ),
                 ],
               ),

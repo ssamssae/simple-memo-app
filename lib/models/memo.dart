@@ -1,5 +1,8 @@
 import 'dart:convert';
 import 'package:uuid/uuid.dart';
+import '../l10n/app_strings.dart';
+import '../services/settings_service.dart';
+
 
 class Memo {
   // 휴지통 보관 기간 — 이 기간 지난 soft-deleted 메모는 영구 삭제(purge).
@@ -34,7 +37,7 @@ class Memo {
   String get firstLine {
     final line = content
         .split('\n')
-        .firstWhere((l) => l.trim().isNotEmpty, orElse: () => '새 메모');
+        .firstWhere((l) => l.trim().isNotEmpty, orElse: () => AppStrings.fromCode(SettingsService.instance.languageCode.value).untitledMemo);
     return line.trim();
   }
 

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../models/memo.dart';
 import '../services/memo_storage.dart';
 import '../widgets/version_footer.dart';
+import '../l10n/app_strings.dart';
+
 
 // 휴지통 화면 (1.0.7 ②④-3). 삭제된(soft-delete) 메모를 30일간 보관.
 // 저장소는 기존 단일 'memos' blob 그대로 — 활성/휴지통이 한 리스트, deletedAt 으로 구분.
@@ -47,7 +49,7 @@ class _TrashScreenState extends State<TrashScreen> {
     await _loadTrash();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('메모를 복구했습니다')),
+      SnackBar(content: Text(AppStrings.of(context).memoRestored)),
     );
   }
 
@@ -69,8 +71,8 @@ class _TrashScreenState extends State<TrashScreen> {
 
   String _purgeLabel(Memo m) {
     final days = m.timeUntilPurge.inDays;
-    if (days <= 0) return '곧 영구삭제';
-    return '$days일 후 영구삭제';
+    if (days <= 0) return AppStrings.of(context).purgeSoon;
+    return AppStrings.of(context).purgeAfterDays(days);
   }
 
   Future<void> _showItemActions(Memo memo) async {
@@ -81,17 +83,17 @@ class _TrashScreenState extends State<TrashScreen> {
         actions: [
           CupertinoActionSheetAction(
             onPressed: () => Navigator.pop(ctx, 'restore'),
-            child: const Text('복구'),
+            child: Text(AppStrings.of(context).restoreAction),
           ),
           CupertinoActionSheetAction(
             isDestructiveAction: true,
             onPressed: () => Navigator.pop(ctx, 'delete'),
-            child: const Text('즉시 영구삭제'),
+            child: Text(AppStrings.of(context).purgeNow),
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.pop(ctx, null),
-          child: const Text('취소'),
+          child: Text(AppStrings.of(context).cancel),
         ),
       ),
     );
@@ -106,17 +108,17 @@ class _TrashScreenState extends State<TrashScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('휴지통 비우기'),
-        content: Text('휴지통의 ${_trash.length}개 메모를 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
+        title: Text(AppStrings.of(context).emptyTrashTitle),
+        content: Text(AppStrings.of(context).emptyTrashConfirm(_trash.length)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
+            child: Text(AppStrings.of(context).cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.orange),
-            child: const Text('비우기'),
+            child: Text(AppStrings.of(context).emptyTrashAction),
           ),
         ],
       ),
@@ -132,7 +134,7 @@ class _TrashScreenState extends State<TrashScreen> {
         centerTitle: true,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: const Text('휴지통', style: TextStyle(fontSize: 17)),
+        title: Text(AppStrings.of(context).trash, style: const TextStyle(fontSize: 17)),
         actions: [
           if (_trash.isNotEmpty)
             Padding(
@@ -145,7 +147,7 @@ class _TrashScreenState extends State<TrashScreen> {
                   minimumSize: const Size(0, 0),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text('비우기', style: TextStyle(fontSize: 16)),
+                child: Text(AppStrings.of(context).emptyTrashAction, style: const TextStyle(fontSize: 16)),
               ),
             ),
         ],
@@ -157,11 +159,11 @@ class _TrashScreenState extends State<TrashScreen> {
                 ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Icon(Icons.delete_outline, size: 56, color: Colors.white),
                         SizedBox(height: 12),
                         Text(
-                          '휴지통이 비어있습니다.\n삭제한 메모는 30일간 보관됩니다.',
+                          AppStrings.of(context).trashEmptyHint,
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 16, color: Colors.white),
                         ),

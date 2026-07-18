@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import '../l10n/app_strings.dart';
+
 
 /// 인앱 정책 표시 화면 — assets/legal/*.md 를 읽어 간단히 렌더한다.
 /// 외부 패키지 없이 메모앱 수준의 경량 마크다운 부분집합만 처리
@@ -27,7 +29,7 @@ class PolicyScreen extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Center(child: Text('문서를 불러올 수 없습니다'));
+              return Center(child: Text(AppStrings.of(context).docLoadFailed));
             }
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
