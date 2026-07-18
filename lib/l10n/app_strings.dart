@@ -57,6 +57,21 @@ class AppStrings {
   String get premiumPrepared =>
       isEnglish ? 'Subscription product is being prepared' : '구독 상품을 준비 중이에요';
   String get premiumRestore => isEnglish ? 'Restore Premium' : '프리미엄 복원';
+
+  // T-260719-018: 온디바이스 모델 설치 진행/실패 피드백 (신규 문구 — 기존 문구 이관은 T-260719-019)
+  String get minilmPreparingDownload =>
+      isEnglish ? 'Preparing download…' : '다운로드 준비 중…';
+  String get minilmInstallFailedNetwork => isEnglish
+      ? 'Install failed: network interrupted · Tap to retry'
+      : '설치 실패: 네트워크 중단 · 다시 시도';
+  String get minilmInstallFailedVerify => isEnglish
+      ? 'Install failed: model verification (SHA-256) failed · Tap to retry'
+      : '설치 실패: 모델 검증(SHA-256) 실패 · 다시 시도';
+  String get minilmInstallFailedStorage => isEnglish
+      ? 'Install failed: not enough storage · Tap to retry'
+      : '설치 실패: 저장 공간 부족 · 다시 시도';
+  String get minilmInstallFailedGeneric =>
+      isEnglish ? 'Install failed · Tap to retry' : '설치 실패 · 다시 시도';
   String get premiumCouponNote => isEnglish
       ? 'If you bought Remove ads, restore purchases to apply a one-month thank-you coupon once.'
       : '광고 제거 구매자는 구매 복원 시 1개월 감사 쿠폰이 1회 자동 적용됩니다.';

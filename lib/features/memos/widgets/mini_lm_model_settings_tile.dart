@@ -2,15 +2,89 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_strings.dart';
 import '../services/mini_lm_model_controller.dart';
 
-class MiniLmModelSettingsTile extends StatelessWidget {
+class MiniLmModelSettingsTile extends StatefulWidget {
   const MiniLmModelSettingsTile({super.key, required this.manager});
 
   final MiniLmModelManager manager;
 
   @override
+  State<MiniLmModelSettingsTile> createState() =>
+      _MiniLmModelSettingsTileState();
+}
+
+class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
+  MiniLmModelState? _previousState;
+
+  @override
+  void initState() {
+    super.initState();
+    _previousState = widget.manager.state;
+    widget.manager.addListener(_onManagerChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant MiniLmModelSettingsTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.manager, widget.manager)) {
+      oldWidget.manager.removeListener(_onManagerChanged);
+      _previousState = widget.manager.state;
+      widget.manager.addListener(_onManagerChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.manager.removeListener(_onManagerChanged);
+    super.dispose();
+  }
+
+  // T-260719-018: 설치 시도(installing) 중 실패로 전이하면 즉시 스낵바로 사유 알림.
+  // (화면 진입 시 refresh 가 띄우는 error 는 타일 소제목으로만 — 오픈 시 스낵바 스팸 방지.)
+  void _onManagerChanged() {
+    final next = widget.manager.state;
+    final prev = _previousState;
+    _previousState = next;
+    if (prev == MiniLmModelState.installing &&
+        next == MiniLmModelState.error &&
+        mounted) {
+      final strings = AppStrings.of(context);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            key: const Key('minilm-install-failed-snackbar'),
+            content: Text(_failureReasonText(strings, widget.manager.errorCode)),
+            duration: const Duration(seconds: 6),
+          ),
+        );
+    }
+  }
+
+  // 실패 사유 3분류 (T-260719-018): 네트워크 중단 / SHA-256 검증 실패 / 저장공간 부족.
+  // installer 의 EmbeddingFailure code 체계를 그대로 해석한다 (코드 변경 없음).
+  String _failureReasonText(AppStrings strings, String? code) {
+    if (code == null) return strings.minilmInstallFailedGeneric;
+    if (code == 'MEMOYO_MINILM_INSUFFICIENT_SPACE') {
+      return strings.minilmInstallFailedStorage;
+    }
+    if (code == 'MEMOYO_MINILM_HASH_MISMATCH' ||
+        code == 'MEMOYO_MINILM_MANIFEST_INVALID') {
+      return strings.minilmInstallFailedVerify;
+    }
+    if (code.startsWith('MEMOYO_MINILM_HTTP_') ||
+        code == 'MEMOYO_MINILM_DOWNLOAD_FAILED' ||
+        code == 'MEMOYO_MINILM_DOWNLOAD_INCOMPLETE') {
+      return strings.minilmInstallFailedNetwork;
+    }
+    return strings.minilmInstallFailedGeneric;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final manager = widget.manager;
     return AnimatedBuilder(
       animation: manager,
       builder: (context, _) {
@@ -29,7 +103,7 @@ class MiniLmModelSettingsTile extends StatelessWidget {
                 style: TextStyle(color: Colors.white),
               ),
               subtitle: Text(
-                _subtitle(state),
+                _subtitle(context, state),
                 style: const TextStyle(color: Color(0xFF9A9AA2)),
               ),
               trailing: _trailing(context, state),
@@ -42,7 +116,11 @@ class MiniLmModelSettingsTile extends StatelessWidget {
             if (state == MiniLmModelState.installing)
               Padding(
                 padding: const EdgeInsets.fromLTRB(60, 0, 16, 10),
-                child: LinearProgressIndicator(value: manager.progress),
+                child: LinearProgressIndicator(
+                  key: const Key('minilm-install-progress'),
+                  // T-260719-018: 첫 청크 수신 전(0%)엔 indeterminate — 탭 직후 즉시 움직임 표시.
+                  value: manager.progress == 0 ? null : manager.progress,
+                ),
               ),
           ],
         );
@@ -50,20 +128,27 @@ class MiniLmModelSettingsTile extends StatelessWidget {
     );
   }
 
-  String _subtitle(MiniLmModelState state) => switch (state) {
-    MiniLmModelState.checking => '설치 상태 확인 중',
-    MiniLmModelState.unsupported => '이 기기에서는 Gemini 검색을 사용합니다',
-    MiniLmModelState.absent => '약 124MB · Wi-Fi 권장 · Apache-2.0',
-    MiniLmModelState.installing =>
-      '다운로드 중 ${(manager.progress * 100).round()}%',
-    MiniLmModelState.ready => '설치됨 · 오프라인 검색 가능',
-    MiniLmModelState.error => _errorMessage(manager.errorCode),
-  };
+  String _subtitle(BuildContext context, MiniLmModelState state) =>
+      switch (state) {
+        MiniLmModelState.checking => '설치 상태 확인 중',
+        MiniLmModelState.unsupported => '이 기기에서는 Gemini 검색을 사용합니다',
+        MiniLmModelState.absent => '약 124MB · Wi-Fi 권장 · Apache-2.0',
+        MiniLmModelState.installing => widget.manager.progress == 0
+            ? AppStrings.of(context).minilmPreparingDownload
+            : '다운로드 중 ${(widget.manager.progress * 100).round()}%',
+        MiniLmModelState.ready => '설치됨 · 오프라인 검색 가능',
+        MiniLmModelState.error => _errorMessage(context, widget.manager.errorCode),
+      };
 
-  String _errorMessage(String? code) => switch (code) {
+  String _errorMessage(BuildContext context, String? code) => switch (code) {
     'MEMOYO_MINILM_INSUFFICIENT_SPACE' => '저장 공간이 부족합니다 · 다시 시도',
     'MEMOYO_MINILM_HASH_MISMATCH' ||
     'MEMOYO_MINILM_MANIFEST_INVALID' => '모델 검증 실패 · 다시 시도',
+    _ when code != null &&
+            (code.startsWith('MEMOYO_MINILM_HTTP_') ||
+                code == 'MEMOYO_MINILM_DOWNLOAD_FAILED' ||
+                code == 'MEMOYO_MINILM_DOWNLOAD_INCOMPLETE') =>
+      AppStrings.of(context).minilmInstallFailedNetwork,
     _ => '설치 실패 · 다시 시도',
   };
 
@@ -112,7 +197,7 @@ class MiniLmModelSettingsTile extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed == true) unawaited(manager.install());
+    if (confirmed == true) unawaited(widget.manager.install());
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
@@ -134,6 +219,6 @@ class MiniLmModelSettingsTile extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed == true) unawaited(manager.delete());
+    if (confirmed == true) unawaited(widget.manager.delete());
   }
 }

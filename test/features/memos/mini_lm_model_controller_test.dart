@@ -58,6 +58,42 @@ void main() {
       expect(controller.errorCode, 'MEMOYO_MINILM_STATUS_FAILED');
       controller.dispose();
     });
+
+    // T-260719-018: isInstalled 가 기록한 점검 실패 사유를 '미설치'로 위장하지 않고 표면화.
+    test('surfaces recorded check failure instead of masquerading as absent',
+        () async {
+      final installer = _FakeInstaller(
+        installed: false,
+        checkFailure: const EmbeddingFailure(
+          EmbeddingFailureKind.hashMismatch,
+          'MEMOYO_MINILM_MANIFEST_INVALID',
+        ),
+      );
+      final controller = _controller(installer: installer);
+
+      await controller.refresh();
+
+      expect(controller.state, MiniLmModelState.error);
+      expect(controller.errorCode, 'MEMOYO_MINILM_MANIFEST_INVALID');
+      controller.dispose();
+    });
+
+    // T-260719-018: refresh 중 typed 실패는 code 그대로 전파 (기존엔 STATUS_FAILED 로 뭉갬).
+    test('preserves typed refresh failure code', () async {
+      final installer = _FakeInstaller(
+        statusError: const EmbeddingFailure(
+          EmbeddingFailureKind.loadFailed,
+          'MEMOYO_MINILM_STATUS_TYPED',
+        ),
+      );
+      final controller = _controller(installer: installer);
+
+      await controller.refresh();
+
+      expect(controller.state, MiniLmModelState.error);
+      expect(controller.errorCode, 'MEMOYO_MINILM_STATUS_TYPED');
+      controller.dispose();
+    });
   });
 
   group('install', () {
@@ -117,6 +153,33 @@ void main() {
       expect(controller.errorCode, 'MEMOYO_MINILM_HASH_MISMATCH');
       controller.dispose();
     });
+
+    // T-260719-018: 실패 3사유(네트워크/검증/저장공간) code 가 상태에 그대로 보존됨을 고정.
+    for (final failure in const [
+      EmbeddingFailure(
+        EmbeddingFailureKind.downloadFailed,
+        'MEMOYO_MINILM_DOWNLOAD_FAILED',
+      ),
+      EmbeddingFailure(
+        EmbeddingFailureKind.insufficientSpace,
+        'MEMOYO_MINILM_INSUFFICIENT_SPACE',
+      ),
+      EmbeddingFailure(
+        EmbeddingFailureKind.hashMismatch,
+        'MEMOYO_MINILM_HASH_MISMATCH',
+      ),
+    ]) {
+      test('preserves ${failure.code} on install failure', () async {
+        final installer = _FakeInstaller(installError: failure);
+        final controller = _controller(installer: installer);
+
+        await controller.install();
+
+        expect(controller.state, MiniLmModelState.error);
+        expect(controller.errorCode, failure.code);
+        controller.dispose();
+      });
+    }
 
     test('maps unexpected install failure to generic install code', () async {
       final installer = _FakeInstaller(
@@ -217,6 +280,7 @@ class _FakeInstaller extends MiniLmModelInstaller {
     this.installError,
     this.deleteError,
     this.installCompleter,
+    this.checkFailure,
   }) : super(freeSpaceProvider: (_) async => 1 << 30);
 
   bool installed;
@@ -224,6 +288,7 @@ class _FakeInstaller extends MiniLmModelInstaller {
   final Object? installError;
   final Object? deleteError;
   final Completer<MiniLmInstalledPaths>? installCompleter;
+  final EmbeddingFailure? checkFailure;
 
   int statusCalls = 0;
   int installCalls = 0;
@@ -234,6 +299,7 @@ class _FakeInstaller extends MiniLmModelInstaller {
   Future<bool> isInstalled() async {
     statusCalls++;
     if (statusError case final error?) throw error;
+    lastCheckFailure = checkFailure;
     return installed;
   }
 
