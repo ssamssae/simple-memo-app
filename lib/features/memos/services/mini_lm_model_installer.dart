@@ -56,6 +56,10 @@ class MiniLmModelInstaller {
   final int maxAttempts;
   bool _verifiedInstall = false;
 
+  // T-260719-018: isInstalled() 는 bool 계약(엔진 capability 경로 2곳이 의존)이라
+  // 실패를 던지지 않는 대신, 마지막 상태 점검 실패 사유를 기록해 UI 경로가 표면화한다.
+  EmbeddingFailure? lastCheckFailure;
+
   int get _totalDownloadBytes =>
       _artifacts.fold(0, (total, artifact) => total + artifact.size);
 
@@ -81,9 +85,11 @@ class MiniLmModelInstaller {
           final file = File('${directory.path}/${artifact.name}');
           if (!await file.exists() || await file.length() != artifact.size) {
             _verifiedInstall = false;
+            lastCheckFailure = null;
             return false;
           }
         }
+        lastCheckFailure = null;
         return true;
       }
       for (final artifact in _artifacts) {
@@ -91,13 +97,24 @@ class MiniLmModelInstaller {
           File('${directory.path}/${artifact.name}'),
           artifact,
         )) {
+          lastCheckFailure = null;
           return false;
         }
       }
       _verifiedInstall = true;
+      lastCheckFailure = null;
       return true;
-    } catch (_) {
+    } catch (error) {
+      // T-260719-018: 침묵 삼킴 제거 — 사유를 기록해 refresh() 가 error 상태로 표면화.
+      // (파일 부재로 인한 정상 '미설치'는 위에서 lastCheckFailure=null 로 반환된다.)
       _verifiedInstall = false;
+      lastCheckFailure = error is EmbeddingFailure
+          ? error
+          : EmbeddingFailure(
+              EmbeddingFailureKind.loadFailed,
+              'MEMOYO_MINILM_STATUS_FAILED',
+              error,
+            );
       return false;
     }
   }

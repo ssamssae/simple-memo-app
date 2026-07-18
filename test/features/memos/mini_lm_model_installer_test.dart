@@ -232,6 +232,42 @@ void main() {
       ),
     );
   });
+
+  // T-260719-018: isInstalled 침묵 삼킴 제거 — 점검 실패 사유가 기록되고,
+  // 정상 '미설치'(파일 부재)는 사유 없이 false 를 유지한다.
+  group('lastCheckFailure', () {
+    test('records manifest failure reason instead of silent swallow', () async {
+      final dir = await Directory.systemTemp.createTemp('minilm-check-fail');
+      addTearDown(() => dir.delete(recursive: true));
+      final installer = MiniLmModelInstaller(
+        directoryProvider: () async => dir,
+        freeSpaceProvider: (_) async => 1 << 30,
+        manifestVerifier: () async => throw const EmbeddingFailure(
+          EmbeddingFailureKind.hashMismatch,
+          'MEMOYO_MINILM_MANIFEST_INVALID',
+        ),
+      );
+
+      expect(await installer.isInstalled(), isFalse);
+      expect(
+        installer.lastCheckFailure?.code,
+        'MEMOYO_MINILM_MANIFEST_INVALID',
+      );
+    });
+
+    test('plain not-installed keeps lastCheckFailure null', () async {
+      final dir = await Directory.systemTemp.createTemp('minilm-check-absent');
+      addTearDown(() => dir.delete(recursive: true));
+      final installer = MiniLmModelInstaller(
+        directoryProvider: () async => dir,
+        freeSpaceProvider: (_) async => 1 << 30,
+        manifestVerifier: () async {},
+      );
+
+      expect(await installer.isInstalled(), isFalse);
+      expect(installer.lastCheckFailure, isNull);
+    });
+  });
 }
 
 class _FakeTokenizer implements MiniLmTokenizer {

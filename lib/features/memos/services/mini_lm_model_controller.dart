@@ -61,11 +61,19 @@ class MiniLmModelController extends MiniLmModelManager {
         _setState(MiniLmModelState.unsupported);
         return;
       }
-      _setState(
-        await _installer.isInstalled()
-            ? MiniLmModelState.ready
-            : MiniLmModelState.absent,
-      );
+      if (await _installer.isInstalled()) {
+        _setState(MiniLmModelState.ready);
+        return;
+      }
+      // T-260719-018: 점검 실패 사유가 기록됐으면 '미설치'로 위장하지 않고 error 로 표면화.
+      final checkFailure = _installer.lastCheckFailure;
+      if (checkFailure != null) {
+        _setState(MiniLmModelState.error, errorCode: checkFailure.code);
+        return;
+      }
+      _setState(MiniLmModelState.absent);
+    } on EmbeddingFailure catch (error) {
+      _setState(MiniLmModelState.error, errorCode: error.code);
     } catch (_) {
       _setState(
         MiniLmModelState.error,
