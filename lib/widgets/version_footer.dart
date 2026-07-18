@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../l10n/app_strings.dart';
+
 
 // 메모요 (simple_memo_app) 는 자체 AppColors 디자인 토큰이 없는 minimal
 // Material 3 앱 (main.dart ColorScheme.fromSeed + amber accent inline, cluster D)
@@ -17,8 +19,8 @@ class VersionFooter extends StatelessWidget {
       builder: (context, snapshot) {
         final version = snapshot.data?.version ?? '';
         final label = version.isEmpty
-            ? '마이너스베타스튜디오'
-            : 'v$version · 마이너스베타스튜디오';
+            ? AppStrings.of(context).madeBy
+            : AppStrings.of(context).versionLine(version);
         return Padding(
           padding: const EdgeInsets.only(top: 4, bottom: 4),
           child: Text(

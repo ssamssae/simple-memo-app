@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../services/memoyo_summary_client.dart';
+import '../../../l10n/app_strings.dart';
+
 
 class MemoSummarySheet extends StatelessWidget {
   const MemoSummarySheet({super.key, required this.result});
@@ -27,12 +29,12 @@ class MemoSummarySheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            const Row(
+            Row(
               children: [
                 Icon(Icons.auto_awesome_outlined, color: Color(0xFF9E86FF)),
                 SizedBox(width: 10),
                 Text(
-                  'AI 요약',
+                  AppStrings.of(context).aiSummary,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -52,7 +54,7 @@ class MemoSummarySheet extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              '오늘 ${result.usage.remaining}회 남음 · 일일 ${result.usage.limit}회',
+              AppStrings.of(context).summaryUsage(result.usage.remaining, result.usage.limit),
               style: const TextStyle(color: Color(0xFF9A9AA2), fontSize: 13),
             ),
           ],

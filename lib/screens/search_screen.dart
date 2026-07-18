@@ -15,6 +15,8 @@ import '../services/premium_service.dart';
 import '../services/search_service.dart';
 import 'memo_edit_screen.dart';
 import 'paywall_screen.dart';
+import '../l10n/app_strings.dart';
+
 
 /// 메모요 1.0.8 검색 화면 (T-260615-26, spec docs/specs/1.0.8-search.md §3).
 ///
@@ -212,8 +214,8 @@ class _SearchScreenState extends State<SearchScreen> {
           autofocus: true,
           textInputAction: TextInputAction.search,
           onChanged: _onChanged,
-          decoration: const InputDecoration(
-            hintText: '메모 검색',
+          decoration: InputDecoration(
+            hintText: AppStrings.of(context).searchHint,
             border: InputBorder.none,
             hintStyle: TextStyle(color: _sub),
           ),
@@ -223,7 +225,7 @@ class _SearchScreenState extends State<SearchScreen> {
           if (_query.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.clear, color: _sub),
-              tooltip: '지우기',
+              tooltip: AppStrings.of(context).clearTooltip,
               onPressed: () {
                 _controller.clear();
                 _onChanged('');
@@ -261,16 +263,16 @@ class _SearchScreenState extends State<SearchScreen> {
               selected: {_mode},
               onSelectionChanged: (selection) =>
                   unawaited(_selectMode(selection)),
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: _SearchMode.lexical,
                   icon: Icon(Icons.search, size: 18),
-                  label: Text('일반 검색'),
+                  label: Text(AppStrings.of(context).keywordSearch),
                 ),
                 ButtonSegment(
                   value: _SearchMode.semantic,
                   icon: Icon(Icons.manage_search_outlined, size: 18),
-                  label: Text('뜻으로 찾기'),
+                  label: Text(AppStrings.of(context).semanticSearch),
                 ),
               ],
             ),
@@ -282,29 +284,29 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildResultsBody() {
     if (_query.trim().isEmpty) {
-      return const _CenterHint(icon: Icons.search, text: '메모 내용을 검색해 보세요.');
+      return _CenterHint(icon: Icons.search, text: AppStrings.of(context).searchPrompt);
     }
     if (_results.isEmpty) {
       return _CenterHint(
         icon: Icons.search_off,
-        text: '"${_query.trim()}" 검색 결과가 없습니다.\n다른 검색어로 시도해 보세요.',
+        text: AppStrings.of(context).noSearchResults(_query.trim()),
       );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (_semanticFallbackCode != null)
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(16, 6, 16, 0),
             child: Text(
-              '뜻 검색을 사용할 수 없어 일반 검색으로 표시 중입니다.',
+              AppStrings.of(context).semanticFallbackNotice,
               style: TextStyle(color: _sub, fontSize: 12),
             ),
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: Text(
-            '메모 결과 (${_results.length}건)',
+            AppStrings.of(context).memoResults(_results.length),
             style: const TextStyle(color: _sub, fontSize: 13),
           ),
         ),

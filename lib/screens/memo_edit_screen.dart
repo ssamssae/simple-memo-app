@@ -15,6 +15,8 @@ import '../models/memo.dart';
 import '../services/premium_service.dart';
 import '../services/settings_service.dart';
 import 'paywall_screen.dart';
+import '../l10n/app_strings.dart';
+
 
 class MemoEditScreen extends StatefulWidget {
   final Memo? memo;
@@ -161,12 +163,12 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       await showCupertinoDialog<void>(
         context: context,
         builder: (ctx) => CupertinoAlertDialog(
-          title: Text(showRedoOnly ? '다시실행' : '실행취소'),
-          content: const Text('어떤 작업을 할까요?'),
+          title: Text(showRedoOnly ? AppStrings.of(context).redo : AppStrings.of(context).undoAction),
+          content: Text(AppStrings.of(context).whichAction),
           actions: [
             CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('취소'),
+              child: Text(AppStrings.of(context).cancel),
             ),
             if (showRedoOnly)
               CupertinoDialogAction(
@@ -175,7 +177,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                   Navigator.pop(ctx);
                   _undoController.redo();
                 },
-                child: const Text('다시실행'),
+                child: Text(AppStrings.of(context).redo),
               )
             else if (value.canUndo)
               CupertinoDialogAction(
@@ -184,7 +186,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                   Navigator.pop(ctx);
                   _undoController.undo();
                 },
-                child: const Text('실행취소'),
+                child: Text(AppStrings.of(context).undoAction),
               ),
           ],
         ),
@@ -231,7 +233,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     if (memo == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('내용을 입력해주세요.')));
+      ).showSnackBar(SnackBar(content: Text(AppStrings.of(context).enterContent)));
       return;
     }
     _popHandled = true;
@@ -250,7 +252,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     if (memo == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('공유할 내용이 없습니다.')));
+      ).showSnackBar(SnackBar(content: Text(AppStrings.of(context).nothingToShare)));
       return;
     }
     try {
@@ -263,7 +265,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('공유 실패: $e')));
+      ).showSnackBar(SnackBar(content: Text(AppStrings.of(context).shareFailed(e))));
     }
   }
 
@@ -276,11 +278,11 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
 
   String _summaryErrorMessage(MemoyoSummaryException error) {
     return switch (error.code) {
-      'MEMOYO_SUMMARY_DAILY_LIMIT' => '오늘 AI 요약 30회 한도에 도달했습니다.',
-      'MEMOYO_SUMMARY_TEXT_INVALID' => '요약할 메모는 4,000자 이하여야 합니다.',
+      'MEMOYO_SUMMARY_DAILY_LIMIT' => AppStrings.of(context).summaryDailyLimit,
+      'MEMOYO_SUMMARY_TEXT_INVALID' => AppStrings.of(context).summaryTextInvalid,
       'ANTHROPIC_API_KEY_MISSING' ||
-      'MEMOYO_SUMMARY_UNCONFIGURED' => 'AI 요약 서버를 준비 중입니다.',
-      _ => 'AI 요약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.',
+      'MEMOYO_SUMMARY_UNCONFIGURED' => AppStrings.of(context).summaryUnconfigured,
+      _ => AppStrings.of(context).summaryFailed,
     };
   }
 
@@ -290,7 +292,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     if (memoText.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('요약할 내용을 입력해주세요.')));
+      ).showSnackBar(SnackBar(content: Text(AppStrings.of(context).enterContentToSummarize)));
       return;
     }
     if (!PremiumService.instance.isPremium) {
@@ -300,7 +302,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     if (!_summaryClient.isConfigured) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('AI 요약 서버를 준비 중입니다.')));
+      ).showSnackBar(SnackBar(content: Text(AppStrings.of(context).summaryUnconfigured)));
       return;
     }
 
@@ -352,17 +354,17 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
       builder: (ctx) => CupertinoAlertDialog(
-        title: const Text('취소하시겠습니까?'),
-        content: const Text('수정한 내용이 저장되지 않습니다.'),
+        title: Text(AppStrings.of(context).discardConfirmTitle),
+        content: Text(AppStrings.of(context).discardConfirmBody),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('계속수정'),
+            child: Text(AppStrings.of(context).keepEditing),
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('취소'),
+            child: Text(AppStrings.of(context).cancel),
           ),
         ],
       ),
@@ -440,7 +442,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final titleText = _isEditing ? '메모수정' : '새메모';
+    final titleText = _isEditing ? AppStrings.of(context).editMemoTitle : AppStrings.of(context).newMemoTitle;
     final appBarTheme = Theme.of(context).appBarTheme;
     final baseTitleStyle =
         appBarTheme.titleTextStyle ??
@@ -459,7 +461,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
         backgroundColor: const Color(0xFF1C1C1E),
         floatingActionButton: FloatingActionButton.extended(
           key: const Key('memo-summary-button'),
-          tooltip: 'AI 요약',
+          tooltip: AppStrings.of(context).aiSummary,
           onPressed: _summaryBusy ? null : () => unawaited(_summarizeMemo()),
           icon: _summaryBusy
               ? const SizedBox(
@@ -468,7 +470,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.auto_awesome_outlined),
-          label: Text(_summaryBusy ? '요약 중...' : 'AI 요약'),
+          label: Text(_summaryBusy ? AppStrings.of(context).summarizing : AppStrings.of(context).aiSummary),
         ),
         appBar: AppBar(
           centerTitle: true,
@@ -492,14 +494,14 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _pillButton(
-                  label: '뒤로',
+                  label: AppStrings.of(context).back,
                   color: Colors.white,
                   onTap: _saveAndPop,
                 ),
                 if (_isEditing) ...[
                   const SizedBox(width: 6),
                   _pillButton(
-                    label: '취소',
+                    label: AppStrings.of(context).cancel,
                     color: Colors.redAccent.shade100,
                     onTap: _cancelEdit,
                   ),
@@ -514,7 +516,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       visualDensity: VisualDensity.compact,
                       constraints: const BoxConstraints(),
                       color: Colors.white,
-                      tooltip: '공유',
+                      tooltip: AppStrings.of(context).share,
                       onPressed: () => _shareMemo(shareContext),
                     ),
                   ),
@@ -538,7 +540,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                           ? Colors.white
                           : Colors.white.withValues(alpha: 0.25),
                       onPressed: value.canUndo ? _undoController.undo : null,
-                      tooltip: '실행취소',
+                      tooltip: AppStrings.of(context).undoAction,
                     ),
                     const SizedBox(width: 8),
                     IconButton(
@@ -550,7 +552,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                           ? Colors.white
                           : Colors.white.withValues(alpha: 0.25),
                       onPressed: value.canRedo ? _undoController.redo : null,
-                      tooltip: '다시실행',
+                      tooltip: AppStrings.of(context).redo,
                     ),
                     const SizedBox(width: 8),
                   ],
@@ -560,7 +562,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
             Padding(
               padding: const EdgeInsets.only(right: 12, left: 0),
               child: _pillButton(
-                label: '저장',
+                label: AppStrings.of(context).save,
                 color: Colors.white,
                 onTap: _saveMemo,
               ),
@@ -611,7 +613,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                             forceStrutHeight: true,
                           ),
                           decoration: InputDecoration(
-                            hintText: '내용을 입력하세요...',
+                            hintText: AppStrings.of(context).contentHint,
                             hintStyle: TextStyle(
                               color: Colors.white.withValues(alpha: 0.4),
                             ),

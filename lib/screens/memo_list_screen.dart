@@ -86,19 +86,19 @@ class MemoListScreenState extends State<MemoListScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('메모삭제'),
-        content: Text('선택한 $count개 메모를 삭제하시겠습니까?'),
+        title: Text(AppStrings.of(context).deleteMemoTitle),
+        content: Text(AppStrings.of(context).deleteSelectedConfirm(count)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
+            child: Text(AppStrings.of(context).cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFFE5534B),
             ),
-            child: const Text('삭제'),
+            child: Text(AppStrings.of(context).delete),
           ),
         ],
       ),
@@ -270,12 +270,12 @@ class MemoListScreenState extends State<MemoListScreen>
       SnackBar(
         content: Text(
           deletedIds.length == 1
-              ? '메모를 삭제했습니다'
-              : '메모 ${deletedIds.length}개를 삭제했습니다',
+              ? AppStrings.of(context).memoDeleted
+              : AppStrings.of(context).memosDeleted(deletedIds.length),
         ),
         duration: const Duration(seconds: 5),
         action: SnackBarAction(
-          label: '실행 취소',
+          label: AppStrings.of(context).undoSpaced,
           onPressed: () async {
             await _restoreFromTrash(deletedIds);
           },
@@ -382,19 +382,19 @@ class MemoListScreenState extends State<MemoListScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('메모삭제'),
-        content: Text('"${memo.firstLine}" 메모를 삭제하시겠습니까?'),
+        title: Text(AppStrings.of(context).deleteMemoTitle),
+        content: Text(AppStrings.of(context).deleteMemoConfirm(memo.firstLine)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+            child: Text(AppStrings.of(context).cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFFE5534B),
             ),
-            child: const Text('삭제'),
+            child: Text(AppStrings.of(context).delete),
           ),
         ],
       ),
@@ -583,7 +583,7 @@ class MemoListScreenState extends State<MemoListScreen>
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         alignment: Alignment.center,
                         child: Text(
-                          _isEditMode ? '취소' : '편집',
+                          _isEditMode ? AppStrings.of(context).cancel : AppStrings.of(context).edit,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: Color(0xFF9A9AA2),
@@ -602,7 +602,7 @@ class MemoListScreenState extends State<MemoListScreen>
                 padding: const EdgeInsets.only(right: 8),
                 child: IconButton(
                   icon: const Icon(Icons.search, color: Color(0xFF9A9AA2)),
-                  tooltip: '검색',
+                  tooltip: AppStrings.of(context).search,
                   onPressed: _openSearch,
                 ),
               ),
@@ -626,8 +626,8 @@ class MemoListScreenState extends State<MemoListScreen>
                   ),
                   child: Text(
                     (_selectedIds.length == active.length && active.isNotEmpty)
-                        ? '선택해제'
-                        : '전체선택',
+                        ? AppStrings.of(context).deselectAll
+                        : AppStrings.of(context).selectAll,
                     style: const TextStyle(fontSize: 16),
                   ),
                 ),
@@ -646,7 +646,7 @@ class MemoListScreenState extends State<MemoListScreen>
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: Text(
-                    _selectedIds.isEmpty ? '삭제' : '삭제 (${_selectedIds.length})',
+                    _selectedIds.isEmpty ? AppStrings.of(context).delete : AppStrings.of(context).deleteWithCount(_selectedIds.length),
                     style: const TextStyle(fontSize: 16),
                   ),
                 ),
@@ -660,17 +660,17 @@ class MemoListScreenState extends State<MemoListScreen>
             ? Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(
+                  children: [
+                    const Icon(
                       Icons.sticky_note_2_outlined,
                       size: 56,
                       color: Color(0xFF7C5CFF),
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     Text(
-                      '아직 메모가 없어요.\n아래 새메모 탭을 눌러 첫 메모를 남겨보세요.',
+                      AppStrings.of(context).emptyMemoHint,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Color(0xFF9A9AA2)),
+                      style: const TextStyle(fontSize: 16, color: Color(0xFF9A9AA2)),
                     ),
                   ],
                 ),
