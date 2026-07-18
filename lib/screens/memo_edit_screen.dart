@@ -194,8 +194,16 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     }
   }
 
+  // 라인 끝 잔여 공백(space/tab/CR)은 보이지 않는데도 탭 커서가 그 "중간"에
+  // 꽂혀, 지워도 오른쪽 잔여가 남아 재진입마다 부활하는 것처럼 보인다
+  // (T-260718-021 실기기 영상 판독). 저장 시 라인별로 걷어낸다 — 문장 중간
+  // 공백과 라인 앞 들여쓰기는 보존 (_clampSelectionTrailingNewline 철학과 동일).
+  String _normalizeContent(String raw) {
+    return raw.split('\n').map((line) => line.trimRight()).join('\n').trim();
+  }
+
   Memo? _buildMemo() {
-    final content = _contentController.text.trim();
+    final content = _normalizeContent(_contentController.text);
     if (content.isEmpty) return null;
 
     if (_isEditing && widget.memo != null) {
