@@ -50,4 +50,19 @@ class AitMemoStore {
       debugPrint('[AitMemoStore.saveMemos] $e');
     }
   }
+
+  /// 본편 MemoStorage.purgeExpiredTrash 와 동일 계약 — 보관기간([Memo.trashRetention])
+  /// 지난 soft-deleted 메모만 영구 삭제. 활성 메모는 절대 건드리지 않는다.
+  static Future<int> purgeExpiredTrash() async {
+    final all = await loadMemos();
+    final cutoff = DateTime.now().subtract(Memo.trashRetention);
+    final survivors = all.where((m) {
+      final d = m.deletedAt;
+      if (d == null) return true;
+      return d.isAfter(cutoff);
+    }).toList();
+    final purged = all.length - survivors.length;
+    if (purged > 0) await saveMemos(survivors);
+    return purged;
+  }
 }
