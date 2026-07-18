@@ -1,0 +1,19 @@
+{
+  "name": "ait",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "copy-flutter": "rm -rf dist && cp -r ../build/web dist",
+    "serve-flutter": "npx http-server ../build/web -p 5173"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@apps-in-toss/web-framework": "^2.10.6"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
+  }
+}
