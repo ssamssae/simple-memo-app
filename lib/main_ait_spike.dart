@@ -129,7 +129,7 @@ class _SpikeMemoScreenState extends State<SpikeMemoScreen> {
                         ? const Center(child: Text('메모가 없어요. + 로 추가하세요.'))
                         : ListView.separated(
                             itemCount: _memos.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            separatorBuilder: (_, _) => const Divider(height: 1),
                             itemBuilder: (ctx, i) {
                               final m = _memos[i];
                               return ListTile(
