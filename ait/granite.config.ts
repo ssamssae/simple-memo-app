@@ -8,7 +8,10 @@ export default defineConfig({
   brand: {
     displayName: '메모요',
     primaryColor: '#4A90D9',
-    icon: 'https://static.toss.im/appsintoss/placeholder.png',
+    // 기존 스토어 아이콘 1024 자산의 600×600 불투명 다운스케일본 (T-260718-055).
+    // brand.icon 은 런타임에 URI 로 주입되므로 도달 가능한 URL 필요 — public repo raw 참조.
+    // 콘솔 정식 등록 아이콘이 확정되면 그 URL 로 교체한다 (spike 브랜치 삭제 시 이 URL 도 만료).
+    icon: 'https://raw.githubusercontent.com/ssamssae/simple-memo-app/spike/T-260718-045-ait/docs/store-assets/memoyo_icon_600.png',
   },
   web: {
     host: 'localhost',
