@@ -1,12 +1,12 @@
 import { defineConfig } from '@apps-in-toss/web-framework/config';
 
 // T-260718-045 스파이크 전용 설정.
-// appName 은 임시 플레이스홀더 — 앱인토스 콘솔 등록값 아님 (appName 은 등록 후 변경 불가라
-// 실제 값은 아니키·본진 게이트에서 확정). deploy 는 이 스파이크에서 절대 호출하지 않는다.
+// appName 은 앱인토스 콘솔 등록값 memoyo 로 정렬됨 (T-260718-049 콘솔 등록, workspace minusbeta/60783,
+// 앱 id 54955). 테스트 채널 .ait 업로드용. deploy(출시)·검토요청 은 이 스파이크에서 절대 호출하지 않는다.
 export default defineConfig({
-  appName: 'memoyo-spike-placeholder',
+  appName: 'memoyo',
   brand: {
-    displayName: '메모요 (스파이크)',
+    displayName: '메모요',
     primaryColor: '#4A90D9',
     icon: 'https://static.toss.im/appsintoss/placeholder.png',
   },
