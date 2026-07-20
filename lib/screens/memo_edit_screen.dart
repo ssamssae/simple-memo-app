@@ -449,7 +449,13 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
         Theme.of(context).textTheme.titleLarge?.copyWith(
           color: appBarTheme.foregroundColor ?? Colors.white,
         );
-    final titleStyle = baseTitleStyle?.copyWith(fontSize: 17);
+    // 편집 화면 본문은 항상 다크(Scaffold 0xFF1C1C1E)이므로 헤더도 다크로 고정한다.
+    // 헤더 컨트롤(뒤로/저장/undo/redo/공유)이 흰색 하드코딩이라, 헤더 배경을 테마에
+    // 맡기면 라이트 모드에서 흰 글자 on 밝은 헤더로 겹쳐 안 보인다 (T-260720-024).
+    final titleStyle = baseTitleStyle?.copyWith(
+      fontSize: 17,
+      color: const Color(0xFFECECEC),
+    );
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
@@ -473,6 +479,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
           label: Text(_summaryBusy ? AppStrings.of(context).summarizing : AppStrings.of(context).aiSummary),
         ),
         appBar: AppBar(
+          backgroundColor: const Color(0xFF1C1C1E),
           centerTitle: true,
           scrolledUnderElevation: 0,
           surfaceTintColor: Colors.transparent,
