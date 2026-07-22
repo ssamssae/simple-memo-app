@@ -4,6 +4,8 @@ import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import ai.onnxruntime.TensorInfo
+import android.app.ActivityManager
+import android.content.Context
 import android.os.Build
 import android.os.StatFs
 import io.flutter.embedding.engine.FlutterEngine
@@ -198,7 +200,26 @@ class MainActivity : FlutterActivity() {
         session = null
     }
 
-    private fun isSupported(): Boolean = Build.SUPPORTED_ABIS.contains("arm64-v8a")
+    /// iOS `MiniLmChannel.isSupported()` 와 동형 판정.
+    ///
+    /// arm64 ABI 만 보면 RAM 2GB 급 arm64 기기가 게이트를 통과한 뒤
+    /// 118MB 모델을 적재하다 프로세스째 죽는다 (T-260723-009).
+    /// iOS 는 `physicalMemory >= 3GB` 로 이미 막고 있어 Android 만 구멍이었다.
+    ///
+    /// ⚠️ 임계값 3GB 는 초기 권고치다 — **실기기 실측 후 확정**한다.
+    ///    iOS `MiniLmChannel.minimumPhysicalMemoryBytes` 주석과 같은 잠정 상태이며,
+    ///    한쪽만 바꾸면 플랫폼 간 판정이 어긋나므로 **양쪽을 함께** 조정한다.
+    private fun isSupported(): Boolean =
+        Build.SUPPORTED_ABIS.contains("arm64-v8a") &&
+            totalMemoryBytes() >= MINIMUM_TOTAL_MEMORY_BYTES
+
+    /// iOS `ProcessInfo.processInfo.physicalMemory` 대응.
+    private fun totalMemoryBytes(): Long {
+        val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val info = ActivityManager.MemoryInfo()
+        activityManager.getMemoryInfo(info)
+        return info.totalMem
+    }
 
     override fun onDestroy() {
         executor.execute(::closeSession)
@@ -208,5 +229,8 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val CHANNEL = "memoyo/minilm"
+
+        /// iOS `MiniLmChannel.minimumPhysicalMemoryBytes` (3GB) 와 동일 임계 — 함께 조정할 것.
+        private const val MINIMUM_TOTAL_MEMORY_BYTES = 3L * 1024 * 1024 * 1024
     }
 }
