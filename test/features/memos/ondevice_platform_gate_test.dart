@@ -7,7 +7,7 @@ void main() {
     final podfile = File('ios/Podfile').readAsStringSync();
     final android = File('android/app/build.gradle.kts').readAsStringSync();
 
-    expect(podfile, contains("platform :ios, '13.0'"));
+    expect(podfile, contains("platform :ios, '15.1'"));
     expect(android, contains('minSdk = flutter.minSdkVersion'));
     expect(android, isNot(contains('abiFilters')));
     expect(android, contains('onnxruntime-android:1.23.0'));

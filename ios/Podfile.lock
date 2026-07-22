@@ -89,6 +89,11 @@ PODS:
     - Flutter
   - integration_test (0.0.1):
     - Flutter
+  - onnxruntime-c (1.23.0)
+  - onnxruntime-objc (1.23.0):
+    - onnxruntime-objc/Core (= 1.23.0)
+  - onnxruntime-objc/Core (1.23.0):
+    - onnxruntime-c (= 1.23.0)
   - package_info_plus (0.4.5):
     - Flutter
   - PromisesObjC (2.4.1)
@@ -121,6 +126,7 @@ DEPENDENCIES:
   - in_app_purchase_storekit (from `.symlinks/plugins/in_app_purchase_storekit/darwin`)
   - in_app_review (from `.symlinks/plugins/in_app_review/ios`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
+  - onnxruntime-objc (~> 1.23.0)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - sensors_plus (from `.symlinks/plugins/sensors_plus/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
@@ -140,6 +146,8 @@ SPEC REPOS:
     - GoogleUtilities
     - GTMAppAuth
     - GTMSessionFetcher
+    - onnxruntime-c
+    - onnxruntime-objc
     - PromisesObjC
     - PromisesSwift
     - RecaptchaInterop
@@ -195,6 +203,8 @@ SPEC CHECKSUMS:
   in_app_purchase_storekit: 22cca7d08eebca9babdf4d07d0baccb73325d3c8
   in_app_review: 7dd1ea365263f834b8464673f9df72c80c17c937
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
+  onnxruntime-c: 3174c63a963d9abbc2bf9627e3d622819c0ed5f7
+  onnxruntime-objc: 1254d12f8160e562e7693ff17f5aa3dd17dc409e
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
   PromisesSwift: 217dea0fd5d2ad65222a109c48698add13cc1c5b
@@ -207,6 +217,6 @@ SPEC CHECKSUMS:
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
   webview_flutter_wkwebview: 8ebf4fded22593026f7dbff1fbff31ea98573c8d
 
-PODFILE CHECKSUM: 251cb053df7158f337c0712f2ab29f4e0fa474ce
+PODFILE CHECKSUM: 934b2970fcc3dd5e9ff0bc5ac976952ba4c1b500
 
 COCOAPODS: 1.16.2
