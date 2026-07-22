@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
-platform :ios, '13.0'
+platform :ios, '15.1'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -29,6 +29,12 @@ flutter_ios_podfile_setup
 
 target 'Runner' do
   use_frameworks!
+
+  # 온디바이스 MiniLM 추론 런타임. Android 의
+  # com.microsoft.onnxruntime:onnxruntime-android:1.23.0 과 같은 계열을 쓴다
+  # (벡터 parity 전제). ONNX Runtime 1.23.0 이 요구하는 iOS 바닥이 15.1 이라
+  # 위 platform 도 함께 상향했다.
+  pod 'onnxruntime-objc', '~> 1.23.0'
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do

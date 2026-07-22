@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
+		35E12ACF5DFB44B39EF416EC /* MiniLmChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6E75BFE69C49D541DD2B7A9 /* MiniLmChannel.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		49793A83F44DAA323E42021F /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D5EA92682347C3A3EEA9AFD4 /* Pods_RunnerTests.framework */; };
 		5FEF87D4BD693C3B4C2775D5 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 06346B24CBC9D166D000F200 /* Pods_Runner.framework */; };
@@ -63,6 +64,7 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1B2C3D4E5F67890ABCDEF02 /* PasteButtonPlatformView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PasteButtonPlatformView.swift; sourceTree = "<group>"; };
+		B6E75BFE69C49D541DD2B7A9 /* MiniLmChannel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MiniLmChannel.swift; sourceTree = "<group>"; };
 		C1765BCE4E6FB27826809047 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		C38C076D9A6AC8FA505C46F1 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		D5EA92682347C3A3EEA9AFD4 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -154,6 +156,7 @@
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				A1B2C3D4E5F67890ABCDEF02 /* PasteButtonPlatformView.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
+				B6E75BFE69C49D541DD2B7A9 /* MiniLmChannel.swift */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -400,6 +403,7 @@
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				A1B2C3D4E5F67890ABCDEF01 /* PasteButtonPlatformView.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
+				35E12ACF5DFB44B39EF416EC /* MiniLmChannel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -477,7 +481,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -609,7 +613,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -662,7 +666,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
