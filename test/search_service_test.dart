@@ -60,14 +60,50 @@ void main() {
       expect(SearchService.search(memos, 'a  b').length, 1);
     });
 
-    test('한글 자소 분리 X (명시적 contract): ㄱ 검색 시 가 매치 X', () {
-      final memos = [_memo('가나다')];
-      expect(SearchService.search(memos, 'ㄱ'), isEmpty);
-    });
-
     test('매치 0건 → 빈 리스트', () {
       final memos = [_memo('hello')];
       expect(SearchService.search(memos, 'zzzz'), isEmpty);
+    });
+  });
+
+  group('SearchService.search — 초성 검색 (T-260723-052)', () {
+    test('전체 자음 쿼리 → 초성 매칭 (ㅁㅁㅇ → 메모요)', () {
+      final memos = [_memo('메모요 정리\n본문'), _memo('회의록\n내용')];
+      final r = SearchService.search(memos, 'ㅁㅁㅇ');
+      expect(r.length, 1);
+      expect(r.first.firstLine, '메모요 정리');
+    });
+
+    test('초성 부분열도 매칭 (ㅁㅇ ⊂ 메모요=ㅁㅁㅇ)', () {
+      final memos = [_memo('메모요')];
+      expect(SearchService.search(memos, 'ㅁㅇ').length, 1);
+    });
+
+    test('새 contract: ㄱ 검색 시 가나다(ㄱㄴㄷ) 매치', () {
+      final memos = [_memo('가나다')];
+      expect(SearchService.search(memos, 'ㄱ').length, 1);
+    });
+
+    test('초성 불일치 → 무매치', () {
+      final memos = [_memo('회의록')];
+      expect(SearchService.search(memos, 'ㅁㅁㅇ'), isEmpty);
+    });
+
+    test('상호배타: 자음+완성글자 혼합(ㅁ모)은 substring → 무매치', () {
+      final memos = [_memo('메모요')];
+      expect(SearchService.search(memos, 'ㅁ모'), isEmpty);
+    });
+
+    test('공백은 초성 경계: ㅇㅁ 은 "회의 메모요"(ㅎㅇ ㅁㅁㅇ) 공백 넘어 무매치', () {
+      final memos = [_memo('회의 메모요')];
+      expect(SearchService.search(memos, 'ㅇㅁ'), isEmpty);
+    });
+
+    test('초성 쿼리에서도 랭킹 유지: 제목 초성매치 > 본문 초성매치', () {
+      final body = _memo('딴제목\n메모요 본문'); // 본문 초성매치
+      final title = _memo('메모요 제목\n내용'); // 제목 초성매치
+      final r = SearchService.search([body, title], 'ㅁㅁㅇ');
+      expect(r, [title, body]);
     });
   });
 

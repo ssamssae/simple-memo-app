@@ -1,4 +1,5 @@
 import '../models/memo.dart';
+import '../utils/hangul_chosung.dart';
 
 /// 메모요 1.0.8 검색 (T-260615-26, spec docs/specs/1.0.8-search.md).
 ///
@@ -6,7 +7,8 @@ import '../models/memo.dart';
 /// (메모 리스트 = 활성 메모, spec §4.2). 인덱싱 = in-memory linear scan (옵션 A).
 ///
 /// 매칭(§2.3): case-insensitive + 공백 트림/단일화 후 substring.
-///   - 한글 자소 분리 X — 'ㄱ' 검색 시 '가' 매치 X (명시적 contract, 1.0.9 후보).
+///   - 초성 검색(T-260723-052): 쿼리가 전부 초성 자모면 초성 매칭, 아니면 substring
+///     (상호배타). spec docs/specs/memoyo-chosung-search.md.
 ///   - 빈/공백 쿼리 → 입력 메모 그대로 반환.
 /// 랭킹(§3.4 옵션 C): 즐겨찾기 > 제목(첫 줄) 매치 > 본문 매치 → updatedAt desc.
 class SearchService {
@@ -18,8 +20,9 @@ class SearchService {
     final q = _normalize(query);
     if (q.isEmpty) return memos;
 
+    final chosung = isChosungQuery(q);
     final matched = memos
-        .where((m) => _titleHit(m, q) || _bodyHit(m, q))
+        .where((m) => _titleHit(m, q, chosung) || _bodyHit(m, q, chosung))
         .toList();
 
     matched.sort((a, b) {
@@ -28,8 +31,8 @@ class SearchService {
       final favB = b.isFavorite ? 0 : 1;
       if (favA != favB) return favA - favB;
       // 2) 제목 매치 우선
-      final titleA = _titleHit(a, q) ? 0 : 1;
-      final titleB = _titleHit(b, q) ? 0 : 1;
+      final titleA = _titleHit(a, q, chosung) ? 0 : 1;
+      final titleB = _titleHit(b, q, chosung) ? 0 : 1;
       if (titleA != titleB) return titleA - titleB;
       // 3) updatedAt 내림차순
       return b.updatedAt.compareTo(a.updatedAt);
@@ -66,11 +69,13 @@ class SearchService {
     return SearchExcerpt(text, matchStart, span.end - span.start);
   }
 
-  static bool _titleHit(Memo m, String normQuery) =>
-      _normalize(m.firstLine).contains(normQuery);
+  static bool _titleHit(Memo m, String normQuery, bool chosung) => chosung
+      ? chosungOf(_normalize(m.firstLine)).contains(normQuery)
+      : _normalize(m.firstLine).contains(normQuery);
 
-  static bool _bodyHit(Memo m, String normQuery) =>
-      _normalize(m.content).contains(normQuery);
+  static bool _bodyHit(Memo m, String normQuery, bool chosung) => chosung
+      ? chosungOf(_normalize(m.content)).contains(normQuery)
+      : _normalize(m.content).contains(normQuery);
 
   // 소문자화 + 트림 + 다중 공백 단일화 (§2.3). 한글 자소 분리는 하지 않음.
   static String _normalize(String s) =>
