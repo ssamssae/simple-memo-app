@@ -135,6 +135,14 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     } else if (base > ext) {
       newBase = trimEnd(base, ext);
     }
+    // T-260729-026: 선택이 통째로 접히면 clamp 를 포기한다.
+    // 이 clamp 의 목적은 "글자 뒤로 하이라이트가 뻗어 보이는 것"을 막는 화면 보정이지
+    // 선택을 없애는 것이 아니다. 그런데 선택이 개행·라인끝 공백으로만 이루어져 있으면
+    // trimEnd 가 lowerBound 까지 다 걷어내 선택이 0폭이 된다. 그 상태에서 삭제하면
+    // 지우려던 빈 줄은 그대로 남고 접힌 자리 **앞 글자**가 지워진다 — 아니키 실기기
+    // 제보("줄바꿈 한번 지우면 두번 연속 안 지워짐")의 실체가 이것이다.
+    // 사용자가 빈 줄만 골라 잡은 것은 의도된 선택이므로 보정 대상이 아니다.
+    if (newBase == newExt) return;
     if (newBase == base && newExt == ext) return;
     _isClampingSelection = true;
     _contentController.value = v.copyWith(
