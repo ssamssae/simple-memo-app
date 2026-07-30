@@ -79,7 +79,20 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
         code == 'MEMOYO_MINILM_DOWNLOAD_INCOMPLETE') {
       return strings.minilmInstallFailedNetwork;
     }
-    return strings.minilmInstallFailedGeneric;
+    return _withCode(strings.minilmInstallFailedGeneric, code);
+  }
+
+  // T-260730-029: 3분류(네트워크·검증·저장공간) 밖의 실패는 지금까지 「설치 실패 · 다시 시도」
+  //   하나로 뭉개져 사용자도 개발자도 원인을 몰랐다. 아니키 기기 실측(2026-07-30 08:53)이
+  //   정확히 이 상태였고, 그래서 근인이 STATUS_FAILED·INSTALL_FAILED·LOAD_FAILED·
+  //   OUT_OF_MEMORY 중 무엇인지 코드로 좁힐 수 없었다(감사 PR#1409 §4).
+  //   → 분류 밖 코드만 화면에 덧붙인다. 한줄일기가 `[#502 upstream_failed]` 로 쓰는 것과 같은 패턴.
+  //   3분류 문구는 이미 사유를 말하므로 건드리지 않는다.
+  static String _withCode(String base, String? code) {
+    if (code == null || code.isEmpty) return base;
+    const prefix = 'MEMOYO_MINILM_';
+    final short = code.startsWith(prefix) ? code.substring(prefix.length) : code;
+    return '$base [#$short]';
   }
 
   @override
@@ -149,7 +162,7 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
                 code == 'MEMOYO_MINILM_DOWNLOAD_FAILED' ||
                 code == 'MEMOYO_MINILM_DOWNLOAD_INCOMPLETE') =>
       AppStrings.of(context).minilmInstallFailedNetwork,
-    _ => AppStrings.of(context).miniLmInstallFailed,
+    _ => _withCode(AppStrings.of(context).miniLmInstallFailed, code),
   };
 
   Widget? _trailing(BuildContext context, MiniLmModelState state) {

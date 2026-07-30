@@ -67,6 +67,59 @@ void main() {
     expect(find.textContaining('네트워크 중단'), findsOneWidget);
   });
 
+  // T-260730-029: 3분류 밖 코드는 화면에 코드가 보여야 한다 (아니키 기기 실측이 이 분기였고
+  //   코드가 안 보여서 근인을 못 좁혔다 — 감사 PR#1409 §4).
+  testWidgets('unclassified error code is surfaced in subtitle', (tester) async {
+    final manager = _FakeModelManager(
+      MiniLmModelState.error,
+      errorCode: 'MEMOYO_MINILM_STATUS_FAILED',
+    );
+    await tester.pumpWidget(_app(manager));
+
+    expect(find.textContaining('설치 실패'), findsOneWidget);
+    expect(find.textContaining('[#STATUS_FAILED]'), findsOneWidget);
+  });
+
+  // 코드가 없으면 덧붙이지 않는다 (빈 괄호를 보여주지 않는다).
+  testWidgets('null error code keeps the plain generic message', (tester) async {
+    final manager = _FakeModelManager(MiniLmModelState.error);
+    await tester.pumpWidget(_app(manager));
+
+    expect(find.textContaining('설치 실패'), findsOneWidget);
+    expect(find.textContaining('[#'), findsNothing);
+  });
+
+  // 3분류 문구는 그대로 — 사유를 이미 말하므로 코드를 덧붙이지 않는다.
+  testWidgets('classified reason text stays code-free', (tester) async {
+    final manager = _FakeModelManager(
+      MiniLmModelState.error,
+      errorCode: 'MEMOYO_MINILM_INSUFFICIENT_SPACE',
+    );
+    await tester.pumpWidget(_app(manager));
+
+    expect(find.textContaining('[#'), findsNothing);
+  });
+
+  // 스낵바 경로도 같은 규칙 (설치 시도 중 분류 밖 실패).
+  testWidgets('install failure snackbar surfaces unclassified code', (
+    tester,
+  ) async {
+    final manager = _FakeModelManager(MiniLmModelState.installing);
+    await tester.pumpWidget(_app(manager));
+
+    manager.emit(
+      MiniLmModelState.error,
+      errorCode: 'MEMOYO_MINILM_INSTALL_FAILED',
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const Key('minilm-install-failed-snackbar')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('[#INSTALL_FAILED]'), findsWidgets);
+  });
+
   // T-260719-018: 설치 시도 중 실패 전이 → 즉시 스낵바 알림 (사유 포함).
   for (final (code, reasonFragment) in const [
     ('MEMOYO_MINILM_DOWNLOAD_FAILED', '네트워크 중단'),
