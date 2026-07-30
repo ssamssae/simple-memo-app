@@ -7,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_strings.dart';
 import 'screens/splash_screen.dart';
 import 'services/ads_service.dart';
+import 'services/crash_log.dart';
 import 'services/premium_purchase.dart';
 import 'services/premium_service.dart';
 import 'services/remove_ads_purchase.dart';
@@ -30,6 +31,13 @@ Future<void> main() async {
     return true;
   };
 
+  // T-260730-057: 위 훅들 ★뒤에 체인해 로컬 영속 기록을 붙인다.
+  // 종전에는 debugPrint 로만 흘려서 기기를 회수하지 않으면 아무도 읽을 수 없었다.
+  // 외부 전송 0 — 기록은 기기 안에만 남는다.
+  CrashLog.install();
+  // 이전 실행에서 남은 기록을 콘솔로 흘린다. 시작을 막지 않도록 await 하지 않는다.
+  unawaited(CrashLog.dumpPrevious());
+
   runZonedGuarded(
     () async {
       // 수익화 초기화 (배너 광고 / 광고제거 IAP) — 스플래시를 막지 않도록 비동기.
@@ -44,6 +52,9 @@ Future<void> main() async {
       // Zone 에러 핸들링 (runZonedGuarded 내 미처리 비동기 에러)
       debugPrint('[ZoneError] $error');
       debugPrint('[ZoneError] $stack');
+      // T-260730-057: 세 번째 훅. zone 은 감싸야 해서 install() 이 못 걸고
+      // 여기서 직접 기록한다.
+      unawaited(CrashLog.record('zone', error, stack));
     },
   );
 }
