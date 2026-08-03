@@ -98,8 +98,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       ? strings.premiumActive
                       : strings.premiumPaywallTitle,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
                   ),
@@ -164,8 +164,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   Text(
                     strings.premiumCouponNote,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color(0xFFECECEC),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       height: 1.4,
                     ),
                   ),
@@ -219,7 +219,10 @@ class _FeatureRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 16,
+              ),
             ),
           ),
         ],

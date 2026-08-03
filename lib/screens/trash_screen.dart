@@ -160,12 +160,20 @@ class _TrashScreenState extends State<TrashScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.delete_outline, size: 56, color: Colors.white),
+                        Icon(
+                          Icons.delete_outline,
+                          size: 56,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         SizedBox(height: 12),
                         Text(
                           AppStrings.of(context).trashEmptyHint,
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 16, color: Colors.white),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),
@@ -184,16 +192,24 @@ class _TrashScreenState extends State<TrashScreen> {
                           memo.firstLine,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.white, fontSize: 17),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: 17,
+                          ),
                         ),
                         subtitle: Text(
                           _purgeLabel(memo),
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
-                        trailing: const Icon(Icons.more_horiz, color: Colors.white),
+                        trailing: Icon(
+                          Icons.more_horiz,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         onTap: () => _showItemActions(memo),
                       );
                     },
