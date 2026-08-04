@@ -101,8 +101,14 @@ drive_one() {
     -d "$udid" \
     --no-dds
 
+  # ★0매치를 정상 경로로 흘려보내고 판정은 계수로 한다.
+  # 옛 형태 `ls "$out"/*.png 2>/dev/null | awk …` 는 매치가 0건이면 ls 가 비영으로
+  # 끝나고 set -o pipefail 이 그것을 파이프 전체로 전파한다. 그러면 set -e 가
+  # ★바로 아래 진단 echo 에 닿기 전에 스크립트를 죽인다 — rc 는 1로 맞지만
+  # 이유가 한 줄도 안 남는다. 디렉토리 자체가 없을 때는 find 도 같은 방식으로 죽으므로
+  # 그룹 안에서 || true 로 흡수해야 한다 (T-260805-039, 형태는 hanjul PR#96 과 동일).
   local n
-  n="$(ls "$out"/*.png 2>/dev/null | awk 'END{print NR+0}')"
+  n="$({ find "$out" -maxdepth 1 -type f -name "*.png" 2>/dev/null || true; } | awk 'END{print NR+0}')"
   if [ "$n" -eq 0 ]; then
     echo "❌ [$label] flutter drive 는 끝났는데 PNG 가 0장이다 — $out" >&2
     return 1
