@@ -9,7 +9,13 @@ Task: T-260703-39
 - Price target: KRW 1,900 / month
 - App copy: "메모요 프리미엄", "월 ₩1,900"
 - Worker entitlement product ID: `premium_monthly`
-- App build config: inject Worker endpoint with `--dart-define=MEMOYO_API=https://...`
+- App build config: **스토어 산출은 `scripts/build-store.sh <ios|android>` 로만 한다.**
+  `MEMOYO_API` 를 env 로 주고, 스크립트가 ①미주입이면 빌드를 거부하고 ②산출물에 값이
+  실제로 박혔는지 검증한다. `flutter build` 직접 호출은 금지 — 이 값이 빠져도 예외가
+  안 나고 유료 기능만 조용히 죽은 채 심사까지 통과한다 (T-260803-038 실사고).
+  ```
+  MEMOYO_API=https://<worker-endpoint> scripts/build-store.sh android
+  ```
 
 ## remove_ads thank-you coupon
 
