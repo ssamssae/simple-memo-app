@@ -1,0 +1,22 @@
+Memoyo is a dark-themed notepad for writing something down the moment it occurs to you, and for keeping the notes you check often within reach. You can write body text with no title at all, which suits short notes, ideas, to-dos, and the kind of daily record you keep like a diary.
+
+[Features]
+- Quick notes with no title: open the app and start writing immediately.
+- Stored on your device: your notes stay on your phone.
+- Swipe to favorite, drag to reorder: keep the notes you use most on top.
+- Trash: recover a note you deleted by mistake.
+- Optional Google Drive backup and restore: only when you choose to turn it on.
+- No sign-up: there is no login step.
+
+[Ads and removing them]
+The app is free and shows a banner ad. If you'd rather use it without ads, you can buy ad removal once inside the app. You pay once and that is it — there is no repeat billing — and it carries over to a new device through Restore Purchases. The price is shown on the store purchase sheet.
+
+If you bought ad removal before, that stays yours. Use Restore Purchases in Settings to bring it over.
+
+[Privacy]
+Your notes are stored on your device. Google Drive backup runs only when you turn it on yourself; if you leave it off, your notes never leave the device. We collect no personal data — no name, no email, no location.
+
+Privacy Policy:
+https://github.com/ssamssae/simple-memo-app/blob/main/docs/legal/privacy-policy.md
+
+Contact: minusbetastudio@gmail.com
