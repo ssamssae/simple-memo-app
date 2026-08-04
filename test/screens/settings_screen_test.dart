@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/screens/settings_screen.dart';
 import 'package:simple_memo_app/services/app_review_service.dart';
+import 'package:simple_memo_app/services/premium_entitlement_client.dart';
+import 'package:simple_memo_app/services/premium_service.dart';
 import 'package:simple_memo_app/services/settings_service.dart';
 
 void main() {
@@ -132,7 +134,9 @@ void main() {
       '테마',
       '앱 평가하기',
       '피드백 보내기',
-      '메모요 프리미엄',
+      // '메모요 프리미엄' 은 뺐다 — T-260804-090 으로 구독 판매를 접어서 ★비구독자에게는
+      // 이 칸이 아예 렌더되지 않는다(이 테스트는 비구독 상태로 돈다). 구독중인 사람에게
+      // 뜨는 상태 칸은 아래 별도 테스트가 지킨다.
       '광고 제거',
       '구매 복원',
     ]) {
@@ -229,7 +233,21 @@ void main() {
     expect(find.textContaining('메모는 어디에 저장되나요'), findsOneWidget);
   });
 
-  testWidgets('설정 화면에 메모요 프리미엄 구독 진입점이 표시된다', (tester) async {
+  // ★뒤집힌 테스트 — 종전 이름은 「구독 진입점이 표시된다」였다. T-260804-090 으로 구독 판매를
+  //   접었으므로 그 단언은 이제 ★사실과 반대다. 지우지 않고 새 사실로 갱신한다: 구독중인
+  //   사람에게는 상태 칸이 남고, 파는 값(가격)은 어디에도 안 뜬다.
+  testWidgets('구독중인 사용자에게는 상태 칸만 남고 판매 가격은 안 뜬다', (tester) async {
+    PremiumService.instance.entitlement.value = PremiumEntitlement(
+      premium: true,
+      productId: PremiumEntitlementClient.premiumProductId,
+      expiresAt: DateTime(2999),
+      source: PremiumEntitlementSource.subscription,
+    );
+    addTearDown(() {
+      PremiumService.instance.entitlement.value =
+          const PremiumEntitlement.inactive();
+    });
+
     await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
 
     await tester.scrollUntilVisible(
@@ -240,6 +258,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('메모요 프리미엄'), findsOneWidget);
-    expect(find.textContaining('월 ₩1,900'), findsOneWidget);
+    // ★가격은 파는 문구다. 구독중인 사람 화면에도 남으면 안 판다는 말과 어긋난다.
+    expect(find.textContaining('월 ₩1,900'), findsNothing,
+        reason: '구독 판매 가격이 되살아났다 (T-260804-090 으로 판매 종료)');
   });
 }
