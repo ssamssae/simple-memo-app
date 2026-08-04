@@ -40,8 +40,8 @@ class AppStrings {
   // T-260804-078: 유료 AI 요약이 제거됐으므로(T-260804-062) 판매 문구에서도 뺀다.
   //   구독이 실제로 주는 것 = 말로 검색 + 프리미엄 기간 광고 숨김.
   String get premiumSubtitle => isEnglish
-      ? 'AI summary and semantic search · ₩1,900/month'
-      : 'AI 요약과 말로 검색 · 월 ₩1,900';
+      ? 'Semantic search · ₩1,900/month'
+      : '말로 검색 · 월 ₩1,900';
   String get premiumActive => isEnglish ? 'Premium active' : '프리미엄 사용 중';
   String premiumExpires(DateTime expiresAt) => isEnglish
       ? 'Available until ${expiresAt.toLocal().year}-${expiresAt.toLocal().month.toString().padLeft(2, '0')}-${expiresAt.toLocal().day.toString().padLeft(2, '0')}'
