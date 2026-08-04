@@ -24,19 +24,8 @@ import 'package:simple_memo_app/services/premium_entitlement_client.dart';
 import 'package:simple_memo_app/services/premium_service.dart';
 import 'package:simple_memo_app/services/settings_service.dart';
 
-const _captureWindowSeconds = int.fromEnvironment(
-  'STORE_CAPTURE_SECONDS',
-  defaultValue: 12,
-);
-const _lastCaptureWindowSeconds = int.fromEnvironment(
-  'STORE_LAST_CAPTURE_SECONDS',
-  defaultValue: _captureWindowSeconds,
-);
-const _captureTargets = String.fromEnvironment('STORE_CAPTURE_TARGETS');
-const _targetCaptureWindowSeconds = int.fromEnvironment(
-  'STORE_TARGET_CAPTURE_SECONDS',
-  defaultValue: _captureWindowSeconds,
-);
+/// 통합테스트 바인딩. main() 이 채우고 captureStoreShot 이 실제 픽셀을 뜬다.
+late final IntegrationTestWidgetsFlutterBinding binding;
 
 Future<void> pumpUi(
   WidgetTester tester, [
@@ -47,28 +36,21 @@ Future<void> pumpUi(
   await tester.pump();
 }
 
-Future<void> openExternalCaptureWindow(
-  WidgetTester tester,
-  String name, {
-  bool isLast = false,
-}) async {
-  debugPrint('[store-shot-ready] $name');
-  final isTarget = _captureTargets.split(',').contains(name);
-  await tester.runAsync(
-    () => Future<void>.delayed(
-      Duration(
-        seconds: isTarget
-            ? _targetCaptureWindowSeconds
-            : isLast
-            ? _lastCaptureWindowSeconds
-            : _captureWindowSeconds,
-      ),
-    ),
-  );
+/// 현재 화면을 실제 PNG 로 캡처한다.
+///
+/// 예전 구현(openExternalCaptureWindow)은 `[store-shot-ready]` 마커만 찍고
+/// 기본 12초를 대기했다. 실제 촬영은 그 창 동안 repo 밖에 있는 손이 했고,
+/// 그 손에 해당하는 스크립트가 repo 에 없어 재현이 불가능했다 (T-260805-017).
+/// 지금은 이 함수가 직접 찍고, 저장 경로는 test_driver/store_screenshots_test.dart
+/// 가 정한다. 기제는 한줄일기(store_screenshots_test.dart)에서 이미 검증된 것을
+/// 그대로 옮겨온 것이다 — 재발명이 아니다.
+Future<void> captureStoreShot(WidgetTester tester, String name) async {
+  await pumpUi(tester, const Duration(milliseconds: 400));
+  await binding.takeScreenshot(name);
 }
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('store screenshots (dark)', (tester) async {
     // ── 데모 메모 시드 (실제 저장소) ──
@@ -124,18 +106,23 @@ void main() {
     await tester.tap(find.text('메모').last);
     await pumpUi(tester);
 
+    // iOS: GL 표면을 이미지로 전환해야 takeScreenshot 이 실제 픽셀을 돌려준다.
+    // 앱이 다 뜬 뒤, 첫 캡처 전에 한 번만 호출한다.
+    await binding.convertFlutterSurfaceToImage();
+    await pumpUi(tester, const Duration(milliseconds: 500));
+
     // ① 메인 메모 리스트 (다크)
-    await openExternalCaptureWindow(tester, '01-main');
+    await captureStoreShot(tester, '01-main');
 
     // ② 설정 탭 (프리미엄·구매 복원·정책 포함)
     await tester.tap(find.text('설정').last);
     await pumpUi(tester);
-    await openExternalCaptureWindow(tester, '02-settings');
+    await captureStoreShot(tester, '02-settings');
 
     // ③ Drive 백업·복원 화면
     await tester.tap(find.text('백업 & 복원'));
     await pumpUi(tester);
-    await openExternalCaptureWindow(tester, '03-backup');
+    await captureStoreShot(tester, '03-backup');
     await tester.tap(find.byType(BackButton));
     await pumpUi(tester);
 
@@ -149,7 +136,7 @@ void main() {
       ),
     );
     await pumpUi(tester);
-    await openExternalCaptureWindow(tester, '04-premium');
+    await captureStoreShot(tester, '04-premium');
 
     // 프리미엄 → 설정 → 메모 탭 복귀
     await tester.tap(find.byType(BackButton));
@@ -166,7 +153,7 @@ void main() {
     );
     await pumpUi(tester);
     await pumpUi(tester, const Duration(milliseconds: 300));
-    await openExternalCaptureWindow(tester, '05-edit');
+    await captureStoreShot(tester, '05-edit');
 
     // 편집 화면을 닫고 AI 기능 캡처용 프리미엄 권한을 로컬 테스트 상태로 설정.
     await tester.tap(find.text('뒤로'));
@@ -207,13 +194,27 @@ void main() {
       ),
     );
     await pumpUi(tester);
-    await tester.tap(find.text('뜻으로 찾기'));
-    await tester.pump();
-    await tester.enterText(find.byType(TextField), '프로젝트 계획');
-    await tester.pump(const Duration(milliseconds: 350));
-    await pumpUi(tester);
-    await pumpUi(tester, const Duration(milliseconds: 300));
-    await openExternalCaptureWindow(tester, '07-semantic-search', isLast: true);
+    // SearchScreen 은 unawaited push 라 라우트 정착에 여유를 준다.
+    await pumpUi(tester, const Duration(milliseconds: 900));
+
+    // ⑦ 뜻으로 찾기. 이 기능은 가용성 게이트(features/memos/semantic_search_availability)
+    // 에 걸려 빌드·설정에 따라 탭 자체가 없을 수 있다. 없으면 이 컷만 건너뛰되
+    // ★조용히 넘기지 않는다 — 로그에 남겨 캡처 장수가 준 이유가 드러나게 한다.
+    final semanticTab = find.text('뜻으로 찾기');
+    if (semanticTab.evaluate().isEmpty) {
+      debugPrint(
+        '[store-shot-skip] 07-semantic-search — "뜻으로 찾기" 탭이 화면에 없다. '
+        '가용성 게이트가 닫혀 있거나 UI 가 바뀌었다. 이 컷은 캡처되지 않았다.',
+      );
+    } else {
+      await tester.tap(semanticTab);
+      await tester.pump();
+      await tester.enterText(find.byType(TextField), '프로젝트 계획');
+      await tester.pump(const Duration(milliseconds: 350));
+      await pumpUi(tester);
+      await pumpUi(tester, const Duration(milliseconds: 300));
+      await captureStoreShot(tester, '07-semantic-search');
+    }
 
     PremiumService.instance.entitlement.value =
         const PremiumEntitlement.inactive();
