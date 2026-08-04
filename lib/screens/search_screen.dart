@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../features/memos/semantic_search_availability.dart';
 import '../features/memos/services/embedding_engine.dart';
 import '../features/memos/services/gemini_embedding_engine.dart';
 import '../features/memos/services/memoyo_embedding_client.dart';
@@ -116,6 +117,10 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _selectMode(Set<_SearchMode> selection) async {
     final next = selection.first;
     if (next == _mode) return;
+    // ★2차 방어 (T-260804-086) — 세그먼트를 안 그리므로 여기 semantic 이 들어올 길은 지금 없다.
+    //   그래도 막아 둔다: 나중에 누가 다른 진입점(메뉴·단축키·딥링크)을 붙이면 UI 만 고치고
+    //   이 함수는 안 볼 텐데, 그러면 잠금이 조용히 풀린다.
+    if (!kSemanticSearchEnabled && next == _SearchMode.semantic) return;
     if (next == _SearchMode.semantic && !PremiumService.instance.isPremium) {
       await Navigator.push<void>(
         context,
@@ -133,7 +138,12 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _runSearch(String value) async {
     final ticket = ++_searchTicket;
     final query = value;
-    if (_mode == _SearchMode.lexical || query.trim().isEmpty) {
+    // ★3차 방어 (T-260804-086) — 이 조건이 유료 임베딩 호출의 마지막 관문이다.
+    //   플래그가 꺼져 있으면 _mode 값이 무엇이든 lexical 경로로만 간다 = 임베딩 클라이언트에
+    //   도달 불가. 회귀축 (b)가 스파이로 이걸 단언한다.
+    if (!kSemanticSearchEnabled ||
+        _mode == _SearchMode.lexical ||
+        query.trim().isEmpty) {
       if (!mounted || ticket != _searchTicket) return;
       setState(() {
         _query = query;
@@ -253,6 +263,11 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildModePicker() {
+    // ★말로찾기 잠금 (T-260804-086) — 세그먼트가 2개인데 하나를 못 쓰게 하면 「눌러도 안 되는
+    //   버튼」이 남는다. 그래서 선택기 자체를 안 그린다. 남는 모드는 lexical 하나뿐이라
+    //   SegmentedButton 이 의미를 잃기 때문이기도 하다. 어휘·레이아웃은 건드리지 않았다 —
+    //   플래그를 켜면 이 블록이 통째로 원래대로 돌아온다.
+    if (!kSemanticSearchEnabled) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
       child: Row(
