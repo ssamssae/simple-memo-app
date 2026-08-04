@@ -15,9 +15,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'package:simple_memo_app/main.dart';
 import 'package:simple_memo_app/features/memos/services/memoyo_embedding_client.dart';
-import 'package:simple_memo_app/features/memos/services/memoyo_summary_client.dart';
 import 'package:simple_memo_app/models/memo.dart';
-import 'package:simple_memo_app/screens/memo_edit_screen.dart';
 import 'package:simple_memo_app/screens/paywall_screen.dart';
 import 'package:simple_memo_app/screens/search_screen.dart';
 import 'package:simple_memo_app/services/ads_service.dart';
@@ -179,40 +177,6 @@ void main() {
       expiresAt: DateTime(2999),
       source: PremiumEntitlementSource.subscription,
     );
-
-    // ⑥ AI 요약 결과 — 실제 MemoEditScreen + 테스트 전송계층.
-    final summaryClient = MemoyoSummaryClient(
-      transport: (_, _) async => {
-        'model': 'claude-haiku-4-5-20251001',
-        'summary': '다음 분기 핵심 목표 3가지를 확정했고, 각 목표의 담당자를 배정했습니다.',
-        'usage': {
-          'date': '2026-07-16',
-          'used': 1,
-          'limit': 30,
-          'remaining': 29,
-        },
-      },
-    );
-    final listContext = tester.element(find.byType(Scaffold).last);
-    unawaited(
-      Navigator.of(listContext).push<void>(
-        MaterialPageRoute(
-          builder: (_) => MemoEditScreen(
-            memo: demo[1],
-            summaryClient: summaryClient,
-            summaryUserId: () async => 'store-screenshot-user',
-          ),
-        ),
-      ),
-    );
-    await pumpUi(tester);
-    await tester.tap(find.byTooltip('AI 요약'));
-    await pumpUi(tester);
-    await openExternalCaptureWindow(tester, '06-ai-summary');
-    Navigator.of(tester.element(find.text('오늘 29회 남음 · 일일 30회'))).pop();
-    await pumpUi(tester);
-    await tester.tap(find.text('뒤로'));
-    await pumpUi(tester);
 
     // ⑦ 뜻으로 찾기 — 실제 SearchScreen + 테스트 임베딩 전송계층.
     final embeddingClient = MemoyoEmbeddingClient(

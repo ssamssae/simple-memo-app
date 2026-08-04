@@ -9,27 +9,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:share_plus/share_plus.dart';
-import '../features/memos/services/memoyo_summary_client.dart';
-import '../features/memos/widgets/memo_summary_sheet.dart';
 import '../models/memo.dart';
-import '../services/premium_service.dart';
 import '../services/settings_service.dart';
-import 'paywall_screen.dart';
 import '../l10n/app_strings.dart';
 
 
 class MemoEditScreen extends StatefulWidget {
   final Memo? memo;
   final ValueChanged<Memo>? onSave;
-  final MemoyoSummaryClient? summaryClient;
-  final Future<String> Function()? summaryUserId;
 
   const MemoEditScreen({
     super.key,
     this.memo,
     this.onSave,
-    this.summaryClient,
-    this.summaryUserId,
   });
 
   @override
@@ -45,12 +37,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   bool _shakeDialogOpen = false;
   bool _isEditing = false;
   bool _popHandled = false;
-  bool _summaryBusy = false;
   Offset? _lastTouchPosition;
   bool _isClampingSelection = false;
-
-  late final MemoyoSummaryClient _summaryClient =
-      widget.summaryClient ?? MemoyoSummaryClient();
 
   static const double _shakeThreshold = 18.0;
   static const Duration _shakeCooldown = Duration(milliseconds: 1500);
@@ -277,87 +265,6 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     }
   }
 
-  Future<void> _openPaywall() async {
-    await Navigator.push<void>(
-      context,
-      MaterialPageRoute(builder: (_) => const PaywallScreen()),
-    );
-  }
-
-  String _summaryErrorMessage(MemoyoSummaryException error) {
-    return switch (error.code) {
-      'MEMOYO_SUMMARY_DAILY_LIMIT' => AppStrings.of(context).summaryDailyLimit,
-      'MEMOYO_SUMMARY_TEXT_INVALID' => AppStrings.of(context).summaryTextInvalid,
-      'ANTHROPIC_API_KEY_MISSING' ||
-      'MEMOYO_SUMMARY_UNCONFIGURED' => AppStrings.of(context).summaryUnconfigured,
-      _ => AppStrings.of(context).summaryFailed,
-    };
-  }
-
-  Future<void> _summarizeMemo() async {
-    if (_summaryBusy) return;
-    final memoText = _contentController.text.trim();
-    if (memoText.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(AppStrings.of(context).enterContentToSummarize)));
-      return;
-    }
-    if (!PremiumService.instance.isPremium) {
-      await _openPaywall();
-      return;
-    }
-    if (!_summaryClient.isConfigured) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(AppStrings.of(context).summaryUnconfigured)));
-      return;
-    }
-
-    setState(() => _summaryBusy = true);
-    MemoyoSummaryResult? result;
-    MemoyoSummaryException? summaryError;
-    try {
-      final userId =
-          await (widget.summaryUserId?.call() ??
-              PremiumService.instance.userId());
-      result = await _summaryClient.summarize(
-        userId: userId,
-        memoText: memoText,
-      );
-    } on MemoyoSummaryException catch (error) {
-      summaryError = error;
-    } catch (_) {
-      summaryError = const MemoyoSummaryException(
-        statusCode: 502,
-        code: 'MEMOYO_SUMMARY_FAILED',
-        message: 'AI summary failed',
-      );
-    } finally {
-      if (mounted) setState(() => _summaryBusy = false);
-    }
-    if (!mounted) return;
-
-    if (summaryError?.code == 'MEMOYO_PREMIUM_REQUIRED') {
-      await _openPaywall();
-      return;
-    }
-    if (summaryError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_summaryErrorMessage(summaryError))),
-      );
-      return;
-    }
-    if (result != null) {
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: const Color(0xFF2C2C2E),
-        builder: (_) => MemoSummarySheet(result: result!),
-      );
-    }
-  }
-
   Future<void> _cancelEdit() async {
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
@@ -473,19 +380,6 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF1C1C1E),
-        floatingActionButton: FloatingActionButton.extended(
-          key: const Key('memo-summary-button'),
-          tooltip: AppStrings.of(context).aiSummary,
-          onPressed: _summaryBusy ? null : () => unawaited(_summarizeMemo()),
-          icon: _summaryBusy
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.auto_awesome_outlined),
-          label: Text(_summaryBusy ? AppStrings.of(context).summarizing : AppStrings.of(context).aiSummary),
-        ),
         appBar: AppBar(
           backgroundColor: const Color(0xFF1C1C1E),
           centerTitle: true,
