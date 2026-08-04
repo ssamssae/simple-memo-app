@@ -24,6 +24,11 @@ class _AdBannerState extends State<AdBanner> {
     if (!_shouldHideAds) _loadAd();
   }
 
+  // ★`|| isPremium` 는 ★기존 구독자 유예(grandfather)다 — 환불 완주 후 제거, T-260804-082 4페이즈.
+  //   구독(premium_monthly) 판매는 T-260804-090 으로 끝났지만, 이미 결제한 사람은 아직 환불을
+  //   못 받았다(4페이즈는 실인원 조회조차 안 된 상태다). 이 한 항을 지금 걷어내면 ★돈은 냈는데
+  //   광고가 되살아난다. 지우는 시점은 볼칸이 환불 실인원을 실측하고 환불이 끝난 뒤다.
+  //   ⚠️ 「구독을 없앴으니 이 줄도 죽은 코드」로 보고 정리하지 마라 — 죽은 게 아니라 유예다.
   bool get _shouldHideAds =>
       AdsService.instance.removeAds.value || PremiumService.instance.isPremium;
 

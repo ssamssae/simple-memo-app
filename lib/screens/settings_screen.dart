@@ -19,10 +19,24 @@ import '../services/settings_service.dart';
 import '../widgets/version_footer.dart';
 import 'backup_restore_screen.dart';
 import 'help_faq_screen.dart';
-import 'paywall_screen.dart';
 import 'policy_screen.dart';
 import 'trash_screen.dart';
 
+/// ★구독(premium_monthly) 판매 종료 — T-260804-090 (parent T-260804-082 2페이즈).
+///
+/// 아니키 결정 2026-08-04: 구독 상품을 접고 광고제거 단품(remove_ads)만 판다. 이 화면에 있던
+/// 결제 화면 진입(_openPaywall → PaywallScreen)과 비구독자용 판매 문구를 끊었다.
+///
+/// ■파는 쪽만 걷고 ★읽는 쪽은 남긴다
+///   `PremiumService.isPremium` / entitlement 읽기와 `PremiumPurchase.restore` 는 그대로다.
+///   기존 구독자는 아직 환불받지 못했고(T-260804-082 4페이즈, 실인원 조회조차 안 됨),
+///   광고 제거가 그들에게 남은 유일한 실질 혜택이다 — 돈은 냈는데 물건이 사라지면 안 된다.
+///   ⇒ 유예(grandfather)다. 제거는 환불 완주 뒤 별건으로 한다.
+///
+/// ■PaywallScreen 파일을 지우지 않은 이유
+///   진입점을 끊으면 도달 불가가 된다. 파일을 지우면 `search_screen.dart` 의 참조까지
+///   손대야 하는데 그쪽은 말로찾기 스위치(T-260804-086) 영역이라 이 티켓의 무접촉 경계다.
+///   원칙 7(가역 우선)에 따라 보관하고 길만 막았다. 회귀축이 「판매 진입 0건」을 지킨다.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     super.key,
@@ -144,11 +158,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ).push(MaterialPageRoute<void>(builder: (_) => const HelpFaqScreen()));
   }
 
-  void _openPaywall() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const PaywallScreen()));
-  }
+  // ★구독 판매 종료 (T-260804-090, parent T-260804-082 2페이즈)로 결제 화면 진입점을 끊었다.
+  //   _openPaywall 은 이 화면의 유일한 판매 진입이었고, 지금은 부르는 곳이 없어 함께 제거한다.
+  //   PaywallScreen 파일 자체는 지우지 않았다 — 사유는 이 화면 상단 주석 참조.
 
   Future<void> _openLanguageMenu() async {
     final strings = AppStrings.of(context);
@@ -396,34 +408,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ValueListenableBuilder(
               valueListenable: PremiumService.instance.entitlement,
               builder: (context, entitlement, _) {
+                // ★구독 판매 종료 (T-260804-090, parent T-260804-082 2페이즈).
+                //   비구독자에게는 이 칸 자체를 안 보인다 — 그래야 파는 문구
+                //   (strings.premiumSubtitle)와 결제 진입이 ★동시에 사라진다. 문구만 바꾸고
+                //   칸을 남기면 「눌러도 아무 일 없는 카드」가 되고, 그건 죽은 버튼이다.
+                //   구독중인 사람에게는 만료일만 남긴다 — 없애면 자기 구독이 언제까지인지
+                //   볼 곳이 사라진다. onTap·chevron 을 뗐으므로 여기서 결제로 갈 길은 없다.
+                if (!entitlement.active) return const SizedBox.shrink();
                 final expiresAt = entitlement.expiresAt;
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                  leading: Icon(
-                    entitlement.active
-                        ? Icons.verified_outlined
-                        : Icons.auto_awesome_outlined,
-                    color: const Color(0xFF7C5CFF),
-                  ),
-                  title: Text(
-                    strings.premiumTitle,
-                    style: TextStyle(color: primaryColor),
-                  ),
-                  subtitle: Text(
-                    entitlement.active && expiresAt != null
-                        ? strings.premiumExpires(expiresAt)
-                        : strings.premiumSubtitle,
-                    style: TextStyle(color: secondaryColor),
-                  ),
-                  trailing: const Icon(
-                    Icons.chevron_right,
-                    color: Color(0xFF7C5CFF),
-                  ),
-                  onTap: _openPaywall,
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                      leading: const Icon(
+                        Icons.verified_outlined,
+                        color: Color(0xFF7C5CFF),
+                      ),
+                      title: Text(
+                        strings.premiumTitle,
+                        style: TextStyle(color: primaryColor),
+                      ),
+                      subtitle: expiresAt == null
+                          ? null
+                          : Text(
+                              strings.premiumExpires(expiresAt),
+                              style: TextStyle(color: secondaryColor),
+                            ),
+                    ),
+                    const Divider(height: 0.5, thickness: 0.5),
+                  ],
                 );
               },
             ),
-            const Divider(height: 0.5, thickness: 0.5),
             if (_miniLmModelManager case final manager?) ...[
               MiniLmModelSettingsTile(manager: manager),
               const Divider(height: 0.5, thickness: 0.5),
