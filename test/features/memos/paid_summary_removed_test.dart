@@ -13,11 +13,16 @@
 //
 // ■범위 주의
 //   lib/ 만 센다. test/ 를 포함하면 ★이 파일 자신의 금지 문자열이 잡혀 항상 RED 가 된다.
-//   또한 결제화면(paywall_screen.dart)의 프리미엄 혜택 문구는 이 검사 대상이 아니다 —
-//   스토어 문구 수정은 R3 별건이라 이 티켓에서 손대지 않았다.
+//
+// ■T-260804-078 추가 — 결제 판매 문구 축이 여기로 들어왔다.
+//   062 시점에는 「결제화면 문구는 R3 별건」이라 대상이 아니었다. 아니키 ack(2026-08-04 23:20)로
+//   문구 제거가 승인돼 이제 이 파일이 ★두 축을 지킨다: 호출 경로(아래 첫 test)와
+//   판매 문구(둘째 test). 두 축을 한 파일에 둔 이유 = 갈라 두면 기능만 지우고 문구를 남기는
+//   실패가 다시 난다. 실제로 062 가 그렇게 끝났다.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simple_memo_app/l10n/app_strings.dart';
 
 /// 되살아나면 안 되는 것들. 조각으로 쪼개 두지 않는다 — 쪼개면 이 파일이 스스로를
 /// 못 지키고, 무엇을 막는 중인지도 안 읽힌다.
@@ -29,6 +34,7 @@ const _forbidden = <String, String>{
   'memoyo_summary_client': '유료 요약 클라이언트 파일 import',
   'MemoSummarySheet': '유료 요약 결과 시트',
   'memo-summary-button': '유료 요약 진입 버튼(죽은 버튼도 남기지 않는다)',
+  'premiumFeatureAiSummaries': '결제화면 AI 요약 혜택 라벨(없는 기능을 파는 문구)',
 };
 
 void main() {
@@ -66,5 +72,49 @@ void main() {
           '유료 AI 요약 경로가 lib/ 에 되살아났다 (T-260804-062 로 제거된 경로):\n'
           '${hits.join('\n')}',
     );
+  });
+
+  // T-260804-078 — 손님이 읽는 판매 문구가 없어진 기능을 팔지 않는지.
+  //   ★이 축이 없으면 062 의 재발을 못 막는다: 기능은 지웠는데 결제화면·설정화면이
+  //   두 달간 「AI 요약」을 계속 팔고 있었고, 코드 검사는 전부 초록이었다.
+  //   문자열 스캔이 아니라 ★getter 를 실제로 불러서 본다 — 문구가 어느 파일에 있든 잡힌다.
+  test('프리미엄 판매 문구가 AI 요약을 광고하지 않는다 (ko·en 양쪽)', () {
+    for (final code in ['ko', 'en']) {
+      final s = AppStrings.fromCode(code);
+      final sales = <String, String>{
+        'premiumTitle': s.premiumTitle,
+        'premiumSubtitle': s.premiumSubtitle,
+        'premiumPaywallTitle': s.premiumPaywallTitle,
+        'premiumPaywallBody': s.premiumPaywallBody,
+        'premiumFeatureSemanticSearch': s.premiumFeatureSemanticSearch,
+        'premiumFeatureAdFree': s.premiumFeatureAdFree,
+      };
+
+      // ★양성 대조군 — 문구를 실제로 읽고 있음을 먼저 증명한다. 이게 없으면 빈 문자열
+      //   6개를 검사하고도 초록이 나고, 그 초록은 아무것도 안 잰 초록이다.
+      expect(
+        sales.values.every((v) => v.trim().isNotEmpty),
+        isTrue,
+        reason: '판매 문구가 비었다 — 검사가 죽은 것이 먼저다 ($code)',
+      );
+      expect(
+        sales['premiumFeatureSemanticSearch']!.toLowerCase(),
+        contains(code == 'en' ? 'search' : '검색'),
+        reason: '대조군 실패 — 실재하는 혜택 문구조차 못 읽었다 ($code)',
+      );
+
+      // 판정축. 「요약/summar」가 프리미엄 판매 문구에 있으면 그 기능이 앱에 있어야 한다.
+      //   온디바이스 추출식 요약(레그 2, T-260803-038 계열)이 유료 혜택으로 되살아나면
+      //   ★이 단언을 의도적으로 고쳐라 — 조용히 문구만 되살리는 길을 막는 것이 이 축의 목적이다.
+      sales.forEach((name, value) {
+        final v = value.toLowerCase();
+        expect(
+          v.contains('요약') || v.contains('summar'),
+          isFalse,
+          reason:
+              '$code.$name 이 없어진 AI 요약을 여전히 광고한다 (T-260804-078): "$value"',
+        );
+      });
+    }
   });
 }

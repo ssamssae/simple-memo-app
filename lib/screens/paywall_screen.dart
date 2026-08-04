@@ -124,10 +124,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
                 ],
                 const SizedBox(height: 26),
                 _FeatureRow(
-                  icon: Icons.summarize_outlined,
-                  label: strings.premiumFeatureAiSummaries,
-                ),
-                _FeatureRow(
                   icon: Icons.manage_search_outlined,
                   label: strings.premiumFeatureSemanticSearch,
                 ),

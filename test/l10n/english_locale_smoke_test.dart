@@ -78,7 +78,8 @@ void main() {
     expect(en.themeDark, 'Dark');
     expect(en.cancel, 'Cancel');
     expect(en.selectAll, 'Select all');
-    expect(en.aiSummary, 'AI summary');
+    // en.aiSummary 단언은 T-260804-078 에서 뺐다 — 문구가 가리키던 기능이
+    // T-260804-062 로 제거돼 getter 자체가 사라졌다.
     expect(han.hasMatch(en.miniLmInstallBody), isFalse);
     expect(han.hasMatch(en.emptyTrashConfirm(3)), isFalse);
   });

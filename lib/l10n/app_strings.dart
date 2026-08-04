@@ -37,9 +37,11 @@ class AppStrings {
   String get removeAdsOneTime =>
       isEnglish ? 'Remove banner ads with one purchase' : '한 번 결제로 배너 광고 제거';
   String get premiumTitle => isEnglish ? 'Memoyo Premium' : '메모요 프리미엄';
+  // T-260804-078: 유료 AI 요약이 제거됐으므로(T-260804-062) 판매 문구에서도 뺀다.
+  //   구독이 실제로 주는 것 = 말로 검색 + 프리미엄 기간 광고 숨김.
   String get premiumSubtitle => isEnglish
-      ? 'AI summary and semantic search · ₩1,900/month'
-      : 'AI 요약과 말로 검색 · 월 ₩1,900';
+      ? 'Semantic search · ₩1,900/month'
+      : '말로 검색 · 월 ₩1,900';
   String get premiumActive => isEnglish ? 'Premium active' : '프리미엄 사용 중';
   String premiumExpires(DateTime expiresAt) => isEnglish
       ? 'Available until ${expiresAt.toLocal().year}-${expiresAt.toLocal().month.toString().padLeft(2, '0')}-${expiresAt.toLocal().day.toString().padLeft(2, '0')}'
@@ -47,8 +49,8 @@ class AppStrings {
   String get premiumPaywallTitle =>
       isEnglish ? 'Upgrade to Premium' : '프리미엄으로 업그레이드';
   String get premiumPaywallBody => isEnglish
-      ? 'Use AI summaries and semantic search, and focus without banner ads while Premium is active.'
-      : 'AI 요약과 말로 검색을 이용하고, 프리미엄 기간에는 배너 광고 없이 메모에 집중하세요.';
+      ? 'Use semantic search, and focus without banner ads while Premium is active.'
+      : '말로 검색을 이용하고, 프리미엄 기간에는 배너 광고 없이 메모에 집중하세요.';
   String get premiumSubscribe => isEnglish ? 'Subscribe monthly' : '월 구독 시작';
   String premiumPrice(String price) =>
       isEnglish ? '$price / month' : '월 $price';
@@ -204,28 +206,12 @@ class AppStrings {
   String get nothingToShare => isEnglish ? 'Nothing to share.' : '공유할 내용이 없습니다.';
   String shareFailed(Object error) =>
       isEnglish ? 'Share failed: $error' : '공유 실패: $error';
-  String get summaryDailyLimit => isEnglish
-      ? "You've reached today's 30 AI summary limit."
-      : '오늘 AI 요약 30회 한도에 도달했습니다.';
-  String get summaryTextInvalid => isEnglish
-      ? 'Memos to summarize must be 4,000 characters or fewer.'
-      : '요약할 메모는 4,000자 이하여야 합니다.';
-  String get summaryUnconfigured => isEnglish
-      ? 'The AI summary server is being prepared.'
-      : 'AI 요약 서버를 준비 중입니다.';
-  String get summaryFailed => isEnglish
-      ? 'Could not load the AI summary. Please try again later.'
-      : 'AI 요약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.';
-  String get enterContentToSummarize =>
-      isEnglish ? 'Enter content to summarize.' : '요약할 내용을 입력해주세요.';
   String get discardConfirmTitle => isEnglish ? 'Discard changes?' : '취소하시겠습니까?';
   String get discardConfirmBody =>
       isEnglish ? 'Your edits will not be saved.' : '수정한 내용이 저장되지 않습니다.';
   String get keepEditing => isEnglish ? 'Keep editing' : '계속수정';
   String get editMemoTitle => isEnglish ? 'Edit memo' : '메모수정';
   String get newMemoTitle => isEnglish ? 'New memo' : '새메모';
-  String get aiSummary => isEnglish ? 'AI summary' : 'AI 요약';
-  String get summarizing => isEnglish ? 'Summarizing...' : '요약 중...';
   String get contentHint => isEnglish ? 'Type your memo...' : '내용을 입력하세요...';
 
   // 기기 내 뜻 검색 모델 (MiniLM) 행·다이얼로그
@@ -326,7 +312,8 @@ class AppStrings {
   String get themeDark => isEnglish ? 'Dark' : '다크';
 
   // 프리미엄 paywall 기능 라벨
-  String get premiumFeatureAiSummaries => isEnglish ? 'AI summaries' : 'AI 요약';
+  //   ※ AI 요약 라벨은 T-260804-078 에서 제거했다 — 기능이 T-260804-062 로 사라졌는데
+  //     결제화면만 계속 팔고 있었다. 되살리려면 기능이 먼저다.
   String get premiumFeatureSemanticSearch =>
       isEnglish ? 'Semantic search' : '말로 검색';
   String get premiumFeatureAdFree => isEnglish
@@ -337,9 +324,6 @@ class AppStrings {
   String get madeBy => isEnglish ? 'Minus Beta Studio' : '마이너스베타스튜디오';
   String versionLine(String version) =>
       isEnglish ? 'v$version · Minus Beta Studio' : 'v$version · 마이너스베타스튜디오';
-  String summaryUsage(int remaining, int limit) => isEnglish
-      ? '$remaining left today · $limit per day'
-      : '오늘 $remaining회 남음 · 일일 $limit회';
   String get docLoadFailed =>
       isEnglish ? 'Could not load the document' : '문서를 불러올 수 없습니다';
   String get untitledMemo => isEnglish ? 'New memo' : '새 메모';
