@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_strings.dart';
+import '../features/memos/semantic_search_availability.dart';
 import '../features/memos/services/embedding_engine.dart';
 import '../features/memos/services/mini_lm_model_controller.dart';
 import '../features/memos/services/mini_lm_model_installer.dart';
@@ -413,10 +414,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const Divider(height: 0.5, thickness: 0.5),
             // ★「프리미엄」 엔티틀먼트 카드 제거 — T-260805-076. 사유는 이 화면 상단 주석.
-            if (_miniLmModelManager case final manager?) ...[
-              MiniLmModelSettingsTile(manager: manager),
-              const Divider(height: 0.5, thickness: 0.5),
-            ],
+            // ★T-260805-145 — 말로찾기가 잠긴 동안에는 이 타일이 124MB 설치를 권하지 않는다.
+            //   판정은 miniLmTileVisible 하나뿐이다(리터럴 복제 금지 — availability 파일 주석).
+            //   AnimatedBuilder 로 감싸는 이유 = 설치가 끝나 ready 로 바뀌는 순간 타일이
+            //   나타나야 하고, 삭제로 absent 가 되면 다시 사라져야 하기 때문이다.
+            if (_miniLmModelManager case final manager?)
+              AnimatedBuilder(
+                animation: manager,
+                builder: (context, _) {
+                  final visible = miniLmTileVisible(
+                    installed: manager.state == MiniLmModelState.ready,
+                  );
+                  if (!visible) return const SizedBox.shrink();
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      MiniLmModelSettingsTile(manager: manager),
+                      const Divider(height: 0.5, thickness: 0.5),
+                    ],
+                  );
+                },
+              ),
             ValueListenableBuilder<bool>(
               valueListenable: AdsService.instance.removeAds,
               builder: (context, removed, _) {
