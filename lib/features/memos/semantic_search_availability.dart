@@ -27,3 +27,16 @@ const bool kSemanticSearchEnabled = bool.fromEnvironment(
   'MEMOYO_SEMANTIC_SEARCH',
   defaultValue: false,
 );
+
+/// 설정 화면의 「기기 내 뜻 검색 모델」 타일을 보일지 — T-260805-145.
+///
+/// 잠금 중에는 ★설치를 권하지 않는다. 검색 UI 는 위 상수로 가려지는데 이 타일만 게이트 밖이라,
+/// 쓸 수 없는 기능을 위해 124MB 를 받으라고 권하는 상태였다.
+///
+/// ★단, 이미 받은 사람에게는 남긴다. 타일을 통째로 없애면 삭제 버튼이 함께 사라져 124MB 를
+/// 회수할 문이 닫힌다 — 잠금이 사용자 손해로 바뀌는 지점이다. 줄이는 방향이 아니라
+/// 「없는 기능을 안 판다」 방향이어야 한다.
+///
+/// 회귀축 = test/features/memos/semantic_search_hidden_test.dart (d)(e).
+bool miniLmTileVisible({required bool installed}) =>
+    kSemanticSearchEnabled || installed;
