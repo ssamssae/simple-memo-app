@@ -78,28 +78,30 @@ void main() {
   //   ★이 축이 없으면 062 의 재발을 못 막는다: 기능은 지웠는데 결제화면·설정화면이
   //   두 달간 「AI 요약」을 계속 팔고 있었고, 코드 검사는 전부 초록이었다.
   //   문자열 스캔이 아니라 ★getter 를 실제로 불러서 본다 — 문구가 어느 파일에 있든 잡힌다.
-  test('프리미엄 판매 문구가 AI 요약을 광고하지 않는다 (ko·en 양쪽)', () {
+  // ★T-260805-076 로 검사 대상이 바뀌었다. 구독(premium_monthly)이 폐지되면서
+  //   구독 판매 문구 getter 들이 사라졌으므로, 이 축은 ★지금 실제로 파는 상품인
+  //   광고제거(remove_ads)의 문구를 본다. 축의 목적은 그대로다 —
+  //   「손님이 읽는 판매 문구가 앱에 없는 기능을 팔지 않는다」.
+  test('판매 문구가 AI 요약을 광고하지 않는다 (ko·en 양쪽)', () {
     for (final code in ['ko', 'en']) {
       final s = AppStrings.fromCode(code);
       final sales = <String, String>{
-        'premiumTitle': s.premiumTitle,
-        'premiumSubtitle': s.premiumSubtitle,
-        'premiumPaywallTitle': s.premiumPaywallTitle,
-        'premiumPaywallBody': s.premiumPaywallBody,
-        'premiumFeatureSemanticSearch': s.premiumFeatureSemanticSearch,
-        'premiumFeatureAdFree': s.premiumFeatureAdFree,
+        'removeAds': s.removeAds,
+        'removeAdsOneTime': s.removeAdsOneTime,
+        'removeAdsPrepared': s.removeAdsPrepared,
+        'thanksForUsing': s.thanksForUsing,
       };
 
       // ★양성 대조군 — 문구를 실제로 읽고 있음을 먼저 증명한다. 이게 없으면 빈 문자열
-      //   6개를 검사하고도 초록이 나고, 그 초록은 아무것도 안 잰 초록이다.
+      //   4개를 검사하고도 초록이 나고, 그 초록은 아무것도 안 잰 초록이다.
       expect(
         sales.values.every((v) => v.trim().isNotEmpty),
         isTrue,
         reason: '판매 문구가 비었다 — 검사가 죽은 것이 먼저다 ($code)',
       );
       expect(
-        sales['premiumFeatureSemanticSearch']!.toLowerCase(),
-        contains(code == 'en' ? 'search' : '검색'),
+        sales['removeAdsOneTime']!.toLowerCase(),
+        contains(code == 'en' ? 'ad' : '광고'),
         reason: '대조군 실패 — 실재하는 혜택 문구조차 못 읽었다 ($code)',
       );
 

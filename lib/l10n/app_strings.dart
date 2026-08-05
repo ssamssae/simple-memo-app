@@ -36,29 +36,12 @@ class AppStrings {
   String get removeAdsPrepared => isEnglish ? 'Preparing product' : '상품 준비중';
   String get removeAdsOneTime =>
       isEnglish ? 'Remove banner ads with one purchase' : '한 번 결제로 배너 광고 제거';
-  String get premiumTitle => isEnglish ? 'Memoyo Premium' : '메모요 프리미엄';
-  // T-260804-078: 유료 AI 요약이 제거됐으므로(T-260804-062) 판매 문구에서도 뺀다.
-  //   구독이 실제로 주는 것 = 말로 검색 + 프리미엄 기간 광고 숨김.
-  String get premiumSubtitle => isEnglish
-      ? 'Semantic search · ₩1,900/month'
-      : '말로 검색 · 월 ₩1,900';
-  String get premiumActive => isEnglish ? 'Premium active' : '프리미엄 사용 중';
-  String premiumExpires(DateTime expiresAt) => isEnglish
-      ? 'Available until ${expiresAt.toLocal().year}-${expiresAt.toLocal().month.toString().padLeft(2, '0')}-${expiresAt.toLocal().day.toString().padLeft(2, '0')}'
-      : '${expiresAt.toLocal().year}.${expiresAt.toLocal().month.toString().padLeft(2, '0')}.${expiresAt.toLocal().day.toString().padLeft(2, '0')}까지 사용 가능';
-  String get premiumPaywallTitle =>
-      isEnglish ? 'Upgrade to Premium' : '프리미엄으로 업그레이드';
-  String get premiumPaywallBody => isEnglish
-      ? 'Use semantic search, and focus without banner ads while Premium is active.'
-      : '말로 검색을 이용하고, 프리미엄 기간에는 배너 광고 없이 메모에 집중하세요.';
-  String get premiumSubscribe => isEnglish ? 'Subscribe monthly' : '월 구독 시작';
-  String premiumPrice(String price) =>
-      isEnglish ? '$price / month' : '월 $price';
-  String get premiumStorePriceFallback =>
-      isEnglish ? '₩1,900 / month' : '월 ₩1,900';
-  String get premiumPrepared =>
-      isEnglish ? 'Subscription product is being prepared' : '구독 상품을 준비 중이에요';
-  String get premiumRestore => isEnglish ? 'Restore Premium' : '프리미엄 복원';
+  // ★구독(premium_monthly) 판매 문구 전량 삭제 — T-260805-076.
+  //   지운 것 = premiumTitle/Subtitle/Active/Expires/PaywallTitle/PaywallBody/
+  //   Subscribe/Price/StorePriceFallback/Prepared/Restore. 삭제 시점 호출처 0곳이었다.
+  //   ★남겨 두지 않은 이유 = 이 getter 들이 「월 ₩1,900」을 문자열로 들고 있었다.
+  //   상품이 없는데 가격 문구가 코드에 남아 있으면, 화면에 한 줄 붙이는 것만으로
+  //   팔지 않는 물건이 되살아난다. 되살리려면 상품 등록이 먼저다.
 
   // T-260719-018: 온디바이스 모델 설치 진행/실패 피드백 (신규 문구 — 기존 문구 이관은 T-260719-019)
   String get minilmPreparingDownload =>
@@ -74,12 +57,9 @@ class AppStrings {
       : '설치 실패: 저장 공간 부족 · 다시 시도';
   String get minilmInstallFailedGeneric =>
       isEnglish ? 'Install failed · Tap to retry' : '설치 실패 · 다시 시도';
-  String get premiumCouponNote => isEnglish
-      ? 'If you bought Remove ads, restore purchases to apply a one-month thank-you coupon once.'
-      : '광고 제거 구매자는 구매 복원 시 1개월 감사 쿠폰이 1회 자동 적용됩니다.';
-  String get premiumTermsNote => isEnglish
-      ? 'Auto-renews monthly. Manage or cancel in your App Store or Google Play subscription settings.'
-      : '매월 자동 갱신됩니다. 해지와 관리는 App Store 또는 Google Play 구독 설정에서 할 수 있습니다.';
+  // ★premiumCouponNote / premiumTermsNote 삭제 — T-260805-076. 둘 다 결제화면 전용이었고
+  //   그 화면이 사라져 호출처가 0곳이었다. TermsNote 는 「매월 자동 갱신」을 말하는데
+  //   자동갱신 상품 자체가 없어졌으므로 남기면 거짓 고지가 된다.
   String get restorePurchases => isEnglish ? 'Restore purchases' : '구매 복원';
   String get backupRestore => isEnglish ? 'Backup & restore' : '백업 & 복원';
   String get trash => isEnglish ? 'Trash' : '휴지통';
@@ -314,11 +294,9 @@ class AppStrings {
   // 프리미엄 paywall 기능 라벨
   //   ※ AI 요약 라벨은 T-260804-078 에서 제거했다 — 기능이 T-260804-062 로 사라졌는데
   //     결제화면만 계속 팔고 있었다. 되살리려면 기능이 먼저다.
-  String get premiumFeatureSemanticSearch =>
-      isEnglish ? 'Semantic search' : '말로 검색';
-  String get premiumFeatureAdFree => isEnglish
-      ? 'No banner ads while Premium is active'
-      : '프리미엄 기간 광고 숨김';
+  // ★premiumFeatureSemanticSearch / premiumFeatureAdFree 삭제 — T-260805-076.
+  //   구독 혜택 목록이었고 결제화면에서만 쓰였다. 광고 숨김은 이제 구독 기간이 아니라
+  //   광고제거 단품(remove_ads)이 주는 것이라, 문구를 옮기지 않고 지운다.
 
   // 기타
   String get madeBy => isEnglish ? 'Minus Beta Studio' : '마이너스베타스튜디오';

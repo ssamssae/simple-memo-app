@@ -11,8 +11,6 @@ import '../features/memos/services/mini_lm_model_installer.dart';
 import '../features/memos/services/mini_lm_runtime.dart';
 import '../features/memos/widgets/mini_lm_model_settings_tile.dart';
 import '../services/ads_service.dart';
-import '../services/premium_purchase.dart';
-import '../services/premium_service.dart';
 import '../services/app_review_service.dart';
 import '../services/remove_ads_purchase.dart';
 import '../services/settings_service.dart';
@@ -22,21 +20,26 @@ import 'help_faq_screen.dart';
 import 'policy_screen.dart';
 import 'trash_screen.dart';
 
-/// ★구독(premium_monthly) 판매 종료 — T-260804-090 (parent T-260804-082 2페이즈).
+/// ★구독(premium_monthly) ★완전 제거 — T-260805-076 (선행 T-260804-090 은 진입만 절단).
 ///
-/// 아니키 결정 2026-08-04: 구독 상품을 접고 광고제거 단품(remove_ads)만 판다. 이 화면에 있던
-/// 결제 화면 진입(_openPaywall → PaywallScreen)과 비구독자용 판매 문구를 끊었다.
+/// 아니키 결정 2026-08-04: 구독 상품을 접고 광고제거 단품(remove_ads)만 판다.
+/// 2026-08-05 지시로 잔존 코드까지 걷었다 — 이 앱이 파는 상품은 이제 `remove_ads` 하나뿐이다.
 ///
-/// ■파는 쪽만 걷고 ★읽는 쪽은 남긴다
-///   `PremiumService.isPremium` / entitlement 읽기와 `PremiumPurchase.restore` 는 그대로다.
-///   기존 구독자는 아직 환불받지 못했고(T-260804-082 4페이즈, 실인원 조회조차 안 됨),
-///   광고 제거가 그들에게 남은 유일한 실질 혜택이다 — 돈은 냈는데 물건이 사라지면 안 된다.
-///   ⇒ 유예(grandfather)다. 제거는 환불 완주 뒤 별건으로 한다.
+/// ■유예(grandfather)를 접은 근거 = ★구독 결제자 0명
+///   T-260804-090 시점에는 「돈 낸 사람의 혜택을 뺏지 않는다」로 읽는 쪽을 남겼는데,
+///   그때는 실인원을 몰랐다. T-260805-001 이 3면 독립 실측으로 ★0명을 확정했다
+///   (서버 엔티틀먼트 D1 `memoyo_entitlements` 0 · `memoyo_coupon_grants` 0, 양성 대조군 `orders` 11).
+///   보호할 대상이 0명이면 유예는 보호가 아니라 죽은 코드다. ⇒ 걷었다.
 ///
-/// ■PaywallScreen 파일을 지우지 않은 이유
-///   진입점을 끊으면 도달 불가가 된다. 파일을 지우면 `search_screen.dart` 의 참조까지
-///   손대야 하는데 그쪽은 말로찾기 스위치(T-260804-086) 영역이라 이 티켓의 무접촉 경계다.
-///   원칙 7(가역 우선)에 따라 보관하고 길만 막았다. 회귀축이 「판매 진입 0건」을 지킨다.
+/// ■그런데 왜 `PremiumService` 는 남아 있나
+///   그건 파는 쪽이 아니라 ★읽는 쪽이다. 광고제거 구매자의 서버 쿠폰 엔티틀먼트
+///   (`claimRemoveAdsCoupon`, source=removeAdsCoupon)를 받아 `ad_banner` 가 배너를 끄는 축이다.
+///   이름에 premium 이 들어갔다고 구독 코드로 오독하지 마라 — 지우면 광고제거가 깨진다.
+///
+/// ■이 화면에서 함께 사라진 것 = 「프리미엄」 엔티틀먼트 카드
+///   entitlement.active 로만 렌더하던 칸인데, ★remove_ads 쿠폰도 그 플래그를 켠다.
+///   구독이 없어진 뒤에도 남겨 두면 ₩3,300 광고제거를 산 사람에게 「프리미엄」이라고
+///   잘못 이름 붙이게 된다. 없는 상품의 이름을 화면에 남기지 않는다.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     super.key,
@@ -221,8 +224,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  // ★복원 대상은 광고제거(remove_ads) 단품 하나다 — T-260805-076.
+  //   종전에는 구독 래퍼(PremiumPurchase)를 통해 복원을 걸었는데, 그 클래스가
+  //   사라졌다. 스토어 API 호출 자체는 상품 구분 없는 restorePurchases() 라서
+  //   동작은 동일하고, ★파는 상품이 하나뿐인 현실과 코드가 같은 말을 하게 됐다.
   Future<void> _restorePurchases() async {
-    await PremiumPurchase.instance.restore();
+    await RemoveAdsPurchase.instance.restore();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppStrings.of(context).restoringPurchases)),
@@ -405,44 +412,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onTap: _sendFeedback,
             ),
             const Divider(height: 0.5, thickness: 0.5),
-            ValueListenableBuilder(
-              valueListenable: PremiumService.instance.entitlement,
-              builder: (context, entitlement, _) {
-                // ★구독 판매 종료 (T-260804-090, parent T-260804-082 2페이즈).
-                //   비구독자에게는 이 칸 자체를 안 보인다 — 그래야 파는 문구
-                //   (strings.premiumSubtitle)와 결제 진입이 ★동시에 사라진다. 문구만 바꾸고
-                //   칸을 남기면 「눌러도 아무 일 없는 카드」가 되고, 그건 죽은 버튼이다.
-                //   구독중인 사람에게는 만료일만 남긴다 — 없애면 자기 구독이 언제까지인지
-                //   볼 곳이 사라진다. onTap·chevron 을 뗐으므로 여기서 결제로 갈 길은 없다.
-                if (!entitlement.active) return const SizedBox.shrink();
-                final expiresAt = entitlement.expiresAt;
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                      ),
-                      leading: const Icon(
-                        Icons.verified_outlined,
-                        color: Color(0xFF7C5CFF),
-                      ),
-                      title: Text(
-                        strings.premiumTitle,
-                        style: TextStyle(color: primaryColor),
-                      ),
-                      subtitle: expiresAt == null
-                          ? null
-                          : Text(
-                              strings.premiumExpires(expiresAt),
-                              style: TextStyle(color: secondaryColor),
-                            ),
-                    ),
-                    const Divider(height: 0.5, thickness: 0.5),
-                  ],
-                );
-              },
-            ),
+            // ★「프리미엄」 엔티틀먼트 카드 제거 — T-260805-076. 사유는 이 화면 상단 주석.
             if (_miniLmModelManager case final manager?) ...[
               MiniLmModelSettingsTile(manager: manager),
               const Divider(height: 0.5, thickness: 0.5),

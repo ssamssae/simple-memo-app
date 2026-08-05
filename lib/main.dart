@@ -8,7 +8,6 @@ import 'l10n/app_strings.dart';
 import 'screens/splash_screen.dart';
 import 'services/ads_service.dart';
 import 'services/crash_log.dart';
-import 'services/premium_purchase.dart';
 import 'services/premium_service.dart';
 import 'services/remove_ads_purchase.dart';
 import 'services/settings_service.dart';
@@ -41,10 +40,12 @@ Future<void> main() async {
   runZonedGuarded(
     () async {
       // 수익화 초기화 (배너 광고 / 광고제거 IAP) — 스플래시를 막지 않도록 비동기.
+      // ★파는 상품은 광고제거(remove_ads) 단품 하나뿐이다 — 구독(premium_monthly)
+      //   초기화는 T-260805-076 으로 제거했다. PremiumService 는 남는데, 그건
+      //   광고제거 구매자의 서버 엔티틀먼트를 읽는 쪽이라서다(파는 쪽 아님).
       AdsService.instance.init();
       PremiumService.instance.init();
       RemoveAdsPurchase.instance.init();
-      PremiumPurchase.instance.init();
       await SettingsService.instance.init();
       runApp(const MemoApp());
     },
