@@ -22,8 +22,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/features/memos/semantic_search_availability.dart';
 import 'package:simple_memo_app/features/memos/services/memoyo_embedding_client.dart';
+import 'package:simple_memo_app/features/memos/services/mini_lm_model_controller.dart';
 import 'package:simple_memo_app/models/memo.dart';
 import 'package:simple_memo_app/screens/search_screen.dart';
+import 'package:simple_memo_app/screens/settings_screen.dart';
 import 'package:simple_memo_app/services/premium_entitlement_client.dart';
 import 'package:simple_memo_app/services/premium_service.dart';
 
@@ -138,4 +140,72 @@ void main() {
     expect(kSemanticSearchEnabled, isFalse,
         reason: '말로찾기 기본값이 켜졌다 — 온디바이스 완성 전이라면 비용이 되살아난다');
   });
+
+  // ■(d)(e) 가 왜 뒤늦게 붙었나 — T-260805-145
+  //   (a)(b)(c) 는 ★검색 화면만 셌다. 그런데 잠긴 기능을 파는 표면이 하나 더 있었다:
+  //   설정 화면의 「기기 내 뜻 검색 모델 · 약 124MB」 타일이다. 검색 UI 는 플래그로 가려지는데
+  //   그 타일만 게이트 밖이라, 출고본에서 ★쓸 수 없는 기능을 위해 124MB 를 받으라고 권했다.
+  //   스토어 스크린샷에서 폐지 문구를 걷던 중(T-260805-129) 새로 찍은 07_settings.png 픽셀에
+  //   그 행이 남아 발견됐다. 화면 목록이 플래그 목록과 어긋나면 걸리도록 여기 축을 세운다(원칙 10).
+
+  testWidgets('(d) 잠금 상태에서 설정 화면이 모델 설치를 권하지 않는다', (tester) async {
+    // 미설치(absent) = 타일이 다운로드를 ★권하는 상태. 이 배치가 정확히 문제였던 배치다.
+    final manager = _FakeModelManager(MiniLmModelState.absent);
+    addTearDown(manager.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: SettingsScreen(miniLmModelManager: manager)),
+    );
+    await tester.pumpAndSettle();
+
+    // ★대조군 먼저 — 설정 화면이 실제로 떴는지 증명한다. 화면이 안 떴으면 아래 findsNothing 은
+    //   「감췄다」가 아니라 「아무것도 안 그려졌다」의 0건이고, 그건 눈먼 초록이다.
+    expect(find.text('글자 크기'), findsOneWidget,
+        reason: '설정 화면이 안 떴다 — 아래 findsNothing 판정이 무의미해진다');
+
+    expect(find.byKey(const Key('minilm-model-tile')), findsNothing,
+        reason: '잠긴 기능의 124MB 모델 설치를 설정 화면이 여전히 권한다 (T-260805-145)');
+  });
+
+  testWidgets('(e) 이미 받은 기기에서는 타일이 남아 용량을 지울 수 있다', (tester) async {
+    // ★고지를 줄이는 방향이 아니라 없는 기능을 안 파는 방향이다.
+    //   (d) 를 「타일을 통째로 없앤다」로 구현하면 이미 124MB 를 받은 사람에게서 ★삭제 버튼까지
+    //   사라져 용량을 회수할 문이 닫힌다. 잠금이 사용자 손해로 바뀌는 지점이라 축으로 고정한다.
+    final manager = _FakeModelManager(MiniLmModelState.ready);
+    addTearDown(manager.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(home: SettingsScreen(miniLmModelManager: manager)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('minilm-model-tile')), findsOneWidget,
+        reason: '이미 설치된 모델의 타일까지 감췄다 — 124MB 를 지울 문이 사라진다');
+    expect(find.byKey(const Key('minilm-delete-button')), findsOneWidget,
+        reason: '삭제 버튼이 없다 — 타일만 남고 회수 경로가 없으면 (e) 의 목적이 무너진다');
+  });
+}
+
+class _FakeModelManager extends MiniLmModelManager {
+  _FakeModelManager(this._state);
+
+  final MiniLmModelState _state;
+
+  @override
+  String? get errorCode => null;
+
+  @override
+  double get progress => 0;
+
+  @override
+  MiniLmModelState get state => _state;
+
+  @override
+  Future<void> refresh() async {}
+
+  @override
+  Future<void> install() async {}
+
+  @override
+  Future<void> delete() async {}
 }

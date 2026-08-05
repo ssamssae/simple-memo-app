@@ -24,6 +24,24 @@ void main() {
     expect(find.textContaining('설치됨'), findsOneWidget);
   });
 
+  // ★T-260805-145 로 이 파일에 이사 온 축.
+  //   원래 settings_screen_test.dart 의 「미지원 기기는 Gemini 폴백을 표시한다」가 이걸 쟀는데,
+  //   그 테스트는 ★설정 화면에 타일이 보인다는 전제 위에 서 있었다. 말로찾기가 잠긴 동안
+  //   설정 화면은 그 타일을 아예 안 보여주는 것이 새 계약이라 그 자리에서는 잴 수 없다.
+  //   그렇다고 지우면 unsupported 소제목을 재는 유일한 축이 사라지므로, 게이트가 걸리지 않는
+  //   ★타일 단위인 여기로 옮긴다. (계약은 바뀌었지만 커버리지는 안 잃는다)
+  testWidgets('unsupported device shows the Gemini fallback subtitle', (
+    tester,
+  ) async {
+    final manager = _FakeModelManager(MiniLmModelState.unsupported);
+    await tester.pumpWidget(_app(manager));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('minilm-model-tile')), findsOneWidget);
+    expect(find.text('기기 내 뜻 검색 모델'), findsOneWidget);
+    expect(find.text('이 기기에서는 Gemini 검색을 사용합니다'), findsOneWidget);
+  });
+
   testWidgets('installed model deletion also requires confirmation', (
     tester,
   ) async {
