@@ -16,12 +16,9 @@ import 'package:integration_test/integration_test.dart';
 import 'package:simple_memo_app/main.dart';
 import 'package:simple_memo_app/features/memos/services/memoyo_embedding_client.dart';
 import 'package:simple_memo_app/models/memo.dart';
-import 'package:simple_memo_app/screens/paywall_screen.dart';
 import 'package:simple_memo_app/screens/search_screen.dart';
 import 'package:simple_memo_app/services/ads_service.dart';
 import 'package:simple_memo_app/services/memo_storage.dart';
-import 'package:simple_memo_app/services/premium_entitlement_client.dart';
-import 'package:simple_memo_app/services/premium_service.dart';
 import 'package:simple_memo_app/services/settings_service.dart';
 
 /// 통합테스트 바인딩. main() 이 채우고 captureStoreShot 이 실제 픽셀을 뜬다.
@@ -114,7 +111,7 @@ void main() {
     // ① 메인 메모 리스트 (다크)
     await captureStoreShot(tester, '01-main');
 
-    // ② 설정 탭 (프리미엄·구매 복원·정책 포함)
+    // ② 설정 탭 (광고제거·구매 복원·정책 포함)
     await tester.tap(find.text('설정').last);
     await pumpUi(tester);
     await captureStoreShot(tester, '02-settings');
@@ -126,21 +123,12 @@ void main() {
     await tester.tap(find.byType(BackButton));
     await pumpUi(tester);
 
-    // ④ 프리미엄 구독 화면 — 심사 캡처용 가격만 주입, 결제 호출 없음.
-    final settingsContext = tester.element(find.byType(Scaffold).last);
-    unawaited(
-      Navigator.of(settingsContext).push<void>(
-        MaterialPageRoute(
-          builder: (_) => const PaywallScreen(storePreviewPrice: '₩1,900'),
-        ),
-      ),
-    );
-    await pumpUi(tester);
-    await captureStoreShot(tester, '04-premium');
+    // ★④ '04-premium'(구독 결제화면 ₩1,900) 컷 제거 — T-260805-076.
+    //   구독 상품이 폐지됐으므로 이 컷을 스토어에 올리면 ★팔지 않는 물건을 광고하게 된다.
+    //   (같은 유형의 결함이 T-260804-084 = 스토어 리스팅이 없어진 AI 요약을 계속 파는 건이다.)
+    //   장수가 준 것은 누락이 아니라 의도다 — 캡처 세트는 파는 것만 보여준다.
 
-    // 프리미엄 → 설정 → 메모 탭 복귀
-    await tester.tap(find.byType(BackButton));
-    await pumpUi(tester);
+    // 설정 → 메모 탭 복귀
     await tester.tap(find.text('메모').last);
     await pumpUi(tester);
 
@@ -155,15 +143,12 @@ void main() {
     await pumpUi(tester, const Duration(milliseconds: 300));
     await captureStoreShot(tester, '05-edit');
 
-    // 편집 화면을 닫고 AI 기능 캡처용 프리미엄 권한을 로컬 테스트 상태로 설정.
+    // 편집 화면을 닫는다.
+    // ★프리미엄 권한 주입 제거 — T-260805-076. 종전에는 말로찾기 캡처를 위해
+    //   구독 엔티틀먼트를 켰는데, 구독 폐지로 search_screen 의 결제 관문이 사라졌다.
+    //   지금 말로찾기를 여는 열쇠는 kSemanticSearchEnabled 하나뿐이라 주입이 무의미하다.
     await tester.tap(find.text('뒤로'));
     await pumpUi(tester);
-    PremiumService.instance.entitlement.value = PremiumEntitlement(
-      premium: true,
-      productId: PremiumEntitlementClient.premiumProductId,
-      expiresAt: DateTime(2999),
-      source: PremiumEntitlementSource.subscription,
-    );
 
     // ⑦ 뜻으로 찾기 — 실제 SearchScreen + 테스트 임베딩 전송계층.
     final embeddingClient = MemoyoEmbeddingClient(
@@ -215,8 +200,5 @@ void main() {
       await pumpUi(tester, const Duration(milliseconds: 300));
       await captureStoreShot(tester, '07-semantic-search');
     }
-
-    PremiumService.instance.entitlement.value =
-        const PremiumEntitlement.inactive();
   });
 }

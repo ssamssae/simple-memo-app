@@ -7,12 +7,11 @@ import 'package:simple_memo_app/features/memos/services/gemini_embedding_engine.
 import 'package:simple_memo_app/features/memos/services/memoyo_embedding_client.dart';
 import 'package:simple_memo_app/features/memos/services/semantic_search_coordinator.dart';
 import 'package:simple_memo_app/models/memo.dart';
-import 'package:simple_memo_app/screens/paywall_screen.dart';
 import 'package:simple_memo_app/screens/search_screen.dart';
 import 'package:simple_memo_app/services/premium_entitlement_client.dart';
 import 'package:simple_memo_app/services/premium_service.dart';
 
-// ★이 파일의 두 테스트는 말로찾기를 ★UI 세그먼트를 눌러서 검증한다. T-260804-086 으로 그
+// ★이 파일의 테스트는 말로찾기를 ★UI 세그먼트를 눌러서 검증한다. T-260804-086 으로 그
 //   세그먼트를 감췄기 때문에 잠금 상태에서는 누를 대상이 없어 반드시 실패한다.
 //   ⇒ 지우지 않고 skip 으로 재운다. 이유는 가역성이다 — 온디바이스가 완성돼
 //   kSemanticSearchEnabled 가 true 가 되면 ★이 두 본이 자동으로 깨어난다.
@@ -34,20 +33,10 @@ void main() {
         const PremiumEntitlement.inactive();
   });
 
-  testWidgets('semantic mode tap without premium opens paywall', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({
-      'memos': Memo.encodeList([m('a', '치과 예약')]),
-    });
-
-    await tester.pumpWidget(const MaterialApp(home: SearchScreen()));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('뜻으로 찾기'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(PaywallScreen), findsOneWidget);
-  }, skip: _semanticHidden);
+  // ★삭제된 본 = 'semantic mode tap without premium opens paywall' (T-260805-076).
+  //   구독 폐지로 PaywallScreen 자체가 사라졌다. 이건 잠자던 테스트를 깨울 때
+  //   되살릴 것이 아니다 — 「비구독자는 결제화면으로 간다」는 계약이 이제 존재하지 않는다.
+  //   말로찾기 잠금 계약은 test/features/memos/semantic_search_hidden_test.dart 가 지킨다.
 
   testWidgets(
     'premium semantic mode refreshes embeddings and returns cosine match',

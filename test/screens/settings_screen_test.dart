@@ -233,10 +233,14 @@ void main() {
     expect(find.textContaining('메모는 어디에 저장되나요'), findsOneWidget);
   });
 
-  // ★뒤집힌 테스트 — 종전 이름은 「구독 진입점이 표시된다」였다. T-260804-090 으로 구독 판매를
-  //   접었으므로 그 단언은 이제 ★사실과 반대다. 지우지 않고 새 사실로 갱신한다: 구독중인
-  //   사람에게는 상태 칸이 남고, 파는 값(가격)은 어디에도 안 뜬다.
-  testWidgets('구독중인 사용자에게는 상태 칸만 남고 판매 가격은 안 뜬다', (tester) async {
+  // ★두 번 뒤집힌 테스트 — ①「구독 진입점이 표시된다」 → ②T-260804-090「상태 칸만 남는다」
+  //   → ③T-260805-076「칸 자체가 없다」. 매번 지우는 대신 사실을 갱신해 회귀축을 유지한다.
+  //
+  //   ★이 본이 실제로 지키는 것은 오표시 방지다. entitlement.active 는 구독뿐 아니라
+  //   ★광고제거(remove_ads) 쿠폰으로도 켜진다(PremiumEntitlementSource.removeAdsCoupon).
+  //   그래서 「active 면 프리미엄 칸을 그린다」를 남겨 두면, ₩3,300 광고제거를 산 사람이
+  //   자기가 사지도 않은 「메모요 프리미엄」 구독자로 표시된다. 아래 단언이 그 길을 막는다.
+  testWidgets('엔티틀먼트가 살아 있어도 프리미엄 칸·가격이 뜨지 않는다', (tester) async {
     PremiumService.instance.entitlement.value = PremiumEntitlement(
       premium: true,
       productId: PremiumEntitlementClient.premiumProductId,
@@ -249,17 +253,22 @@ void main() {
     });
 
     await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
-
-    await tester.scrollUntilVisible(
-      find.text('메모요 프리미엄'),
-      160,
-      scrollable: find.byType(Scrollable),
-    );
+    await tester.pumpAndSettle();
+    // 칸이 없다는 단언이므로 스크롤로 화면 전체를 훑은 뒤 판정한다 —
+    // ★안 훑고 findsNothing 을 부르면 "아직 안 보이는 것"을 "없는 것"으로 오판한다.
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -2000));
     await tester.pumpAndSettle();
 
-    expect(find.text('메모요 프리미엄'), findsOneWidget);
-    // ★가격은 파는 문구다. 구독중인 사람 화면에도 남으면 안 판다는 말과 어긋난다.
+    // ★양성 대조군 — 리스트 맨 아래(VersionFooter)가 잡히는지 먼저 본다. 이게 안 잡히면
+    //   아래 findsNothing 두 줄은 「없다」가 아니라 「아직 안 그렸다」를 재고 있는 것이고,
+    //   그때 이 테스트는 초록인 채로 아무것도 안 지킨다.
+    expect(find.textContaining('마이너스베타스튜디오'), findsWidgets,
+        reason: '스크롤이 리스트 끝에 도달하지 못했다 — 아래 부재 단언을 믿을 수 없다');
+
+    expect(find.text('메모요 프리미엄'), findsNothing,
+        reason: '구독 폐지(T-260805-076) 후에도 프리미엄 칸이 남아 있다 — '
+            '광고제거 구매자가 구독자로 오표시된다');
     expect(find.textContaining('월 ₩1,900'), findsNothing,
-        reason: '구독 판매 가격이 되살아났다 (T-260804-090 으로 판매 종료)');
+        reason: '구독 판매 가격이 되살아났다 (T-260805-076 으로 상품 폐지)');
   });
 }

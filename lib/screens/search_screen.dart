@@ -15,7 +15,6 @@ import '../services/memo_storage.dart';
 import '../services/premium_service.dart';
 import '../services/search_service.dart';
 import 'memo_edit_screen.dart';
-import 'paywall_screen.dart';
 import '../l10n/app_strings.dart';
 
 
@@ -121,13 +120,9 @@ class _SearchScreenState extends State<SearchScreen> {
     //   그래도 막아 둔다: 나중에 누가 다른 진입점(메뉴·단축키·딥링크)을 붙이면 UI 만 고치고
     //   이 함수는 안 볼 텐데, 그러면 잠금이 조용히 풀린다.
     if (!kSemanticSearchEnabled && next == _SearchMode.semantic) return;
-    if (next == _SearchMode.semantic && !PremiumService.instance.isPremium) {
-      await Navigator.push<void>(
-        context,
-        MaterialPageRoute(builder: (_) => const PaywallScreen()),
-      );
-      if (!mounted || !PremiumService.instance.isPremium) return;
-    }
+    // ★구독 폐지 (T-260805-076) — 종전에는 여기서 비구독자를 PaywallScreen 으로 보냈다.
+    //   구독 상품 자체가 없어졌으니 「돈 내면 열리는 문」이 아니라 그냥 잠긴 문이다.
+    //   잠금은 위 kSemanticSearchEnabled 한 줄이 전담한다(판정 이중화 금지 — 그 파일 주석 참조).
     setState(() {
       _mode = next;
       _semanticFallbackCode = null;
