@@ -14,7 +14,9 @@ The app is free and shows a banner ad. If you'd rather use it without ads, you c
 If you bought ad removal before, that stays yours. Use Restore Purchases in Settings to bring it over.
 
 [Privacy]
-Your notes are stored on your device. Google Drive backup runs only when you turn it on yourself; if you leave it off, your notes never leave the device. We collect no personal data — no name, no email, no location.
+Your notes are stored on your device. Google Drive backup runs only when you turn it on yourself; if you leave it off, your notes never leave the device. Turning backup on requires signing in to Google.
+
+The app has no account of its own, so it never asks you for a name or an email. The banner ad is a different matter: the Google Mobile Ads SDK processes an approximate location derived from your IP address, along with device and advertising identifiers and app usage and diagnostic information. The privacy policy below has the full detail.
 
 Privacy Policy:
 https://github.com/ssamssae/simple-memo-app/blob/main/docs/legal/privacy-policy.md
