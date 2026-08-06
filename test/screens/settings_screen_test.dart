@@ -73,26 +73,29 @@ void main() {
     expect(prefs.getDouble('memo_body_font_size'), 20);
   });
 
-  // ★계약 반전 — T-260805-145.
-  //   옛 이름은 「기본 ondevice 플래그에서 미지원 기기는 Gemini 폴백을 표시한다」였고
-  //   설정 화면에 모델 타일이 ★보인다를 단언했다. 그게 버그를 계약으로 굳혀둔 자리다:
-  //   말로찾기는 kSemanticSearchEnabled(기본 false)로 잠겨 검색 UI 가 없는데, 설정만
-  //   「기기 내 뜻 검색 모델 · 약 124MB」를 노출해 쓸 수 없는 기능의 다운로드를 권했다.
-  //   폴백 소제목 자체를 재는 축은 지우지 않고 타일 단위 테스트로 옮겼다
+  // ★계약이 두 번 뒤집힌 자리다. 이력을 남겨 둔다 — 다음 사람이 방향을 헷갈리지 않게.
+  //   ① 원래: 「미지원 기기는 Gemini 폴백을 표시한다」 = 타일 ★보인다.
+  //      말로찾기가 잠겨 검색 UI 가 없는데 설정만 124MB 다운로드를 권하던 버그를
+  //      계약으로 굳혀둔 자리였다.
+  //   ② T-260805-145: 잠금과 맞춰 타일 ★없다 로 반전.
+  //   ③ T-260806-022(지금): 유료 폴백을 걷어내 말로찾기를 열었다. 기능을 쓸 수 있으니
+  //      모델 설치를 권하는 게 맞다 ⇒ 다시 ★보인다.
+  //   ①과 ③은 단언이 같지만 이유가 다르다. ①은 「잠긴 걸 판다」(버그),
+  //   ③은 「열린 걸 판다」(정상). 되돌릴 때 이유부터 보라.
+  //   폴백 소제목 자체를 재는 축은 타일 단위 테스트에 있다
   //   (test/widgets/mini_lm_model_settings_tile_test.dart).
-  testWidgets('말로찾기가 잠긴 기본 플래그에서는 설정에 모델 타일이 없다', (
+  testWidgets('말로찾기가 열린 기본 플래그에서는 설정에 모델 타일이 있다', (
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
     await tester.pumpAndSettle();
 
-    // ★대조군 — 화면이 실제로 떴는지 먼저 증명한다. 안 그러면 아래 0건이 눈먼 초록이 된다.
+    // ★대조군 — 화면이 실제로 떴는지 먼저 증명한다.
     expect(find.text('글자 크기'), findsOneWidget,
-        reason: '설정 화면이 안 떴다 — 아래 findsNothing 이 무의미해진다');
+        reason: '설정 화면이 안 떴다 — 아래 판정이 무의미해진다');
 
-    expect(find.byKey(const Key('minilm-model-tile')), findsNothing,
-        reason: '잠긴 기능의 124MB 모델 설치를 설정 화면이 여전히 권한다');
-    expect(find.text('기기 내 뜻 검색 모델'), findsNothing);
+    expect(find.byKey(const Key('minilm-model-tile')), findsOneWidget,
+        reason: '말로찾기를 열었는데 온디바이스 모델을 받을 문이 설정에 없다');
   });
 
   testWidgets('설정 화면 테마 선택이 표시값과 저장값을 갱신한다', (tester) async {
