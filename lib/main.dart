@@ -11,6 +11,7 @@ import 'services/crash_log.dart';
 import 'services/premium_service.dart';
 import 'services/remove_ads_purchase.dart';
 import 'services/settings_service.dart';
+import 'utils/app_palette.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -91,6 +92,7 @@ class MemoApp extends StatelessWidget {
 
   ThemeData _buildLightTheme() {
     return ThemeData(
+      extensions: const [AppPalette.light],
       colorScheme: ColorScheme.fromSeed(
         seedColor: const Color(0xFF7C5CFF),
         brightness: Brightness.light,
@@ -120,6 +122,7 @@ class MemoApp extends StatelessWidget {
     return ThemeData(
       // Obsidian 톤: 다크 무채색 미니멀 + 퍼플 액센트 (#7C5CFF).
       // 대부분의 chrome 은 무채색 회색/흰색, 퍼플은 강조에만 절제 사용.
+      extensions: const [AppPalette.dark],
       colorScheme: ColorScheme.fromSeed(
         seedColor: const Color(0xFF7C5CFF),
         brightness: Brightness.dark,

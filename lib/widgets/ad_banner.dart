@@ -3,6 +3,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../services/ads_service.dart';
 import '../services/premium_service.dart';
+import '../utils/app_palette.dart';
 
 /// 하단 배너 광고. 광고 제거 구매 또는 활성 프리미엄 기간에는 표시하지 않는다.
 class AdBanner extends StatefulWidget {
@@ -73,7 +74,7 @@ class _AdBannerState extends State<AdBanner> {
       return const SizedBox.shrink();
     }
     return Container(
-      color: const Color(0xFF0F0F12),
+      color: AppPalette.of(context).background,
       alignment: Alignment.center,
       width: ad.size.width.toDouble(),
       height: ad.size.height.toDouble(),

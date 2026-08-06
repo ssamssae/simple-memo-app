@@ -7,6 +7,7 @@ import '../models/memo.dart';
 import '../services/app_review_service.dart';
 import '../services/memo_storage.dart';
 import '../services/settings_service.dart';
+import '../utils/app_palette.dart';
 import 'memo_edit_screen.dart';
 import 'search_screen.dart';
 
@@ -546,6 +547,7 @@ class MemoListScreenState extends State<MemoListScreen>
     final normals = active.where((m) => !m.isFavorite).toList();
     final canEdit = active.isNotEmpty;
     final strings = AppStrings.of(context);
+    final palette = AppPalette.of(context);
 
     return Listener(
       onPointerDown: (event) {
@@ -585,8 +587,8 @@ class MemoListScreenState extends State<MemoListScreen>
                         child: Text(
                           _isEditMode ? AppStrings.of(context).cancel : AppStrings.of(context).edit,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Color(0xFF9A9AA2),
+                          style: TextStyle(
+                            color: palette.textSecondary,
                             fontSize: 16,
                           ),
                         ),
@@ -601,7 +603,7 @@ class MemoListScreenState extends State<MemoListScreen>
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: IconButton(
-                  icon: const Icon(Icons.search, color: Color(0xFF9A9AA2)),
+                  icon: Icon(Icons.search, color: palette.textSecondary),
                   tooltip: AppStrings.of(context).search,
                   onPressed: _openSearch,
                 ),
@@ -670,7 +672,10 @@ class MemoListScreenState extends State<MemoListScreen>
                     Text(
                       AppStrings.of(context).emptyMemoHint,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 16, color: Color(0xFF9A9AA2)),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: palette.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -889,6 +894,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -975,7 +981,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                     ? Duration.zero
                     : const Duration(milliseconds: 200),
                 transform: Matrix4.translationValues(_dragOffset, 0, 0),
-                color: const Color(0xFF1A1A1E),
+                color: palette.surface,
                 child: Padding(
                   padding: const EdgeInsets.only(left: 28, right: 20),
                   child: SizedBox(
@@ -1027,7 +1033,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                                   forceStrutHeight: true,
                                 ),
                                 style: TextStyle(
-                                  color: const Color(0xFFECECEC),
+                                  color: palette.textPrimary,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 17 * scale,
                                   letterSpacing: -0.2,
@@ -1042,11 +1048,11 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                         if (!widget.isEditMode)
                           ReorderableDragStartListener(
                             index: widget.index,
-                            child: const Padding(
-                              padding: EdgeInsets.only(left: 8, right: 8),
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 8, right: 8),
                               child: Icon(
                                 Icons.drag_handle,
-                                color: Color(0xFF9A9AA2),
+                                color: palette.textSecondary,
                                 size: 20,
                               ),
                             ),

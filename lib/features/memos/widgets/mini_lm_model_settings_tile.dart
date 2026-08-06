@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../l10n/app_strings.dart';
+import '../../../utils/app_palette.dart';
 import '../services/mini_lm_model_controller.dart';
 
 class MiniLmModelSettingsTile extends StatefulWidget {
@@ -119,7 +120,7 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
               ),
               subtitle: Text(
                 _subtitle(context, state),
-                style: const TextStyle(color: Color(0xFF9A9AA2)),
+                style: TextStyle(color: AppPalette.of(context).textSecondary),
               ),
               trailing: _trailing(context, state),
               onTap: switch (state) {
@@ -178,7 +179,10 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
       MiniLmModelState.ready => IconButton(
         key: const Key('minilm-delete-button'),
         tooltip: AppStrings.of(context).miniLmDeleteTooltip,
-        icon: const Icon(Icons.delete_outline, color: Color(0xFF9A9AA2)),
+        icon: Icon(
+          Icons.delete_outline,
+          color: AppPalette.of(context).textSecondary,
+        ),
         onPressed: () => _confirmDelete(context),
       ),
       MiniLmModelState.absent || MiniLmModelState.error => const Icon(

@@ -6,6 +6,7 @@ import '../models/memo.dart';
 import '../services/drive_backup_service.dart';
 import '../services/export_import_service.dart';
 import '../services/memo_storage.dart';
+import '../utils/app_palette.dart';
 import '../widgets/version_footer.dart';
 import '../l10n/app_strings.dart';
 
@@ -240,9 +241,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   }
 
   Future<DriveBackupEntry?> _pickBackup(List<DriveBackupEntry> entries) async {
+    final palette = AppPalette.of(context);
     return showModalBottomSheet<DriveBackupEntry>(
       context: context,
-      backgroundColor: const Color(0xFF2C2C2E),
+      backgroundColor: palette.elevatedSurface,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -252,7 +254,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               child: Text(
                 AppStrings.of(context).driveBackupChoose,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: palette.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -265,13 +267,13 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 itemBuilder: (ctx, index) {
                   final entry = entries[index];
                   return ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.description_outlined,
-                      color: Colors.white,
+                      color: palette.textPrimary,
                     ),
                     title: Text(
                       _backupLabel(entry),
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: palette.textPrimary),
                     ),
                     onTap: () => Navigator.of(ctx).pop(entry),
                   );
@@ -304,6 +306,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Scaffold(
       bottomNavigationBar: const SafeArea(child: VersionFooter()),
       appBar: AppBar(
@@ -319,23 +322,23 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.cloud_upload_outlined,
                     size: 56,
-                    color: Colors.white,
+                    color: palette.textPrimary,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     AppStrings.of(context).backupIntro,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                    style: TextStyle(color: palette.textSecondary, fontSize: 14),
                   ),
                   const SizedBox(height: 24),
                   Text(
                     AppStrings.of(context).backupTarget(_activeMemos.length),
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
+                      color: palette.textSecondary,
                       fontSize: 13,
                     ),
                   ),
@@ -344,7 +347,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     _lastBackupLabel(),
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
+                      color: palette.textSecondary.withValues(alpha: 0.8),
                       fontSize: 12,
                     ),
                   ),
@@ -352,17 +355,18 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   FilledButton.icon(
                     onPressed: _isBackupRunning ? null : _handleBackup,
                     style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
+                      // 바탕과 최대 대비를 내는 반전 버튼 — 두 테마에서 방향만 뒤집힌다.
+                      backgroundColor: palette.textPrimary,
+                      foregroundColor: palette.background,
                       minimumSize: const Size.fromHeight(52),
                     ),
                     icon: _isBackupRunning
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.black,
+                              color: palette.background,
                             ),
                           )
                         : const Icon(Icons.backup_outlined),
@@ -372,17 +376,17 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   OutlinedButton.icon(
                     onPressed: _isRestoreRunning ? null : _handleRestore,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white),
+                      foregroundColor: palette.textPrimary,
+                      side: BorderSide(color: palette.textPrimary),
                       minimumSize: const Size.fromHeight(52),
                     ),
                     icon: _isRestoreRunning
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: palette.textPrimary,
                             ),
                           )
                         : const Icon(Icons.restore_outlined),

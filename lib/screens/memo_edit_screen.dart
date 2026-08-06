@@ -11,6 +11,7 @@ import 'package:sensors_plus/sensors_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/memo.dart';
 import '../services/settings_service.dart';
+import '../utils/app_palette.dart';
 import '../l10n/app_strings.dart';
 
 
@@ -358,18 +359,21 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   @override
   Widget build(BuildContext context) {
     final titleText = _isEditing ? AppStrings.of(context).editMemoTitle : AppStrings.of(context).newMemoTitle;
+    final palette = AppPalette.of(context);
     final appBarTheme = Theme.of(context).appBarTheme;
     final baseTitleStyle =
         appBarTheme.titleTextStyle ??
         Theme.of(context).textTheme.titleLarge?.copyWith(
-          color: appBarTheme.foregroundColor ?? Colors.white,
+          color: appBarTheme.foregroundColor ?? palette.textPrimary,
         );
-    // 편집 화면 본문은 항상 다크(Scaffold 0xFF1C1C1E)이므로 헤더도 다크로 고정한다.
-    // 헤더 컨트롤(뒤로/저장/undo/redo/공유)이 흰색 하드코딩이라, 헤더 배경을 테마에
-    // 맡기면 라이트 모드에서 흰 글자 on 밝은 헤더로 겹쳐 안 보인다 (T-260720-024).
+    // 헤더·본문·컨트롤이 한 팔레트를 함께 따라간다 (T-260806-011).
+    // 종전에는 본문만 다크로 박혀 있고 컨트롤이 흰색 하드코딩이라, 헤더 배경을
+    // 테마에 맡기면 라이트에서 흰 글자가 밝은 헤더에 묻혔다. 그래서 헤더까지
+    // 다크로 고정해 뒀는데(T-260720-024), 이제 색이 전부 팔레트를 거치므로
+    // 그 고정이 필요 없어졌다.
     final titleStyle = baseTitleStyle?.copyWith(
       fontSize: 17,
-      color: const Color(0xFFECECEC),
+      color: palette.textPrimary,
     );
     return PopScope(
       canPop: true,
@@ -379,9 +383,9 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
         _dispatchSave();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF1C1C1E),
+        backgroundColor: palette.background,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1C1C1E),
+          backgroundColor: palette.background,
           centerTitle: true,
           scrolledUnderElevation: 0,
           surfaceTintColor: Colors.transparent,
@@ -404,14 +408,14 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               children: [
                 _pillButton(
                   label: AppStrings.of(context).back,
-                  color: Colors.white,
+                  color: palette.textPrimary,
                   onTap: _saveAndPop,
                 ),
                 if (_isEditing) ...[
                   const SizedBox(width: 6),
                   _pillButton(
                     label: AppStrings.of(context).cancel,
-                    color: Colors.redAccent.shade100,
+                    color: palette.danger,
                     onTap: _cancelEdit,
                   ),
                 ],
@@ -424,7 +428,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       padding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
                       constraints: const BoxConstraints(),
-                      color: Colors.white,
+                      color: palette.textPrimary,
                       tooltip: AppStrings.of(context).share,
                       onPressed: () => _shareMemo(shareContext),
                     ),
@@ -446,8 +450,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       visualDensity: VisualDensity.compact,
                       constraints: const BoxConstraints(),
                       color: value.canUndo
-                          ? Colors.white
-                          : Colors.white.withValues(alpha: 0.25),
+                          ? palette.textPrimary
+                          : palette.textPrimary.withValues(alpha: 0.25),
                       onPressed: value.canUndo ? _undoController.undo : null,
                       tooltip: AppStrings.of(context).undoAction,
                     ),
@@ -458,8 +462,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       visualDensity: VisualDensity.compact,
                       constraints: const BoxConstraints(),
                       color: value.canRedo
-                          ? Colors.white
-                          : Colors.white.withValues(alpha: 0.25),
+                          ? palette.textPrimary
+                          : palette.textPrimary.withValues(alpha: 0.25),
                       onPressed: value.canRedo ? _undoController.redo : null,
                       tooltip: AppStrings.of(context).redo,
                     ),
@@ -472,7 +476,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               padding: const EdgeInsets.only(right: 12, left: 0),
               child: _pillButton(
                 label: AppStrings.of(context).save,
-                color: Colors.white,
+                color: palette.textPrimary,
                 onTap: _saveMemo,
               ),
             ),
@@ -509,7 +513,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                         builder: (context, bodyFontSize, _) => TextField(
                           controller: _contentController,
                           undoController: _undoController,
-                          cursorColor: Colors.white,
+                          cursorColor: palette.textPrimary,
                           cursorHeight: bodyFontSize,
                           selectionControls: _largeCupertinoSelectionControls,
                           scrollPhysics: const NeverScrollableScrollPhysics(),
@@ -524,13 +528,13 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                           decoration: InputDecoration(
                             hintText: AppStrings.of(context).contentHint,
                             hintStyle: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.4),
+                              color: palette.textSecondary,
                             ),
                             border: InputBorder.none,
                             isCollapsed: true,
                           ),
                           style: TextStyle(
-                            color: Colors.white,
+                            color: palette.textPrimary,
                             fontSize: bodyFontSize,
                             height: 1.5,
                             leadingDistribution: TextLeadingDistribution.even,
