@@ -48,12 +48,24 @@ void main() {
     );
   }
 
-  Future<void> run(SemanticSearchCoordinator c) async {
-    await c.search(
+  Future<SemanticSearchOutcome> run(SemanticSearchCoordinator c) async {
+    return c.search(
       userId: 'u1',
       query: '병원',
       memos: memos(),
       persist: (_) async {},
+    );
+  }
+
+  /// 「유료 호출 0」만 재면 검색이 통째로 터져도 통과한다. 강등이 실제로
+  /// 일어났는지(=공짜 경로로 답을 돌려주는지)까지 같이 잰다.
+  void expectDegradedToLexical(SemanticSearchOutcome outcome, String situation) {
+    expect(paidCalls, 0, reason: '$situation 에서 유료 임베딩 호출이 $paidCalls 회 나갔다');
+    expect(outcome.semantic, isFalse, reason: '$situation 인데 semantic 로 표시됐다');
+    expect(
+      outcome.fallbackCode,
+      isNotNull,
+      reason: '$situation 강등인데 사유 코드가 없다',
     );
   }
 
@@ -64,41 +76,48 @@ void main() {
     expect(SemanticEnginePolicy.configured, SemanticEnginePolicy.ondevicePreferred);
   });
 
-  test('(1) 모델이 준비된 온디바이스 경로는 유료 API 를 부르지 않는다', () async {
-    await run(coordinator(onDevice: _FakeOnDevice(ready: true)));
+  test('(1) 모델이 준비되면 온디바이스로 뜻 검색을 하고 유료 API 를 안 부른다', () async {
+    final outcome = await run(coordinator(onDevice: _FakeOnDevice(ready: true)));
     expect(paidCalls, 0, reason: '온디바이스가 준비됐는데 유료 호출이 나갔다');
+    expect(outcome.semantic, isTrue);
+    expect(outcome.engineId, 'minilm-fake');
   });
 
-  test('★(2) 모델 미설치 폴백이 유료 API 로 샌다 — 이게 막혀야 노출 가능', () async {
-    await run(coordinator(onDevice: _FakeOnDevice(ready: false)));
-    expect(
-      paidCalls,
-      0,
-      reason:
-          '모델 미설치(MEMOYO_MINILM_MODEL_MISSING) 상태에서 유료 임베딩 호출이 '
-          '$paidCalls 회 나갔다. coordinator 가 policy 와 무관하게 gemini 엔진을 '
-          '후보에 무조건 넣는다(semantic_search_coordinator.dart:81).',
-    );
+  test('★(2) 모델 미설치면 유료로 안 넘어가고 lexical 로 강등된다', () async {
+    final outcome = await run(coordinator(onDevice: _FakeOnDevice(ready: false)));
+    expectDegradedToLexical(outcome, '모델 미설치(MEMOYO_MINILM_MODEL_MISSING)');
+    expect(outcome.fallbackCode, 'MEMOYO_MINILM_MODEL_MISSING');
   });
 
-  test('★(3) 온디바이스 엔진 자체가 없는 기기도 유료 API 로 샌다', () async {
-    await run(coordinator(onDevice: null));
-    expect(
-      paidCalls,
-      0,
-      reason:
-          '미지원 기기(MEMOYO_MINILM_UNSUPPORTED)에서 유료 임베딩 호출이 '
-          '$paidCalls 회 나갔다.',
-    );
+  test('★(3) 온디바이스 미지원 기기도 유료 API 를 부르지 않는다', () async {
+    final outcome = await run(coordinator(onDevice: null));
+    expectDegradedToLexical(outcome, '미지원 기기(MEMOYO_MINILM_UNSUPPORTED)');
+    expect(outcome.fallbackCode, 'MEMOYO_MINILM_UNSUPPORTED');
   });
 
-  test('★(4) 온디바이스가 도중에 실패해도 유료 API 로 넘어간다', () async {
-    await run(coordinator(onDevice: _FakeOnDevice(ready: true, throwOnEmbed: true)));
-    expect(
-      paidCalls,
-      0,
-      reason: '온디바이스 실패 시 유료 임베딩 호출이 $paidCalls 회 나갔다.',
+  test('★(4) 온디바이스가 도중에 실패해도 유료 API 로 안 넘어간다', () async {
+    final outcome = await run(
+      coordinator(onDevice: _FakeOnDevice(ready: true, throwOnEmbed: true)),
     );
+    expectDegradedToLexical(outcome, '온디바이스 런타임 실패');
+  });
+
+  test('(5) 경계 — policy 를 명시적으로 gemini 로 준 경우엔 종전대로 쓴다', () async {
+    // 유료 경로를 「없앤」 게 아니라 「말로찾기 기본 경로에서 뺀」 것이다.
+    // 이 본이 없으면 다음 사람이 gemini 지원까지 지워도 아무도 안 잡는다.
+    final client = spyClient();
+    final outcome = await SemanticSearchCoordinator(
+      policy: SemanticEnginePolicy.gemini,
+      geminiEngineFactory: (userId) =>
+          GeminiEmbeddingEngine(client: client, userId: userId),
+    ).search(
+      userId: 'u1',
+      query: '병원',
+      memos: memos(),
+      persist: (_) async {},
+    );
+    expect(paidCalls, greaterThan(0));
+    expect(outcome.semantic, isTrue);
   });
 }
 

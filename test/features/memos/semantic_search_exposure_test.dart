@@ -1,20 +1,27 @@
-// T-260804-086 — 말로찾기가 ★조용히 되살아나면 빨개지는 회귀축.
+// T-260806-022 — 말로찾기 노출 계약. (구 semantic_search_hidden_test, T-260804-086)
 //
-// ■무엇을 지키나
-//   아니키 결정 2026-08-04 23:33 「말로찾기는 3안으로 가, 온디바이스 될 때까지 그 기능만 숨겨」.
-//   지키려는 것은 UI 취향이 아니라 ★돈이다 — 말로찾기가 열리면 /api/memoyo/ai/embed (Gemini)가
-//   아니키 비용으로 다시 돌기 시작한다. 그래서 (a) 문이 안 보이고 (b) 문 뒤로 못 간다를 둘 다 센다.
+// ■왜 잠금축에서 노출축으로 뒤집혔나
+//   잠근 이유는 UI 취향이 아니라 ★돈이었다 — 열면 /api/memoyo/ai/embed (Gemini)가
+//   아니키 비용으로 돌기 시작했다(아니키 2026-08-04 「내 api 로 비용은 못내겠어」).
+//   T-260806-022 로 그 경로 자체를 없앴다: coordinator 는 policy 가 ★명시적으로 gemini
+//   일 때만 gemini 를 후보에 넣고, 기본 정책 ondevice_preferred 에서는 온디바이스가
+//   부재·미지원·실패해도 lexical 로 강등된다. 과금 사유가 사라졌으므로 문을 연다.
 //
-// ■왜 두 본인가 — 하나로는 못 막는다
-//   (a)만 있으면 「세그먼트는 감췄는데 다른 진입점에서 임베딩이 도는」 상태를 못 잡는다.
-//   (b)만 있으면 「경로는 막혔는데 눌러도 안 되는 죽은 버튼이 남은」 상태를 못 잡는다.
-//   실패 모양이 서로 다르므로 둘 다 필요하다.
+// ■그래서 이제 무엇을 지키나 — 「열렸다」가 아니라 ★「열렸는데 안 물린다」
+//   (a) 문이 보인다  (b) ★문으로 들어가도 유료 호출이 0이다  (c) 스위치 기본 ON
+//   (d) 설치를 권한다  (e) 이미 받은 사람은 지울 수 있다
+//   ★(b) 가 이 파일의 심장이다. 잠금 시절엔 「안 눌러지니 0」이었지만 지금은
+//   「눌렀는데도 0」이다 — 아래 setUp 이 온디바이스를 ★미지원으로 못박아 두므로,
+//   (b)의 초록은 수리(유료 폴백 제거)가 실제 UI 경로에서 먹는다는 end-to-end 증명이다.
+//   (b) 가 빨개지면 그건 노출이 아니라 ★과금이 되살아난 것이다.
 //
 // ■mutation probe (계기가 살아있음의 증명)
 //   이 파일의 초록은 스위치를 뒤집었을 때 ★빨개져야만 초록이다. 확인 방법:
-//     flutter test --dart-define=MEMOYO_SEMANTIC_SEARCH=true \
-//       test/features/memos/semantic_search_hidden_test.dart
-//   착수 시 실측으로 RED 를 확인하고 보고에 출력을 첨부했다. 이 파일을 고칠 사람은 같은 절차를
+//     flutter test --dart-define=MEMOYO_SEMANTIC_SEARCH=false \
+//       test/features/memos/semantic_search_exposure_test.dart
+//   비용 축의 계기 생존은 별도다 — coordinator 의 폴백 차단을 원복하면
+//   semantic_ondevice_cost_axis_test 와 이 파일 (b) 가 함께 빨개진다.
+//   착수 시 실측으로 확인하고 보고에 출력을 첨부했다. 이 파일을 고칠 사람은 같은 절차를
 //   다시 밟아라 — 안 밟으면 0회 도는 장식이 된다.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -37,8 +44,9 @@ void main() {
     return Memo(id: id, content: content, createdAt: t, updatedAt: t);
   }
 
-  // 온디바이스 MiniLM 네이티브 채널은 테스트 환경에 없다. 미지원으로 답해 두면 잠금이 풀린
-  // 상태(probe)에서 Gemini 경로로 내려가 스파이가 실제로 불린다 — 그래야 probe 가 의미를 갖는다.
+  // 온디바이스 MiniLM 네이티브 채널은 테스트 환경에 없다. ★미지원으로 못박아 둔다 —
+  // 종전엔 「잠금이 풀리면 Gemini 로 내려가 스파이가 불린다」는 probe 였고, 수리 후에는
+  // 「미지원인데도 유료로 안 내려간다」는 (b)의 검증 조건이 된다. 같은 설정이 역할만 바뀌었다.
   const miniLmChannel = MethodChannel('memoyo/minilm');
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
@@ -74,22 +82,19 @@ void main() {
         const PremiumEntitlement.inactive();
   });
 
-  testWidgets('(a) 검색 화면에 말로찾기 세그먼트가 렌더되지 않는다', (tester) async {
+  testWidgets('(a) 검색 화면에 말로찾기 세그먼트가 렌더된다', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: SearchScreen()));
     await tester.pumpAndSettle();
 
-    // ★대조군 먼저 — 검색 화면이 실제로 떴는지 증명한다. 화면이 안 떴으면 아래 findsNothing 은
-    //   「감췄다」가 아니라 「아무것도 안 그려졌다」의 0건이고, 그건 눈먼 초록이다.
+    // ★대조군 먼저 — 검색 화면이 실제로 떴는지 증명한다.
     expect(find.byType(TextField), findsOneWidget,
-        reason: '검색 화면이 안 떴다 — 아래 findsNothing 판정이 무의미해진다');
+        reason: '검색 화면이 안 떴다 — 아래 판정이 무의미해진다');
 
-    expect(find.text('뜻으로 찾기'), findsNothing,
-        reason: '말로찾기 세그먼트가 되살아났다 (T-260804-086 로 감춘 것)');
-    expect(find.byType(SegmentedButton<Object?>), findsNothing,
-        reason: '모드 선택기가 되살아났다 — 남는 모드가 하나뿐이라 선택기 자체를 감췄었다');
+    expect(find.text('뜻으로 찾기'), findsOneWidget,
+        reason: '말로찾기 세그먼트가 안 보인다 — 노출 스위치가 안 먹었다 (T-260806-022)');
   });
 
-  testWidgets('(b) 잠금 상태에서 유료 임베딩 클라이언트가 한 번도 호출되지 않는다', (tester) async {
+  testWidgets('★(b) 노출된 뒤에도 유료 임베딩 클라이언트가 한 번도 호출되지 않는다', (tester) async {
     // 스파이 — 전송계층이 불리면 계수가 올라간다. 실제 네트워크는 타지 않는다.
     var embedCalls = 0;
     final spy = MemoyoEmbeddingClient(
@@ -109,16 +114,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // ★사람이 하는 짓 그대로 흉내낸다 — 「그 버튼이 있으면 누른다」.
-    //   잠금 상태에서는 버튼이 없으니 안 누른다. 잠금이 풀리면 눌러서 임베딩이 돌고
-    //   아래 embedCalls==0 이 깨진다 = ★이 축도 mutation probe 에 반응한다.
-    //   조건 없이 tap 하면 잠금 상태에서 「대상 없음」으로 죽어서, 잠금이 뚫린 것과
-    //   구분이 안 되는 빨강이 나온다. 그래서 존재를 먼저 본다.
+    // ★사람이 하는 짓 그대로 — 문이 열렸으니 ★실제로 들어간다.
+    //   여기가 이 파일의 심장이다. 세그먼트를 눌러 시맨틱 경로로 진입시킨 뒤에도
+    //   embedCalls 가 0 이어야 한다. setUp 이 온디바이스를 미지원으로 못박아 뒀으므로
+    //   수리 전이라면 여기서 gemini 로 내려가 스파이가 불렸다(2회 실측, T-260806-021).
+    //   조건부 tap 을 남겨 둔 이유는 스위치를 끈 실행(mutation probe)에서 「대상 없음」
+    //   으로 죽지 않고 (a) 가 먼저 실패를 말하게 하려는 것이다.
     final semanticSegment = find.text('뜻으로 찾기');
-    if (semanticSegment.evaluate().isNotEmpty) {
-      await tester.tap(semanticSegment);
-      await tester.pumpAndSettle();
-    }
+    expect(semanticSegment, findsOneWidget,
+        reason: '세그먼트가 없다 — (b) 가 「눌러도 0」이 아니라 「못 눌러서 0」이 된다');
+    await tester.tap(semanticSegment);
+    await tester.pumpAndSettle();
 
     // 검색어를 치고 디바운스를 넘긴다. '치과' 는 ★어휘 검색으로도 잡히는 말이어야 한다 —
     // 대조군이 성립해야 embedCalls==0 을 읽을 수 있기 때문이다.
@@ -132,24 +138,26 @@ void main() {
         reason: '어휘 검색이 죽었다 — embedCalls==0 이 잠금의 증거가 되지 못한다');
 
     expect(embedCalls, 0,
-        reason: '유료 임베딩 API 가 호출됐다 — 말로찾기 잠금이 뚫렸다 (아니키 비용축)');
+        reason: '유료 임베딩 API 가 호출됐다 — 유료 폴백이 되살아났다 (아니키 비용축). '
+            'coordinator 가 gemini 를 무조건 후보에 넣고 있지 않은지 볼 것');
   });
 
-  test('(c) 스위치는 기본 OFF 다 — 잠금이 기본값이어야 한다', () {
-    // dart-define 으로 켠 실행에서는 이 단언이 뒤집히는 것이 정상이다(= mutation probe).
-    expect(kSemanticSearchEnabled, isFalse,
-        reason: '말로찾기 기본값이 켜졌다 — 온디바이스 완성 전이라면 비용이 되살아난다');
+  test('(c) 스위치는 기본 ON 이다 — 유료 경로가 없으니 감출 이유가 없다', () {
+    // dart-define 으로 끈 실행에서는 이 단언이 뒤집히는 것이 정상이다(= mutation probe).
+    expect(kSemanticSearchEnabled, isTrue,
+        reason: '말로찾기가 다시 잠겼다 — 되돌린 것이라면 (a)(b)(d) 도 같이 뒤집어야 한다');
   });
 
-  // ■(d)(e) 가 왜 뒤늦게 붙었나 — T-260805-145
+  // ■(d)(e) 의 유래 — T-260805-145
   //   (a)(b)(c) 는 ★검색 화면만 셌다. 그런데 잠긴 기능을 파는 표면이 하나 더 있었다:
   //   설정 화면의 「기기 내 뜻 검색 모델 · 약 124MB」 타일이다. 검색 UI 는 플래그로 가려지는데
   //   그 타일만 게이트 밖이라, 출고본에서 ★쓸 수 없는 기능을 위해 124MB 를 받으라고 권했다.
-  //   스토어 스크린샷에서 폐지 문구를 걷던 중(T-260805-129) 새로 찍은 07_settings.png 픽셀에
-  //   그 행이 남아 발견됐다. 화면 목록이 플래그 목록과 어긋나면 걸리도록 여기 축을 세운다(원칙 10).
+  //   ⇒ 노출(T-260806-022) 뒤에는 방향이 뒤집힌다. 기능을 쓸 수 있으니 ★권하는 게 맞다.
+  //   (d) 는 그래서 findsNothing → findsOneWidget 으로 뒤집혔다. (e) 는 그대로다 —
+  //   회수 경로는 잠금 여부와 무관하게 항상 있어야 하기 때문이다.
 
-  testWidgets('(d) 잠금 상태에서 설정 화면이 모델 설치를 권하지 않는다', (tester) async {
-    // 미설치(absent) = 타일이 다운로드를 ★권하는 상태. 이 배치가 정확히 문제였던 배치다.
+  testWidgets('(d) 노출 뒤에는 설정 화면이 모델 설치를 권한다', (tester) async {
+    // 미설치(absent) = 타일이 다운로드를 권하는 상태.
     final manager = _FakeModelManager(MiniLmModelState.absent);
     addTearDown(manager.dispose);
 
@@ -158,19 +166,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // ★대조군 먼저 — 설정 화면이 실제로 떴는지 증명한다. 화면이 안 떴으면 아래 findsNothing 은
-    //   「감췄다」가 아니라 「아무것도 안 그려졌다」의 0건이고, 그건 눈먼 초록이다.
+    // ★대조군 먼저 — 설정 화면이 실제로 떴는지 증명한다.
     expect(find.text('글자 크기'), findsOneWidget,
-        reason: '설정 화면이 안 떴다 — 아래 findsNothing 판정이 무의미해진다');
+        reason: '설정 화면이 안 떴다 — 아래 판정이 무의미해진다');
 
-    expect(find.byKey(const Key('minilm-model-tile')), findsNothing,
-        reason: '잠긴 기능의 124MB 모델 설치를 설정 화면이 여전히 권한다 (T-260805-145)');
+    expect(find.byKey(const Key('minilm-model-tile')), findsOneWidget,
+        reason: '말로찾기를 열었는데 모델 설치 문이 없다 — 온디바이스로 쓸 방법이 사라진다');
   });
 
   testWidgets('(e) 이미 받은 기기에서는 타일이 남아 용량을 지울 수 있다', (tester) async {
-    // ★고지를 줄이는 방향이 아니라 없는 기능을 안 파는 방향이다.
-    //   (d) 를 「타일을 통째로 없앤다」로 구현하면 이미 124MB 를 받은 사람에게서 ★삭제 버튼까지
-    //   사라져 용량을 회수할 문이 닫힌다. 잠금이 사용자 손해로 바뀌는 지점이라 축으로 고정한다.
+    // ★잠금 여부와 무관한 축이다. 타일을 조건부로 만드는 어떤 변경도 ★삭제 버튼까지
+    //   같이 없애면 안 된다 — 124MB 를 회수할 문이 닫히면 사용자 손해다.
     final manager = _FakeModelManager(MiniLmModelState.ready);
     addTearDown(manager.dispose);
 

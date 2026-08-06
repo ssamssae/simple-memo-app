@@ -43,7 +43,12 @@ void main() {
       );
 
       expect(interrupted.semantic, isFalse);
-      expect(interrupted.fallbackCode, 'GEMINI_OFFLINE');
+      // ★T-260806-022: 종전 기대값 = 'GEMINI_OFFLINE'. 온디바이스가 2번째 배치에서
+      //   끊긴 뒤 유료 Gemini 까지 시도하고 그것도 실패해서 나온 코드였다.
+      //   이제 ondevice_preferred 는 유료로 안 넘어가므로 온디바이스 실패에서 멈춘다.
+      //   이 테스트의 본론(배치별 persist·lexical 유지·재개)은 그대로다.
+      expect(interrupted.fallbackCode, 'MINILM_INTERRUPTED');
+      expect(gemini.documentCalls, 0, reason: '유료 임베딩이 호출됐다 — 비용축 위반');
       expect(interrupted.results, hasLength(3));
       expect(persisted, hasLength(1));
       expect(

@@ -78,7 +78,25 @@ class SemanticSearchCoordinator {
         }
       }
     }
-    candidates.add(_geminiEngineFactory(userId));
+    // ★유료 폴백 없음 (T-260806-022). gemini 는 policy 가 ★명시적으로 gemini 일 때만
+    //   후보가 된다.
+    //
+    //   종전에는 이 add 가 policy 와 무관하게 무조건 실행됐다. 그래서
+    //   ondevice_preferred 인데 온디바이스가 부재·미지원·실패인 순간 후보가 gemini 하나만
+    //   남아, 유료 임베딩(/api/memoyo/ai/embed)이 아니키 비용으로 호출됐다. 기본 정책이
+    //   ondevice_preferred 이므로(embedding_engine.dart) 그게 출고 빌드의 기본 경로였다.
+    //   124MB 모델을 안 받은 사용자에게 메모 전건 + 질의마다 과금되는 모양이다.
+    //
+    //   ondevice_preferred 의 뜻은 「온디바이스를 먼저 쓴다」가 아니라
+    //   ★「온디바이스로만 쓴다, 안 되면 공짜 경로로 내려간다」이다. 온디바이스가 없거나
+    //   실패하면 후보가 비고, 아래 루프를 그냥 지나쳐 lexical(문자열 검색)로 강등된다.
+    //   기능이 조금 나빠지는 것과 비용이 새는 것 중 후자를 막는 쪽을 고른 것이다
+    //   (아니키 2026-08-04 「내 api 로 비용은 못내겠어」, 본진 판정 옵션1 T-260806-022).
+    //
+    //   회귀축 = test/features/memos/semantic_ondevice_cost_axis_test.dart (4행)
+    if (policy == SemanticEnginePolicy.gemini) {
+      candidates.add(_geminiEngineFactory(userId));
+    }
 
     var working = List<Memo>.of(memos);
     var changed = false;
