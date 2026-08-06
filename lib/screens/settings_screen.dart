@@ -16,6 +16,7 @@ import '../services/app_review_service.dart';
 import '../services/remove_ads_purchase.dart';
 import '../services/settings_service.dart';
 import '../widgets/version_footer.dart';
+import '../utils/app_palette.dart';
 import 'backup_restore_screen.dart';
 import 'help_faq_screen.dart';
 import 'policy_screen.dart';
@@ -168,14 +169,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _openLanguageMenu() async {
     final strings = AppStrings.of(context);
+    final palette = AppPalette.of(context);
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF1A1A1E),
+      backgroundColor: palette.elevatedSurface,
       builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(title: Text(strings.language), textColor: Colors.white),
+            ListTile(
+              title: Text(strings.language),
+              textColor: palette.textPrimary,
+            ),
             _languageOption(
               sheetContext: sheetContext,
               code: 'ko',
@@ -199,7 +204,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }) {
     final selected = SettingsService.instance.languageCode.value == code;
     return ListTile(
-      textColor: Colors.white,
+      textColor: AppPalette.of(sheetContext).textPrimary,
       title: Text(label),
       trailing: selected
           ? const Icon(Icons.check, color: Color(0xFF7C5CFF))

@@ -14,6 +14,7 @@ import '../models/memo.dart';
 import '../services/memo_storage.dart';
 import '../services/premium_service.dart';
 import '../services/search_service.dart';
+import '../utils/app_palette.dart';
 import 'memo_edit_screen.dart';
 import '../l10n/app_strings.dart';
 
@@ -39,8 +40,10 @@ class SearchScreen extends StatefulWidget {
 enum _SearchMode { lexical, semantic }
 
 class _SearchScreenState extends State<SearchScreen> {
-  static const _sub = Color(0xFF9A9AA2);
   static const _debounceMs = 300;
+
+  /// 보조 글자·아이콘 색. 테마를 따라가야 라이트 모드에서 안 묻힌다.
+  Color get _sub => AppPalette.of(context).textSecondary;
 
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focus = FocusNode();
@@ -229,7 +232,7 @@ class _SearchScreenState extends State<SearchScreen> {
         actions: [
           if (_query.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.clear, color: _sub),
+              icon: Icon(Icons.clear, color: _sub),
               tooltip: AppStrings.of(context).clearTooltip,
               onPressed: () {
                 _controller.clear();
@@ -317,7 +320,7 @@ class _SearchScreenState extends State<SearchScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: Text(
             AppStrings.of(context).memoResults(_results.length),
-            style: const TextStyle(color: _sub, fontSize: 13),
+            style: TextStyle(color: _sub, fontSize: 13),
           ),
         ),
         Expanded(
@@ -348,12 +351,15 @@ class _CenterHint extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 52, color: const Color(0xFF9A9AA2)),
+          Icon(icon, size: 52, color: AppPalette.of(context).textSecondary),
           const SizedBox(height: 12),
           Text(
             text,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 15, color: Color(0xFF9A9AA2)),
+            style: TextStyle(
+              fontSize: 15,
+              color: AppPalette.of(context).textSecondary,
+            ),
           ),
         ],
       ),
@@ -403,17 +409,20 @@ class _SearchResultCard extends StatelessWidget {
                 children: [
                   _highlight(
                     titleExc,
-                    const TextStyle(
+                    TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF222228),
+                      color: AppPalette.of(context).textPrimary,
                     ),
                   ),
                   if (bodyPreview.text.isNotEmpty) ...[
                     const SizedBox(height: 3),
                     _highlight(
                       bodyPreview,
-                      const TextStyle(fontSize: 13, color: Color(0xFF9A9AA2)),
+                      TextStyle(
+                        fontSize: 13,
+                        color: AppPalette.of(context).textSecondary,
+                      ),
                     ),
                   ],
                 ],

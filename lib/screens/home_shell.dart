@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_strings.dart';
+import '../utils/app_palette.dart';
 import '../widgets/ad_banner.dart';
 import 'memo_list_screen.dart';
 import 'settings_screen.dart';
@@ -25,7 +26,6 @@ class _HomeShellState extends State<HomeShell> {
 
   static const Color _accent = Color(0xFF7C5CFF);
   static const Color _inactive = Color(0xFF6E6E76);
-  static const Color _barBg = Color(0xFF141417);
 
   void _onBarTapped(int barIndex) {
     switch (barIndex) {
@@ -67,7 +67,7 @@ class _HomeShellState extends State<HomeShell> {
             currentIndex: barCurrent,
             onTap: _onBarTapped,
             type: BottomNavigationBarType.fixed,
-            backgroundColor: _barBg,
+            backgroundColor: AppPalette.of(context).navigationBar,
             selectedItemColor: _accent,
             unselectedItemColor: _inactive,
             selectedFontSize: 11,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../l10n/app_strings.dart';
+import '../utils/app_palette.dart';
 
 
 /// 인앱 정책 표시 화면 — assets/legal/*.md 를 읽어 간단히 렌더한다.
@@ -44,6 +45,7 @@ class PolicyScreen extends StatelessWidget {
   // ── 경량 마크다운 → 위젯 ──────────────────────────────
   List<Widget> _render(BuildContext context, String md) {
     final base = Theme.of(context).textTheme;
+    final palette = AppPalette.of(context);
     final widgets = <Widget>[];
 
     for (final raw in md.split('\n')) {
@@ -73,11 +75,11 @@ class PolicyScreen extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 6),
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: palette.textPrimary.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(_clean(trimmed.substring(2)),
-              style: base.bodySmall?.copyWith(color: Colors.white70)),
+              style: base.bodySmall?.copyWith(color: palette.textSecondary)),
         ));
       } else if (trimmed.startsWith('- ')) {
         widgets.add(Padding(
