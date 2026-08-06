@@ -21,14 +21,13 @@ void main() {
     '0xFF9A9AA2', // 다크 보조 글자
   ];
 
-  /// 팔레트 정의 자체와, 항상 다크로 고정하기로 한 화면은 제외한다.
+  /// 팔레트 정의 자체와, 색을 고정할 이유가 따로 있는 화면만 제외한다.
   const exempt = <String>{
     'lib/utils/app_palette.dart', // 두 벌 색의 정의처
     'lib/main.dart', // ThemeData 두 벌의 정의처
-    // 편집 화면은 의도적으로 항상 다크 (T-260720-024). 그 결정을 뒤집을 때
-    // 이 면제도 같이 지운다.
-    'lib/screens/memo_edit_screen.dart',
-    // 스플래시는 네이티브 런치 화면과 색을 맞춰야 해서 별도 건으로 둔다.
+    // 스플래시는 네이티브 런치 화면(values/ vs values-night/)과 색을 맞춰야 해서
+    // 별도 건으로 둔다. 편집 화면은 T-260720-024 로 다크 고정돼 있었으나
+    // T-260806-011 에서 팔레트로 전환하며 면제를 걷었다.
     'lib/screens/splash_screen.dart',
   };
 
