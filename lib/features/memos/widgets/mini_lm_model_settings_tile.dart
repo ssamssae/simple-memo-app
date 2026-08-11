@@ -126,6 +126,9 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
               onTap: switch (state) {
                 MiniLmModelState.absent => () => _confirmInstall(context),
                 MiniLmModelState.error => () => _confirmInstall(context),
+                // T-260811-015: 설치 후에는 탭하면 상세(저장소·리비전·해시)를 편다.
+                //   서브타이틀은 모델명·용량·라이선스까지만 담는다.
+                MiniLmModelState.ready => () => _showDetails(context),
                 _ => null,
               },
             ),
@@ -213,6 +216,27 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
       ),
     );
     if (confirmed == true) unawaited(widget.manager.install());
+  }
+
+  // T-260811-015: 읽기 전용 상세. 설치·삭제·검증 어느 로직도 건드리지 않는다.
+  Future<void> _showDetails(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        key: const Key('minilm-details-dialog'),
+        title: Text(AppStrings.of(context).miniLmDetailsTitle),
+        content: SingleChildScrollView(
+          child: SelectableText(AppStrings.of(context).miniLmDetailsBody),
+        ),
+        actions: [
+          TextButton(
+            key: const Key('minilm-details-close'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(AppStrings.of(context).miniLmDetailsClose),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _confirmDelete(BuildContext context) async {

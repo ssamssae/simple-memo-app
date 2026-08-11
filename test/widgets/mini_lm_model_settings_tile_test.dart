@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_memo_app/features/memos/services/mini_lm_model_controller.dart';
+import 'package:simple_memo_app/features/memos/services/mini_lm_model_manifest.dart';
 import 'package:simple_memo_app/features/memos/widgets/mini_lm_model_settings_tile.dart';
 
 void main() {
@@ -21,7 +22,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(manager.installCalls, 1);
-    expect(find.textContaining('설치됨'), findsOneWidget);
+    // T-260811-015: 종전 기대값은 '설치됨' 이었다. 설치 후 서브타이틀이 모델 정체를
+    //   담도록 바뀌면서 그 낱말이 사라졌으므로, 같은 뜻을 재는 조각으로 옮긴다.
+    expect(find.textContaining('오프라인 검색 가능'), findsOneWidget);
   });
 
   // ★T-260805-145 로 이 파일에 이사 온 축.
@@ -58,6 +61,52 @@ void main() {
 
     expect(manager.deleteCalls, 1);
     expect(find.textContaining('약 124MB'), findsOneWidget);
+  });
+
+  // T-260811-015: 아니키 지적 — 설치 후 「어떤 모델이 설치되어 있는지 확인이 안 됨」.
+  //   설치 전에는 용량·라이선스가 보이는데 설치되면 그마저 사라지던 상태를 고정한다.
+  testWidgets('installed subtitle names the model with size and license', (
+    tester,
+  ) async {
+    final manager = _FakeModelManager(MiniLmModelState.ready);
+    await tester.pumpWidget(_app(manager));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('MiniLM'), findsOneWidget);
+    expect(find.textContaining('Apache-2.0'), findsOneWidget);
+    // ★용량은 매니페스트 합계에서 도출된다 — 하드코딩이면 상수가 바뀌어도 안 움직인다.
+    //   기준 = MB 10^6 · 올림 ⇒ ceil(123481449/1e6) = 124.
+    expect(
+      find.textContaining(
+        '${(MiniLmModelManifest.totalDownloadBytes / 1000000).ceil()}MB',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  // 한 줄에 못 담는 값(저장소 전체 이름·리비전·해시)은 탭했을 때만 펼친다.
+  testWidgets('tapping the installed tile opens model details', (tester) async {
+    final manager = _FakeModelManager(MiniLmModelState.ready);
+    await tester.pumpWidget(_app(manager));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('minilm-model-tile')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('minilm-details-dialog')), findsOneWidget);
+    expect(find.textContaining(MiniLmModelManifest.repository), findsOneWidget);
+    expect(
+      find.textContaining(MiniLmModelManifest.revision.substring(0, 8)),
+      findsOneWidget,
+    );
+    expect(find.textContaining(MiniLmModelManifest.model.name), findsOneWidget);
+    // 상세는 읽기 전용이다 — 설치·삭제 어느 것도 호출되지 않아야 한다.
+    expect(manager.installCalls, 0);
+    expect(manager.deleteCalls, 0);
+
+    await tester.tap(find.byKey(const Key('minilm-details-close')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('minilm-details-dialog')), findsNothing);
   });
 
   // T-260719-018: 설치 탭 직후(청크 수신 전) 진행 표시 — 준비중 문구 + indeterminate 바.
