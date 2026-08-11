@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../features/memos/services/mini_lm_model_manifest.dart';
 import '../services/settings_service.dart';
 
 class AppStrings {
@@ -202,14 +203,34 @@ class AppStrings {
   String get miniLmUnsupported => isEnglish
       ? 'This device uses Gemini search'
       : '이 기기에서는 Gemini 검색을 사용합니다';
+  // T-260811-015: 용량 표기 기준을 여기 한 곳에 고정한다 — MB = 10^6(십진), 올림.
+  //   근거 ①다운로드 용량은 스토어·통신사 관행이 십진이다 ②올림이라 실제보다 작게
+  //   안내하는 일이 없다. 종전 문구의 '124MB' 는 하드코딩이었고 매니페스트 합계
+  //   123,481,449B 와 도출 관계가 끊겨 있었다 — 상수가 바뀌면 문구가 조용히 거짓말한다.
+  //   ⇒ 설치 전·후·설치 안내가 모두 이 하나를 쓴다.
+  static String get _downloadSizeLabel =>
+      '${(MiniLmModelManifest.totalDownloadBytes / 1000000).ceil()}MB';
+
+  /// 개별 파일용 — 합계와 달리 소수 1자리로 보여 준다(다이얼로그 전용).
+  static String _fileSizeLabel(int bytes) =>
+      '${(bytes / 1000000).toStringAsFixed(1)}MB';
+
   String get miniLmAbsent => isEnglish
-      ? 'About 124MB · Wi-Fi recommended · Apache-2.0'
-      : '약 124MB · Wi-Fi 권장 · Apache-2.0';
+      ? 'About $_downloadSizeLabel · Wi-Fi recommended · ${MiniLmModelManifest.license}'
+      : '약 $_downloadSizeLabel · Wi-Fi 권장 · ${MiniLmModelManifest.license}';
   String miniLmDownloading(int percent) =>
       isEnglish ? 'Downloading $percent%' : '다운로드 중 $percent%';
+  // T-260811-015: 설치 후에 모델 정체가 화면에서 사라지던 문제(아니키 지적 2026-08-11).
+  //   설치 전에는 용량·라이선스가 보이는데 설치되면 「설치됨」 한 줄만 남아,
+  //   무엇이 깔렸는지 확인할 방법이 앱 안에 없었다.
+  //   ★이 라벨은 표시 전용이다. manifest 의 engineId 주석이 못박은 대로
+  //    짧은 표시 라벨을 semanticEmbeddingModel 에 저장해서는 안 된다 — 여기서
+  //    만든 문자열은 어떤 저장 경로로도 흘러가지 않는다(표시층 한정).
   String get miniLmReady => isEnglish
-      ? 'Installed · offline search available'
-      : '설치됨 · 오프라인 검색 가능';
+      ? 'MiniLM multilingual model · $_downloadSizeLabel · '
+            '${MiniLmModelManifest.license} · offline search ready'
+      : 'MiniLM 다국어 모델 · $_downloadSizeLabel · '
+            '${MiniLmModelManifest.license} · 오프라인 검색 가능';
   String get miniLmInsufficientSpace => isEnglish
       ? 'Not enough storage · try again'
       : '저장 공간이 부족합니다 · 다시 시도';
@@ -220,10 +241,10 @@ class AppStrings {
   String get miniLmInstallTitle =>
       isEnglish ? 'Install semantic search model' : '뜻 검색 모델 설치';
   String get miniLmInstallBody => isEnglish
-      ? 'Downloads the MiniLM model and tokenizer (about 124MB). '
+      ? 'Downloads the MiniLM model and tokenizer (about $_downloadSizeLabel). '
           'Wi-Fi is recommended, and you can delete it anytime in Settings. '
           'Files must pass the SHA-256 verification pinned in the app to be installed.'
-      : 'MiniLM 모델과 토크나이저 약 124MB를 다운로드합니다. '
+      : 'MiniLM 모델과 토크나이저 약 $_downloadSizeLabel를 다운로드합니다. '
           'Wi-Fi 사용을 권장하며 설정에서 언제든 삭제할 수 있습니다. '
           '파일은 앱에 고정된 SHA-256 검증을 통과해야 설치됩니다.';
   String get miniLmDeleteTitle =>
@@ -231,6 +252,37 @@ class AppStrings {
   String get miniLmDeleteBody => isEnglish
       ? 'Deletes the stored model file. Your memos are not deleted.'
       : '저장된 모델 파일을 삭제합니다. 기존 메모는 삭제되지 않습니다.';
+
+  // T-260811-015: 설치된 모델 상세. 서브타이틀 한 줄에 해시·revision 까지 넣으면
+  //   읽을 수 없으므로 탭했을 때만 편다. 값은 전부 매니페스트 상수에서 온다.
+  String get miniLmDetailsTitle =>
+      isEnglish ? 'Installed model' : '설치된 모델 정보';
+  String get miniLmDetailsClose => isEnglish ? 'Close' : '닫기';
+
+  /// sha256·revision 은 앞 12자·8자만 — 대조에는 충분하고 한 줄을 넘기지 않는다.
+  String get miniLmDetailsBody {
+    const m = MiniLmModelManifest.model;
+    const t = MiniLmModelManifest.tokenizer;
+    final revision = MiniLmModelManifest.revision.substring(0, 8);
+    final modelHash = m.sha256.substring(0, 12);
+    final tokenizerHash = t.sha256.substring(0, 12);
+    if (isEnglish) {
+      return 'Repository\n${MiniLmModelManifest.repository}\n\n'
+          'Revision\n$revision\n\n'
+          'License\n${MiniLmModelManifest.license}\n\n'
+          'Vectors\n${MiniLmModelManifest.dimensions} dimensions · '
+          'up to ${MiniLmModelManifest.maxSequenceLength} tokens\n\n'
+          'Files\n${m.name} · ${_fileSizeLabel(m.size)} · sha256 $modelHash\n'
+          '${t.name} · ${_fileSizeLabel(t.size)} · sha256 $tokenizerHash';
+    }
+    return '저장소\n${MiniLmModelManifest.repository}\n\n'
+        '리비전\n$revision\n\n'
+        '라이선스\n${MiniLmModelManifest.license}\n\n'
+        '벡터\n${MiniLmModelManifest.dimensions}차원 · '
+        '최대 ${MiniLmModelManifest.maxSequenceLength}토큰\n\n'
+        '파일\n${m.name} · ${_fileSizeLabel(m.size)} · sha256 $modelHash\n'
+        '${t.name} · ${_fileSizeLabel(t.size)} · sha256 $tokenizerHash';
+  }
 
   // 메모 목록 화면
   String get deleteMemoTitle => isEnglish ? 'Delete memo' : '메모삭제';
