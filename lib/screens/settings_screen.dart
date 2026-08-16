@@ -164,8 +164,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // ★구독 판매 종료 (T-260804-090, parent T-260804-082 2페이즈)로 결제 화면 진입점을 끊었다.
-  //   _openPaywall 은 이 화면의 유일한 판매 진입이었고, 지금은 부르는 곳이 없어 함께 제거한다.
-  //   PaywallScreen 파일 자체는 지우지 않았다 — 사유는 이 화면 상단 주석 참조.
+  //   _openPaywall 은 이 화면의 유일한 판매 진입이었다. 구독 상품 완전 제거(T-260805-076, #123)로
+  //   PaywallScreen 파일 자체도 함께 삭제됐다 — 이 주석 정정은 T-260815-060.
 
   Future<void> _openLanguageMenu() async {
     final strings = AppStrings.of(context);
