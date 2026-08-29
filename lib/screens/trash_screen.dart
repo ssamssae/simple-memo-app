@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../features/memos/widgets/attachment_thumbnail.dart';
 import '../models/memo.dart';
 import '../services/memo_storage.dart';
 import '../widgets/version_footer.dart';
@@ -183,6 +184,9 @@ class _TrashScreenState extends State<TrashScreen> {
                     itemBuilder: (context, index) {
                       final memo = _trash[index];
                       return ListTile(
+                        leading: memo.hasImages
+                            ? AttachmentThumbnail(fileName: memo.imageFiles.first)
+                            : null,
                         contentPadding:
                             const EdgeInsets.symmetric(horizontal: 12),
                         title: Text(

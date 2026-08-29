@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../features/memos/services/attachment_store.dart';
+import '../features/memos/widgets/attachment_thumbnail.dart';
 import '../l10n/app_strings.dart';
 import '../models/memo.dart';
 import '../services/app_review_service.dart';
@@ -1035,6 +1036,13 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                                 color: Color(0xFF7C5CFF),
                                 size: 18,
                               ),
+                            ),
+                          ),
+                        if (widget.memo.hasImages)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: AttachmentThumbnail(
+                              fileName: widget.memo.imageFiles.first,
                             ),
                           ),
                         Expanded(
