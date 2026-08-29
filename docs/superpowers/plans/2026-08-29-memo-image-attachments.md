@@ -583,7 +583,9 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
 
 ---
 
-### Task 4: `ImageIngest` — 긴 변 1600 축소 계산 + 압축기 추상화
+### Task 4: `ImageIngest` — 긴 변 1600 축소 계산 + 압축기 추상화 — ✅ 완료 (84d6a31ef + 리뷰 보강 커밋, 리뷰 통과 2026-08-29 16:13)
+
+리뷰 실측(별도 리뷰어가 EXIF orientation 6 JPEG 로 검증): `ImageDescriptor` 는 **표시 기준** 크기를 돌려주고 flutter_image_compress 도 90/270° 소스에서 min 경계를 맞바꾼 뒤 회전하므로 세로 사진도 긴 변 1600 이 정확히 떨어진다. 보강: `assert(maxLongEdge >= 1)`·회전/폴백 주석·`catch (e, st)`·경계 테스트 4건(총 9). Task 5 에 소스 바이트 상한(`maxSourceBytes`) 추가 — 극단 비율/초대형 입력 봉투.
 
 **Files:**
 - Create: `lib/features/memos/services/image_ingest.dart`
@@ -851,10 +853,19 @@ void main() {
     tmp.deleteSync(recursive: true);
   });
 
-  test('상수: 10장 · 긴 변 1600 · JPEG 85', () {
+  test('상수: 10장 · 긴 변 1600 · JPEG 85 · 원본 40MB 상한', () {
     expect(AttachmentService.maxImages, 10);
     expect(AttachmentService.maxLongEdge, 1600);
     expect(AttachmentService.jpegQuality, 85);
+    expect(AttachmentService.maxSourceBytes, 40 * 1024 * 1024);
+  });
+
+  test('원본이 maxSourceBytes 를 넘으면 AttachFailed, 압축기 미호출·파일 미생성', () async {
+    port.galleryBytes = Uint8List(AttachmentService.maxSourceBytes + 1);
+    final result = await service.pickFromGallery(0);
+    expect(result, isA<AttachFailed>());
+    expect(compressor.calls, 0);
+    expect(AttachmentStore.instance.root.existsSync(), isFalse);
   });
 
   test('사진첩: 성공 → 압축(1600/85) 거쳐 저장, 파일명 반환', () async {
@@ -1020,6 +1031,9 @@ class AttachmentService {
   static const int maxImages = 10;
   static const int maxLongEdge = 1600;
   static const int jpegQuality = 85;
+  // 원본 바이트 상한 — 헤더 크기 읽기·압축은 원본을 네이티브로 복사하므로(약 3배 순간 메모리)
+  // 비정상 입력(클립보드 임의 파일 등)을 여기서 자른다. 폰 사진은 보통 15MB 이하.
+  static const int maxSourceBytes = 40 * 1024 * 1024;
 
   final ImageSourcePort _source;
   final ImageCompressor _compressor;
@@ -1050,6 +1064,10 @@ class AttachmentService {
       return AttachFailed(e);
     }
     if (source == null || source.isEmpty) return onNull;
+    if (source.length > maxSourceBytes) {
+      debugPrint('[AttachmentService] source too large: ${source.length}B');
+      return AttachFailed(ArgumentError.value(source.length, 'source', 'exceeds maxSourceBytes'));
+    }
     try {
       final jpeg = await _compressor.toJpeg(
         source,
@@ -1069,7 +1087,7 @@ class AttachmentService {
 - [ ] **Step 5: 통과 확인**
 
 Run: `flutter test test/features/memos/`
-Expected: store 13 + ingest 5 + service 9 = 27 PASS.
+Expected: store 13 + ingest 9 + service 10 = 32 PASS.
 
 - [ ] **Step 6: 커밋**
 
