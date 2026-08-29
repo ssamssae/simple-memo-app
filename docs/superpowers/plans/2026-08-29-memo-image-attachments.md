@@ -720,7 +720,9 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
 
 ---
 
-### Task 5: `AttachmentService` — 가져오기 3경로 + 결과 타입
+### Task 5: `AttachmentService` — 가져오기 3경로 + 결과 타입 — ✅ 완료 (aec29b9cf + 리뷰 보강 커밋, 리뷰 통과 2026-08-29 16:28)
+
+리뷰 실측(설치 플러그인 소스 대조): iOS 배포타깃 15.1 → 사진첩은 PHPicker 라 권한 거부 사건 자체가 없고, **카메라 거부는 null 이 아니라 `PlatformException(camera_access_denied)`** 로 온다. Android 는 권한 미선언이라 던질 일 없음. 보강: 결과 타입 6번째 **`AttachPermissionDenied`**(카메라 거부 → 「설정에서 카메라 권한 허용」 안내, Task 6 문구 `cameraPermissionDenied`, Task 9 switch 케이스) · 피커의 0바이트는 취소가 아니라 `AttachFailed`(`_ingest` 에 `onEmpty` 추가, 클립보드는 `AttachNoImage` 유지) · 지역변수 `source`→`bytes` · 결과 서브클래스 `final class` · `catch (e, st)` · 테스트 5건 추가(총 15). `deleteFiles` 는 화면이 `_store?.delete` 를 직접 써서 프로덕션 호출부가 없음 — 얇은 위임이라 남겨 둔다. iOS 16+ 클립보드 읽기 시스템 프롬프트에서 「허용 안 함」 = null = `AttachNoImage` 이므로 문구를 「사진이 없거나 붙여넣기가 허용되지 않았어요」로 완화(Task 6).
 
 **Files:**
 - Create: `lib/features/memos/services/attachment_service.dart`
@@ -1098,14 +1100,14 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
 
 ---
 
-### Task 6: `AppStrings` 문구 12개
+### Task 6: `AppStrings` 문구 13개
 
 **Files:**
 - Modify: `lib/l10n/app_strings.dart:359-360`
 
 - [ ] **Step 1: 문구 추가**
 
-`String get untitledMemo => isEnglish ? 'New memo' : '새 메모';` (359행) 바로 아래, 닫는 `}` 앞에:
+`String get untitledMemo => isEnglish ? 'New memo' : '새 메모';` (359행) 바로 아래, 닫는 `}` 앞에 (Task 5 리뷰 반영: `noImageInClipboard` 완화 문구 + `cameraPermissionDenied` 신설):
 
 ```dart
 
@@ -1114,8 +1116,12 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
   String get fromGallery => isEnglish ? 'Photo library' : '사진첩';
   String get fromCamera => isEnglish ? 'Camera' : '카메라';
   String get pasteImage => isEnglish ? 'Paste' : '붙여넣기';
-  String get noImageInClipboard =>
-      isEnglish ? 'No image in clipboard' : '클립보드에 사진이 없어요';
+  String get noImageInClipboard => isEnglish
+      ? 'No image in clipboard, or paste was not allowed'
+      : '클립보드에 사진이 없거나 붙여넣기가 허용되지 않았어요';
+  String get cameraPermissionDenied => isEnglish
+      ? 'Allow camera access in Settings to take a photo'
+      : '사진을 찍으려면 설정에서 카메라 권한을 허용해 주세요';
   String get photoLimitReached =>
       isEnglish ? 'Up to 10 photos per memo' : '사진은 메모당 최대 10장까지예요';
   String get photoAttachFailed =>
@@ -2086,6 +2092,8 @@ initState (`_isEditing = widget.memo != null;` 뒤에):
         _snack(strings.noImageInClipboard);
       case AttachLimit():
         _snack(strings.photoLimitReached);
+      case AttachPermissionDenied():
+        _snack(strings.cameraPermissionDenied);
       case AttachFailed():
         _snack(strings.photoAttachFailed);
     }
@@ -2806,7 +2814,7 @@ PR #137 본문에 구현 범위·테스트 수·`flutter test` 결과 요약을 
 단위 테스트 전부 초록 뒤, 아니키 GO 받고 볼칸 USB 로:
 
 1. `/device-run ios` (또는 android) 로 앱 실행.
-2. 편집 화면 → 사진 추가 → 사진첩: 시스템 피커 → 선택 → 스트립에 썸네일. 카메라: 촬영 → 스트립. 붙여넣기: 다른 앱에서 스크린샷 복사 → 붙여넣기 → iOS 「붙여넣기 허용?」 1회 → 스트립.
+2. 편집 화면 → 사진 추가 → 사진첩: 시스템 피커 → 선택 → 스트립에 썸네일. 카메라: 촬영 → 스트립. 붙여넣기: 다른 앱에서 스크린샷 복사 → 붙여넣기 → iOS 「붙여넣기 허용?」 1회 → 스트립. 추가 확인(Task 5 리뷰): 프롬프트에서 「허용 안 함」 → 「사진이 없거나 붙여넣기가 허용되지 않았어요」 안내 · 카메라 권한 거부 상태에서 카메라 선택 → 「설정에서 카메라 권한」 안내 · iOS 클립보드는 PNG 재인코딩이라 원본보다 3~6배 크게 들어옴(40MB 가드 실동작 확인).
 3. 저장 → 목록 썸네일 36px 확인. 탭 → 뷰어 넘김·핀치. 삭제 → 확인 → 목록 반영.
 4. 공유 → 시트에 사진 파일 동봉 확인.
 5. 휴지통 → 영구삭제 → 파일 앱(iOS 파일/Android 탐색기 불가 시 `flutter run` 콘솔 `[AttachmentStore]` 로그) 로 파일 소실 확인.
