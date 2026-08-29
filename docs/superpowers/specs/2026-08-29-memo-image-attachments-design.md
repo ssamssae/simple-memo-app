@@ -138,7 +138,7 @@ final class AttachFailed   extends AttachResult { final Object error; } // 압�
 
 ### 3.9 문구 (AppStrings, ko / en)
 
-`addPhoto` 사진 추가 / Add photo · `fromGallery` 사진첩 / Photo library · `fromCamera` 카메라 / Camera · `pasteImage` 붙여넣기 / Paste · `noImageInClipboard` 클립보드에 사진이 없어요 / No image in clipboard · `photoLimitReached` 사진은 최대 10장까지예요 / Up to 10 photos · `photoAttachFailed` 사진을 추가하지 못했어요 / Couldn't add photo · `deletePhotoConfirmTitle` 사진 삭제 / Delete photo · `deletePhotoConfirmBody` 이 사진을 지울까요? / Delete this photo? · `photosNotInBackup` 사진은 백업에 포함되지 않습니다 / Photos are not included in backups · `photoMissing` 사진 없음 / Photo missing.
+`addPhoto` 사진 추가 / Add photo · `fromGallery` 사진첩 / Photo library · `fromCamera` 카메라 / Camera · `pasteImage` 붙여넣기 / Paste · `noImageInClipboard` 클립보드에 사진이 없거나 붙여넣기가 허용되지 않았어요 / No image in clipboard, or paste was not allowed (iOS 16+ 「허용 안 함」 포함) · `cameraPermissionDenied` 사진을 찍으려면 설정에서 카메라 권한을 허용해 주세요 / Allow camera access in Settings to take a photo · `photoLimitReached` 사진은 메모당 최대 10장까지예요 / Up to 10 photos per memo · `photoAttachFailed` 사진을 추가하지 못했어요 / Couldn't add the photo · `deletePhotoConfirmTitle` 사진 삭제 / Delete photo · `deletePhotoConfirmBody` 이 사진을 지울까요? / Delete this photo? · `photosNotInBackup` 사진은 백업에 포함되지 않습니다 / Photos are not included in backups · `photoMissing` 사진 없음 / Photo missing · `photoViewerClose` 닫기 / Close · `attachedPhoto` 첨부 사진 / Attached photo (시맨틱 라벨). 총 14개 — 구현 중 리뷰로 3개 추가·2개 문구 완화.
 
 ## 4. 의존성 (pubspec)
 

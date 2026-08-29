@@ -27,7 +27,10 @@ Keep outside this domain when:
 - `services/memo_storage.dart` (legacy) now imports `AttachmentStore` so that the single
   permanent-delete funnel (`deleteForever` / `emptyTrash` / `purgeExpiredTrash`) also removes
   attachment files. That dependency points legacy → domain on purpose: file cleanup must never
-  be skipped by a new delete path.
+  be skipped by a new delete path. Known exception (1단계): backup restore
+  (`export_import_service.dart` → `saveMemos(restored)`) replaces the list without the funnel, so
+  pre-restore attachments become orphans and are collected by the cold-start sweep (`minAge` 1 day;
+  skipped while the memo list is empty). Routing restore through the funnel is part of T-260829-024.
 - Test seam: `AttachmentThumbnail.decodeImages` (static, test-only by convention) and
   `MemoListScreenState.resetOrphanSweepForTest()` / `markOrphanSweepDoneForTest()`. Widget tests
   must seed files in `setUp` and wrap real-IO interactions in `tester.runAsync` — real `dart:io`

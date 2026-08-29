@@ -2914,7 +2914,7 @@ spec §3.2 의 디렉토리 트리를 `lib/features/memos/services/…`·`widget
 - [ ] **Step 4: 전체 게이트**
 
 Run: `flutter analyze && flutter test`
-Expected: `No issues found!` + 전체 PASS (기존 ~124 + 신규 ~40). 실패가 있으면 그 출력을 그대로 보고에 싣고 고친 뒤 재실행 — 「통과했다」는 출력 첨부 후에만.
+Expected: `No issues found!` + 전체 PASS (실측 2026-08-29 19:35: 403 passed — base 대비 테스트 선언 +87, 파일 +11). 실패가 있으면 그 출력을 그대로 보고에 싣고 고친 뒤 재실행 — 「통과했다」는 출력 첨부 후에만.
 
 - [ ] **Step 5: 커밋 + push + PR 갱신**
 
@@ -2945,5 +2945,5 @@ PR #137 본문에 구현 범위·테스트 수·`flutter test` 결과 요약을 
 
 - **Spec coverage**: §3.1 → Task 1 / §3.2 → Task 3(경로만 memos 도메인으로) / §3.3 → Task 4·5 / §3.4 → Task 9·10 / §3.5 → Task 9 / §3.6 → Task 11 / §3.7 → Task 12 / §3.8 → Task 2 / §3.9 → Task 6 / §4 → Task 2 / §5 → 각 Task 의 Step 1 + Task 13 Step 4 + Task 14 / §6 → Task 13 Step 5.
 - **Placeholder**: TBD·TODO·「적절히 처리」 없음. 모든 코드 스텝에 코드 블록 있음.
-- **Type consistency**: `AttachmentStore(root:)`·`.instance/.maybeInstance/.init()/.fileFor/.exists/.save/.delete/.sweepOrphans`, `AttachmentService(source:, compressor:, store:)`·`.production()`·`.pickFromGallery/.takePhoto/.pasteFromClipboard(int)`·`.deleteFiles`·`.store`, `AttachResult` 5종, `ImageSourcePort` 3메서드, `ImageCompressor.toJpeg(src, maxLongEdge:, quality:)`, `fitLongEdge(w,h,max)→(int,int)`, `AttachmentThumbnail(fileName:, size:, radius:)`, `AttachmentStrip(fileNames:, onTap:, onLongPress:)`, `AttachmentViewer(fileNames:, initialIndex:, onDelete:)`·`.show(...)`, `Memo.imageFiles/hasImages/isValidImageFileName`, `MemoStorage.deleteForever(Set<String>)/emptyTrash()/purgeExpiredTrash()` — 태스크 간 동일.
+- **Type consistency**: `AttachmentStore(root:)`·`.instance/.maybeInstance/.init()/.fileFor/.exists/.save/.delete/.sweepOrphans`, `AttachmentService(source:, compressor:, store:)`·`.production()`·`.pickFromGallery/.takePhoto/.pasteFromClipboard(int)`·`.deleteFiles`·`.store`, `AttachResult` 6종(AttachPermissionDenied 포함), `ImageSourcePort` 3메서드, `ImageCompressor.toJpeg(src, maxLongEdge:, quality:)`, `fitLongEdge(w,h,max)→(int,int)`, `AttachmentThumbnail(fileName:, size:, radius:)`, `AttachmentStrip(fileNames:, onTap:, onLongPress:)`, `AttachmentViewer(fileNames:, initialIndex:, onDelete:)`·`.show(...)`, `Memo.imageFiles/hasImages/isValidImageFileName`, `MemoStorage.deleteForever(Set<String>)/emptyTrash()/purgeExpiredTrash()` — 태스크 간 동일.
 - **알려진 툴체인 주의**: Dart 3.10 와일드카드 `(_, _, _)`; `use_build_context_synchronously`; CI 는 Linux 라 플러그인 실호출 0 (전부 fake).
