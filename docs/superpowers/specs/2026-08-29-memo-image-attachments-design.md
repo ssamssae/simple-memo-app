@@ -50,18 +50,18 @@
 
 ### 3.2 파일 저장소 — `lib/features/attachments/`
 
-신규 도메인 디렉토리 (AGENTS.md: 새 기능은 `lib/features/<domain>/` + `README.md` + `AGENTS.md` 동봉).
+기존 memos 도메인 안에 둔다 (`lib/features/memos/README.md`: 메모 목록·편집·검색·휴지통 흐름에 보이는 기능은 memos 도메인 — 구현 시 정정, 별도 `attachments/` 도메인 없음).
 
 ```
-lib/features/attachments/
-  README.md · AGENTS.md
-  attachment_store.dart      // 파일 디렉토리·읽기·삭제·고아 정리
-  attachment_service.dart    // 가져오기 3경로 + 압축 + 결과 타입
-  image_ingest.dart          // bytes → 축소 JPEG (compressor 추상화)
+lib/features/memos/
+  services/
+    attachment_store.dart      // 파일 디렉토리·읽기·삭제·고아 정리(minAge 1일 보호)
+    attachment_service.dart    // 가져오기 3경로 + 압축 + 결과 타입 6종
+    image_ingest.dart          // bytes → 축소 JPEG (compressor 추상화 + fitLongEdge)
   widgets/
-    attachment_strip.dart    // 편집 화면 하단 썸네일 줄
-    attachment_thumbnail.dart// 36px(목록)·72px(스트립) 공용 썸네일 + 플레이스홀더
-    attachment_viewer.dart   // 전체화면 PageView + InteractiveViewer + 삭제
+    attachment_strip.dart      // 편집 화면 하단 썸네일 줄 (tileSize 72 + topPadding 16)
+    attachment_thumbnail.dart  // 36px(목록)·32px(검색)·72px(스트립) 공용 썸네일 + 플레이스홀더
+    attachment_viewer.dart     // 전체화면 PageView + InteractiveViewer(확대 중 페이지 잠금) + 삭제
 ```
 
 - 디렉토리: `<getApplicationDocumentsDirectory()>/attachments/` **평면 구조**. 메모 id 하위 폴더를 두지 않는다 — 새 메모는 저장 시점에야 id 가 발급되므로(`Memo.create`, memo_edit_screen `_buildMemo`) 편집 중 파일을 먼저 만들 수 있어야 한다.
@@ -77,11 +77,12 @@ lib/features/attachments/
 
 ```dart
 sealed class AttachResult {}
-class AttachOk       extends AttachResult { final String fileName; }
-class AttachCancelled extends AttachResult {}   // 피커 취소·권한 거부(피커가 null 반환)
-class AttachNoImage  extends AttachResult {}    // 클립보드에 이미지 없음
-class AttachLimit    extends AttachResult {}    // 현재 장수 ≥ 10
-class AttachFailed   extends AttachResult { final Object error; } // 압축·쓰기 실패
+final class AttachOk       extends AttachResult { final String fileName; }
+final class AttachCancelled extends AttachResult {}   // 피커 취소(피커가 null 반환)
+final class AttachNoImage  extends AttachResult {}    // 클립보드에 이미지 없음 또는 iOS 붙여넣기 「허용 안 함」
+final class AttachLimit    extends AttachResult {}    // 현재 장수 ≥ 10
+final class AttachPermissionDenied extends AttachResult {} // 카메라 권한 거부 (iOS: PlatformException camera_access_denied) — 구현 시 추가
+final class AttachFailed   extends AttachResult { final Object error; } // 압축·쓰기 실패·원본 40MB 초과·피커 0바이트
 ```
 
 - `pickFromGallery(currentCount)` / `takePhoto(currentCount)` — `image_picker` `pickImage(source: gallery|camera)`. `null` = `AttachCancelled`.
@@ -99,8 +100,8 @@ class AttachFailed   extends AttachResult { final Object error; } // 압축·쓰
 | 저장(`_saveMemo`·`_saveAndPop`·스와이프 저장) | `copyWith(imageFiles: (기존 − removed) + added)` 순서 보존 → `onSave`. 그 뒤 `_pendingRemoved` 파일 삭제 |
 | 취소·뒤로(미저장 경로 `_cancelEdit`) | `_pendingAdded` 파일 삭제. `_pendingRemoved` 는 무시(파일 생존) |
 | 휴지통 이동(soft delete) | 파일 유지 — 복원 시 그대로 보임 |
-| 영구삭제 3경로: `trash_screen._deleteForever`·`_emptyTrash`·`MemoStorage.purgeExpiredTrash` | 제거되는 메모들의 `imageFiles` 합집합을 `AttachmentStore.delete` |
-| cold start(`memo_list_screen` 의 `purgeExpiredTrash` 호출 직후) | `sweepOrphans(전 메모 imageFiles 합집합)` — 저장 실패·크래시로 남은 고아 파일 안전망 |
+| 영구삭제 3경로 = `MemoStorage` 단일 펀넬: `deleteForever(ids)`·`emptyTrash()`·`purgeExpiredTrash()` (휴지통 화면은 호출만) | 살아남는 메모가 참조하지 않는 파일만 `AttachmentStore.delete`. **메모 저장(`saveMemos`→bool)이 실패하면 파일을 지우지 않는다** (디스크 풀 시 사진 유실 방지) |
+| cold start(`memo_list_screen._loadMemos`, 프로세스당 1회) | 메모가 0개가 아닐 때만 `sweepOrphans(전 메모 imageFiles 합집합)` — `loadMemos` 가 실패를 빈 목록으로 삼키므로 빈 참조로는 돌리지 않는다. 스토어 쪽 `minAge` 1일 보호가 편집 중 대기 파일을 한 번 더 지킨다 |
 
 - **사진만 있는 메모 허용**: `_buildMemo` 의 「본문 비면 null」을 「본문 비고 사진도 없으면 null」로 완화. 제목은 기존 `firstLine` 의 `untitledMemo` 폴백을 그대로 쓴다.
 - 편집 밀림 프로브(T-260803-035)·undo 스택은 본문 텍스트 전용이라 사진 추가·삭제는 undo 대상이 아니다(스펙 명시, 후속 검토 여지).
@@ -119,7 +120,7 @@ class AttachFailed   extends AttachResult { final Object error; } // 압축·쓰
 
 - Row 에서 별 아이콘 뒤·`Expanded` 제목 앞에 36px 둥근 `AttachmentThumbnail(imageFiles.first)` (`Image.file(cacheWidth: 108)`, 별도 썸네일 파일 없음).
 - 파일 없으면(복원 후 등) 깨진 사진 아이콘 플레이스홀더 — 절대 예외 전파 없음(`errorBuilder`).
-- 행 높이가 사진 있는 행만 소폭 커진다(Q4 확정 감수). 리오더·스와이프 위젯테스트는 높이 가정을 갱신한다.
+- 행 높이는 48 그대로 — 36px 썸네일이 고정 높이 안에 들어간다(구현 실측, Q4 의 「소폭 증가 감수」는 불필요해짐). 리오더·스와이프 위젯테스트 무변경.
 - `search_screen.dart`·`trash_screen.dart` 의 행도 같은 위젯을 재사용한다(행 렌더러가 공용이면 자동, 아니면 배선 1곳씩).
 
 ### 3.7 백업·복원 (1단계 범위 안에서의 처리)

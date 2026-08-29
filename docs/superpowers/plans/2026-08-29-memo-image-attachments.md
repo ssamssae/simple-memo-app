@@ -2640,7 +2640,7 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
 
 ---
 
-### Task 11: 목록·검색·휴지통 썸네일 — ✅ 구현 1a9398e4a (리뷰 진행 중 2026-08-29 19:22)
+### Task 11: 목록·검색·휴지통 썸네일 — ✅ 완료 (1a9398e4a + 리뷰 보강 0d43c4587: 행 배치 실단언·신규 줄 포맷, 2026-08-29 19:32)
 
 **Files:**
 - Modify: `lib/screens/memo_list_screen.dart:1002-1017`
@@ -2812,7 +2812,7 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
 
 ---
 
-### Task 12: 백업 화면 안내 문구 — ✅ 구현 2121c2d60 (스펙 블록과 일치 — 컨트롤러 diff 대조 2026-08-29 19:21)
+### Task 12: 백업 화면 안내 문구 — ✅ 완료 (2121c2d60, spec ✅ 리뷰 통과 2026-08-29 19:30)
 
 **Files:**
 - Modify: `lib/screens/backup_restore_screen.dart:353-354`
@@ -2878,7 +2878,7 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
 
 ---
 
-### Task 13: 문서 + 전체 게이트 + PR 갱신
+### Task 13: 문서 + 전체 게이트 + PR 갱신 — 컨트롤러 직접 수행 2026-08-29 19:3x (spec §3.2·3.3·3.4·3.6 정합, README·CHANGELOG·memos README, 전체 게이트, PR #137 본문)
 
 **Files:**
 - Modify: `lib/features/memos/README.md`
