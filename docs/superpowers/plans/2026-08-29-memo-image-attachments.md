@@ -1100,7 +1100,7 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
 
 ---
 
-### Task 6: `AppStrings` 문구 13개
+### Task 6: `AppStrings` 문구 13개 — ✅ 완료 (5fe23f5e2, 스펙 블록과 문자 단위 일치 — 컨트롤러 diff 대조 2026-08-29 16:32)
 
 **Files:**
 - Modify: `lib/l10n/app_strings.dart:359-360`
