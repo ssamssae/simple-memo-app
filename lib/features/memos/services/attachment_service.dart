@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:image_picker/image_picker.dart';
 import 'package:pasteboard/pasteboard.dart';
 
@@ -10,28 +11,34 @@ sealed class AttachResult {
   const AttachResult();
 }
 
-class AttachOk extends AttachResult {
+final class AttachOk extends AttachResult {
   const AttachOk(this.fileName);
   final String fileName;
 }
 
-/// 피커 취소·권한 거부(플러그인이 null 반환). 화면은 조용히 넘어간다.
-class AttachCancelled extends AttachResult {
+/// 피커 취소 (플러그인이 null 반환). 화면은 조용히 넘어간다. 권한 거부는 [AttachPermissionDenied].
+final class AttachCancelled extends AttachResult {
   const AttachCancelled();
 }
 
 /// 클립보드에 이미지가 없다.
-class AttachNoImage extends AttachResult {
+final class AttachNoImage extends AttachResult {
   const AttachNoImage();
 }
 
 /// 이미 [AttachmentService.maxImages] 장.
-class AttachLimit extends AttachResult {
+final class AttachLimit extends AttachResult {
   const AttachLimit();
 }
 
+/// 카메라 권한 거부 (iOS: image_picker 가 PlatformException camera_access_denied 를 던진다).
+/// 화면은 「설정에서 카메라 권한을 허용해 주세요」 안내로 분기한다.
+final class AttachPermissionDenied extends AttachResult {
+  const AttachPermissionDenied();
+}
+
 /// 압축·저장 실패. 원본 폴백 없음(용량 봉투 보호).
-class AttachFailed extends AttachResult {
+final class AttachFailed extends AttachResult {
   const AttachFailed(this.error);
   final Object error;
 }
@@ -94,14 +101,26 @@ class AttachmentService {
   final ImageCompressor _compressor;
   final AttachmentStore store;
 
-  Future<AttachResult> pickFromGallery(int currentCount) =>
-      _ingest(currentCount, _source.pickGallery, onNull: const AttachCancelled());
+  Future<AttachResult> pickFromGallery(int currentCount) => _ingest(
+        currentCount,
+        _source.pickGallery,
+        onNull: const AttachCancelled(),
+        onEmpty: AttachFailed(StateError('empty image bytes')),
+      );
 
-  Future<AttachResult> takePhoto(int currentCount) =>
-      _ingest(currentCount, _source.takePhoto, onNull: const AttachCancelled());
+  Future<AttachResult> takePhoto(int currentCount) => _ingest(
+        currentCount,
+        _source.takePhoto,
+        onNull: const AttachCancelled(),
+        onEmpty: AttachFailed(StateError('empty image bytes')),
+      );
 
-  Future<AttachResult> pasteFromClipboard(int currentCount) =>
-      _ingest(currentCount, _source.clipboardImage, onNull: const AttachNoImage());
+  Future<AttachResult> pasteFromClipboard(int currentCount) => _ingest(
+        currentCount,
+        _source.clipboardImage,
+        onNull: const AttachNoImage(),
+        onEmpty: const AttachNoImage(),
+      );
 
   Future<void> deleteFiles(Iterable<String> names) => store.delete(names);
 
@@ -109,30 +128,36 @@ class AttachmentService {
     int currentCount,
     Future<Uint8List?> Function() read, {
     required AttachResult onNull,
+    required AttachResult onEmpty,
   }) async {
     if (currentCount >= maxImages) return const AttachLimit();
-    final Uint8List? source;
+    final Uint8List? bytes;
     try {
-      source = await read();
-    } catch (e) {
-      debugPrint('[AttachmentService] read: $e');
+      bytes = await read();
+    } on PlatformException catch (e, st) {
+      if (e.code == 'camera_access_denied') return const AttachPermissionDenied();
+      debugPrint('[AttachmentService] read: $e\n$st');
+      return AttachFailed(e);
+    } catch (e, st) {
+      debugPrint('[AttachmentService] read: $e\n$st');
       return AttachFailed(e);
     }
-    if (source == null || source.isEmpty) return onNull;
-    if (source.length > maxSourceBytes) {
-      debugPrint('[AttachmentService] source too large: ${source.length}B');
-      return AttachFailed(ArgumentError.value(source.length, 'source', 'exceeds maxSourceBytes'));
+    if (bytes == null) return onNull;
+    if (bytes.isEmpty) return onEmpty;
+    if (bytes.length > maxSourceBytes) {
+      debugPrint('[AttachmentService] source too large: ${bytes.length}B');
+      return AttachFailed(ArgumentError.value(bytes.length, 'bytes', 'exceeds maxSourceBytes'));
     }
     try {
       final jpeg = await _compressor.toJpeg(
-        source,
+        bytes,
         maxLongEdge: maxLongEdge,
         quality: jpegQuality,
       );
       final name = await store.save(jpeg);
       return AttachOk(name);
-    } catch (e) {
-      debugPrint('[AttachmentService] ingest: $e');
+    } catch (e, st) {
+      debugPrint('[AttachmentService] ingest: $e\n$st');
       return AttachFailed(e);
     }
   }

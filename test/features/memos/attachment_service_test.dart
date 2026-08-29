@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_memo_app/features/memos/services/attachment_service.dart';
 import 'package:simple_memo_app/features/memos/services/attachment_store.dart';
@@ -100,5 +100,36 @@ void main() {
     final name = ((await service.pickFromGallery(0)) as AttachOk).fileName;
     await service.deleteFiles([name]);
     expect(await AttachmentStore.instance.exists(name), isFalse);
+  });
+
+  test('read 가 던지면 AttachFailed, 압축기 미호출·파일 미생성', () async {
+    port.throwOnRead = StateError('picker exploded');
+    final result = await service.pickFromGallery(0);
+    expect(result, isA<AttachFailed>());
+    expect(compressor.calls, 0);
+    expect(AttachmentStore.instance.root.existsSync(), isFalse);
+  });
+
+  test('카메라 권한 거부(PlatformException camera_access_denied) → AttachPermissionDenied', () async {
+    port.throwOnRead = PlatformException(code: 'camera_access_denied');
+    expect(await service.takePhoto(0), isA<AttachPermissionDenied>());
+    expect(compressor.calls, 0);
+  });
+
+  test('다른 PlatformException 은 AttachFailed', () async {
+    port.throwOnRead = PlatformException(code: 'already_active');
+    expect(await service.pickFromGallery(0), isA<AttachFailed>());
+  });
+
+  test('피커가 빈 바이트를 주면 취소가 아니라 AttachFailed', () async {
+    port.galleryBytes = Uint8List(0);
+    expect(await service.pickFromGallery(0), isA<AttachFailed>());
+    port.cameraBytes = Uint8List(0);
+    expect(await service.takePhoto(0), isA<AttachFailed>());
+  });
+
+  test('production(): 스토어 미초기화면 StateError', () {
+    AttachmentStore.instance = null;
+    expect(AttachmentService.production, throwsStateError);
   });
 }

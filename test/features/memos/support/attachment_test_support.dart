@@ -34,6 +34,7 @@ class FakeImageSourcePort implements ImageSourcePort {
   Uint8List? galleryBytes;
   Uint8List? cameraBytes;
   Uint8List? clipboardBytes;
+  Object? throwOnRead;
   int galleryCalls = 0;
   int cameraCalls = 0;
   int clipboardCalls = 0;
@@ -41,18 +42,21 @@ class FakeImageSourcePort implements ImageSourcePort {
   @override
   Future<Uint8List?> pickGallery() async {
     galleryCalls++;
+    if (throwOnRead != null) throw throwOnRead!;
     return galleryBytes;
   }
 
   @override
   Future<Uint8List?> takePhoto() async {
     cameraCalls++;
+    if (throwOnRead != null) throw throwOnRead!;
     return cameraBytes;
   }
 
   @override
   Future<Uint8List?> clipboardImage() async {
     clipboardCalls++;
+    if (throwOnRead != null) throw throwOnRead!;
     return clipboardBytes;
   }
 }
