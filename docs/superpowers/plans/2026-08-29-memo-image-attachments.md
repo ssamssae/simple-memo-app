@@ -1155,7 +1155,7 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
 ⚠️ 실측(구현 중 발견, 재현 3회 + 진단 테스트 2건): **`testWidgets` 본문 안에서 실제 `dart:io` 비동기 호출을 `await` 하면 무엇이든**(파일 쓰기·`Image.file` 디코딩 모두) FakeAsync 존에서 완료되지 않아 10분 타임아웃으로 멈춘다. `setUp`/`tearDown` 은 실존(real zone)이라 안전하고, 순수 `test()` 도 안전하다. 규칙(Task 8·9·11 테스트 전부 적용):
 1. 파일 심기(`seedStoreFile`)는 **`setUp` 에서** 하거나 본문에서는 **`tester.runAsync(() async { … })` 안에서** 한다.
 2. 위젯 동작이 실제 IO 를 일으키는 상호작용(편집 화면의 사진 추가 → `store.save`, 삭제/취소 → `store.delete`)은 **그 상호작용과 직후 pump 를 `tester.runAsync` 블록으로 감싼다.**
-3. 썸네일 디코딩은 `AttachmentThumbnail.decodeImages`(`@visibleForTesting static bool`, 기본 true) 스위치로 끈다 — false 면 `Image.file` 대신 `SizedBox.expand(key: ValueKey('attachment-file:<path>'))`. setUp 에서 false, tearDown 에서 true 복원. 뷰어(Task 8)도 같은 스위치를 본다. 실디코딩 경로는 Task 7 의 `runAsync` 테스트 1건이 증명한다(6 PASS, 3초).
+3. 썸네일 디코딩은 `AttachmentThumbnail.decodeImages`(`static bool`, 기본 true — 뷰어도 같이 읽으므로 `@visibleForTesting` 을 붙이지 않는다, Task 8 에서 정정) 스위치로 끈다 — false 면 `Image.file` 대신 `SizedBox.expand(key: ValueKey('attachment-file:<path>'))`. setUp 에서 false, tearDown 에서 true 복원. 뷰어(Task 8)도 같은 스위치를 본다. 실디코딩 경로는 Task 7 의 `runAsync` 테스트 1건이 증명한다(6 PASS, 3초).
 
 **Files:**
 - Create: `lib/features/memos/widgets/attachment_thumbnail.dart`
@@ -1486,6 +1486,23 @@ void main() {
 
     expect(deleted, [a]);
     expect(find.byType(AttachmentViewer), findsNothing);
+  });
+
+  testWidgets('두 장 중 첫 장 삭제 → 뷰어는 남고 남은 장을 보여준다', (tester) async {
+    final deleted = <String>[];
+    await tester.pumpWidget(MaterialApp(
+      home: AttachmentViewer(fileNames: [a, b], initialIndex: 0, onDelete: deleted.add),
+    ));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CupertinoDialogAction, '사진 삭제'));
+    await tester.pumpAndSettle();
+
+    expect(deleted, [a]);
+    expect(find.byType(AttachmentViewer), findsOneWidget);
+    expect(find.text('1 / 1'), findsOneWidget);
+    expect(find.byKey(ValueKey('attachment-file:${AttachmentStore.instance.fileFor(b).path}')), findsOneWidget);
   });
 
   testWidgets('파일이 없어도 예외 없이 플레이스홀더 아이콘', (tester) async {
