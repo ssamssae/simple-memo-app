@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_memo_app/features/memos/services/attachment_store.dart';
+import 'package:simple_memo_app/models/memo.dart';
 
 import 'support/attachment_test_support.dart';
 
@@ -87,6 +88,32 @@ void main() {
 
   test('sweepOrphans: 디렉토리 자체가 없으면 0', () async {
     expect(await AttachmentStore.instance.sweepOrphans(const []), 0);
+  });
+
+  test('exists: 검증 실패 파일명은 false (던지지 않음)', () async {
+    expect(await AttachmentStore.instance.exists('../x.jpg'), isFalse);
+    expect(await AttachmentStore.instance.exists('a/b.jpg'), isFalse);
+  });
+
+  test('delete: 검증 실패 파일명은 조용히 건너뛴다', () async {
+    final store = AttachmentStore.instance;
+    final a = await store.save(kTinyPng);
+    await store.delete(['../evil.jpg', 'a/b.jpg', a]);
+    expect(await store.exists(a), isFalse);
+  });
+
+  test('save 가 돌려주는 파일명은 Memo.isValidImageFileName 을 통과한다', () async {
+    final name = await AttachmentStore.instance.save(kTinyPng);
+    expect(Memo.isValidImageFileName(name), isTrue);
+  });
+
+  test('sweepOrphans: 하위 디렉토리는 무시한다', () async {
+    final store = AttachmentStore.instance;
+    await store.root.create(recursive: true);
+    final sub = Directory('${store.root.path}${Platform.pathSeparator}sub')..createSync();
+    File('${sub.path}${Platform.pathSeparator}x.jpg').writeAsBytesSync(kTinyPng);
+    expect(await store.sweepOrphans(const [], minAge: Duration.zero), 0);
+    expect(sub.existsSync(), isTrue);
   });
 
   test('instance 미설정이면 maybeInstance null, instance 는 StateError', () {

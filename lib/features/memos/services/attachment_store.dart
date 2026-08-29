@@ -48,7 +48,9 @@ class AttachmentStore {
     return File('${_root.path}${Platform.pathSeparator}$name');
   }
 
-  Future<bool> exists(String name) => fileFor(name).exists();
+  /// 검증 실패 파일명은 false — 조회 메서드는 던지지 않는다 ([delete] 와 같은 계약).
+  Future<bool> exists(String name) async =>
+      Memo.isValidImageFileName(name) && await fileFor(name).exists();
 
   /// JPEG 바이트를 새 파일로 저장하고 파일명을 돌려준다.
   Future<String> save(Uint8List jpegBytes) async {
@@ -75,6 +77,7 @@ class AttachmentStore {
   /// (1) cold start 처럼 편집 세션이 없는 시점에만 부를 것, (2) 최근 파일은 편집 중 대기분
   /// (아직 어느 메모도 참조 안 함)일 수 있어 나이로 한 번 더 거른다. 참조가 잠깐 유실된
   /// 경우(구버전 빌드가 images 키를 떨어뜨린 뒤 다시 읽는 등)에도 즉시 삭제로 번지지 않는다.
+  /// 심볼릭 링크·하위 디렉토리는 건드리지 않는다 (`followLinks: false` + `entry is! File`).
   Future<int> sweepOrphans(
     Iterable<String> referenced, {
     Duration minAge = const Duration(days: 1),
