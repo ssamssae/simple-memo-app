@@ -44,13 +44,13 @@
 
 ---
 
-### Task 1: `Memo.imageFiles` 모델 필드
+### Task 1: `Memo.imageFiles` 모델 필드 — ✅ 완료 (08b5bd9fe + 리뷰 보강 6e8af2d33, spec/quality 리뷰 통과 2026-08-29 15:35)
 
 **Files:**
 - Modify: `lib/models/memo.dart`
 - Test: `test/models/memo_images_test.dart`
 
-- [ ] **Step 1: 실패하는 테스트 작성**
+- [x] **Step 1: 실패하는 테스트 작성**
 
 ```dart
 // test/models/memo_images_test.dart
@@ -403,11 +403,15 @@ void main() {
     expect(() => store.fileFor('a/b.jpg'), throwsArgumentError);
   });
 
-  test('sweepOrphans: 참조 안 되는 파일만 지우고 개수를 돌려준다', () async {
+  test('sweepOrphans: 참조 안 되는 오래된 파일만 지우고 개수를 돌려준다', () async {
     final store = AttachmentStore.instance;
     final keep = await store.save(kTinyPng);
     final orphan1 = await store.save(kTinyPng);
     final orphan2 = await store.save(kTinyPng);
+    final old = DateTime.now().subtract(const Duration(days: 2));
+    for (final n in [keep, orphan1, orphan2]) {
+      store.fileFor(n).setLastModifiedSync(old);
+    }
 
     final removed = await store.sweepOrphans([keep, 'not-on-disk.jpg']);
 
@@ -415,6 +419,26 @@ void main() {
     expect(await store.exists(keep), isTrue);
     expect(await store.exists(orphan1), isFalse);
     expect(await store.exists(orphan2), isFalse);
+  });
+
+  test('sweepOrphans: minAge 보다 최근 파일은 참조가 없어도 남긴다 (편집 세션 대기분 보호)', () async {
+    final store = AttachmentStore.instance;
+    final fresh = await store.save(kTinyPng); // 방금 생성 = mtime 지금
+    final aged = await store.save(kTinyPng);
+    store.fileFor(aged).setLastModifiedSync(DateTime.now().subtract(const Duration(hours: 30)));
+
+    final removed = await store.sweepOrphans(const []);
+
+    expect(removed, 1);
+    expect(await store.exists(fresh), isTrue);
+    expect(await store.exists(aged), isFalse);
+  });
+
+  test('sweepOrphans: minAge 를 0 으로 주면 최근 파일도 정리 대상', () async {
+    final store = AttachmentStore.instance;
+    final fresh = await store.save(kTinyPng);
+    expect(await store.sweepOrphans(const [], minAge: Duration.zero), 1);
+    expect(await store.exists(fresh), isFalse);
   });
 
   test('sweepOrphans: 디렉토리 자체가 없으면 0', () async {
@@ -512,17 +536,24 @@ class AttachmentStore {
     }
   }
 
-  /// `referenced` 에 없는 파일을 지운다. cold start 처럼 편집 세션이 없는 시점에만 부를 것 —
-  /// 편집 중 대기 파일은 아직 어느 메모도 참조하지 않아 고아로 보인다.
-  Future<int> sweepOrphans(Iterable<String> referenced) async {
+  /// `referenced` 에 없고 [minAge] 보다 오래된 파일을 지운다. 두 겹 보호:
+  /// (1) cold start 처럼 편집 세션이 없는 시점에만 부를 것, (2) 최근 파일은 편집 중 대기분
+  /// (아직 어느 메모도 참조 안 함)일 수 있어 나이로 한 번 더 거른다. 참조가 잠깐 유실된
+  /// 경우(구버전 빌드가 images 키를 떨어뜨린 뒤 다시 읽는 등)에도 즉시 삭제로 번지지 않는다.
+  Future<int> sweepOrphans(
+    Iterable<String> referenced, {
+    Duration minAge = const Duration(days: 1),
+  }) async {
     if (!await _root.exists()) return 0;
     final keep = referenced.toSet();
+    final cutoff = DateTime.now().subtract(minAge);
     var removed = 0;
     await for (final entry in _root.list(followLinks: false)) {
       if (entry is! File) continue;
       final name = entry.uri.pathSegments.last;
       if (keep.contains(name)) continue;
       try {
+        if ((await entry.lastModified()).isAfter(cutoff)) continue;
         await entry.delete();
         removed++;
       } on FileSystemException catch (e) {
@@ -537,7 +568,7 @@ class AttachmentStore {
 - [ ] **Step 5: 통과 확인**
 
 Run: `flutter test test/features/memos/attachment_store_test.dart`
-Expected: 7 PASS.
+Expected: 9 PASS.
 
 - [ ] **Step 6: 커밋**
 
@@ -1034,7 +1065,7 @@ class AttachmentService {
 - [ ] **Step 5: 통과 확인**
 
 Run: `flutter test test/features/memos/`
-Expected: store 7 + ingest 5 + service 9 = 21 PASS.
+Expected: store 9 + ingest 5 + service 9 = 23 PASS.
 
 - [ ] **Step 6: 커밋**
 
