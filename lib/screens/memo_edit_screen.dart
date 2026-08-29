@@ -42,6 +42,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   StreamSubscription<AccelerometerEvent>? _accelSub;
   DateTime _lastShakeAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _shakeDialogOpen = false;
+  bool _photoSheetOpen = false;
   bool _isEditing = false;
   bool _popHandled = false;
   Offset? _lastTouchPosition;
@@ -264,6 +265,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     if (memo != null) {
       widget.onSave?.call(memo);
       _commitPendingRemovals();
+      // 저장된 메모가 참조하는 파일 — 이후 취소가 지우면 안 된다.
+      _pendingAdded.clear();
     }
   }
 
@@ -284,6 +287,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     _popHandled = true;
     widget.onSave?.call(memo);
     _commitPendingRemovals();
+    // 저장된 메모가 참조하는 파일 — 이후 취소가 지우면 안 된다.
+    _pendingAdded.clear();
     Navigator.pop(context);
   }
 
@@ -296,9 +301,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   Future<void> _shareMemo(BuildContext shareContext) async {
     final memo = _buildMemo();
     if (memo == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.of(context).nothingToShare)),
-      );
+      _snack(AppStrings.of(context).nothingToShare);
       return;
     }
     try {
@@ -309,6 +312,13 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
             if (store.fileFor(name).existsSync())
               XFile(store.fileFor(name).path, mimeType: 'image/jpeg'),
       ];
+      if (files.isEmpty && memo.content.isEmpty) {
+        // 사진만 있는 메모인데 파일이 디스크에 없다(백업 복원 등) — 공유할 게 없다.
+        // Share.share('') 는 share_plus 의 빈 문자열 assert 를 때려 "공유 실패"로
+        // 오분류되므로, 그 경로를 타기 전에 여기서 막는다.
+        _snack(AppStrings.of(context).nothingToShare);
+        return;
+      }
       if (files.isEmpty) {
         await Share.share(
           memo.content,
@@ -325,9 +335,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.of(context).shareFailed(e))),
-      );
+      _snack(AppStrings.of(context).shareFailed(e));
     }
   }
 
@@ -368,32 +376,40 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       _snack(strings.photoLimitReached);
       return;
     }
-    // 붙여넣기는 항상 노출 — 미리 클립보드를 읽어 활성/비활성을 정하면
-    // iOS 「붙여넣기 허용?」 시스템 프롬프트가 두 번 뜬다.
-    final source = await showCupertinoModalPopup<_PhotoSource>(
-      context: context,
-      builder: (ctx) => CupertinoActionSheet(
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () => Navigator.pop(ctx, _PhotoSource.gallery),
-            child: Text(strings.fromGallery),
+    // 더블탭 등으로 시트가 겹쳐 뜨는 것을 막는다 (_shakeDialogOpen 과 같은 패턴).
+    if (_photoSheetOpen) return;
+    _photoSheetOpen = true;
+    final _PhotoSource? source;
+    try {
+      // 붙여넣기는 항상 노출 — 미리 클립보드를 읽어 활성/비활성을 정하면
+      // iOS 「붙여넣기 허용?」 시스템 프롬프트가 두 번 뜬다.
+      source = await showCupertinoModalPopup<_PhotoSource>(
+        context: context,
+        builder: (ctx) => CupertinoActionSheet(
+          actions: [
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, _PhotoSource.gallery),
+              child: Text(strings.fromGallery),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, _PhotoSource.camera),
+              child: Text(strings.fromCamera),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, _PhotoSource.clipboard),
+              child: Text(strings.pasteImage),
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(strings.cancel),
           ),
-          CupertinoActionSheetAction(
-            onPressed: () => Navigator.pop(ctx, _PhotoSource.camera),
-            child: Text(strings.fromCamera),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () => Navigator.pop(ctx, _PhotoSource.clipboard),
-            child: Text(strings.pasteImage),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          isDefaultAction: true,
-          onPressed: () => Navigator.pop(ctx),
-          child: Text(strings.cancel),
         ),
-      ),
-    );
+      );
+    } finally {
+      _photoSheetOpen = false;
+    }
     if (source == null || !mounted) return;
 
     final count = _imageFiles.length;
@@ -406,6 +422,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       };
     } catch (e) {
       // AttachmentService.production() 이 스토어 미초기화로 던지는 경우 등.
+      debugPrint('[MemoEditScreen._addPhoto] $e');
       result = AttachFailed(e);
     }
     if (!mounted) return;
@@ -725,7 +742,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                                   0.0,
                                   constraints.maxHeight -
                                       (_imageFiles.isNotEmpty
-                                          ? AttachmentStrip.tileSize + 16
+                                          ? AttachmentStrip.totalHeight
                                           : 0),
                                 ),
                               ),

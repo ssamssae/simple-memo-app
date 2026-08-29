@@ -12,6 +12,9 @@ class AttachmentStrip extends StatelessWidget {
   });
 
   static const double tileSize = 72;
+  static const double topPadding = 16;
+  // 편집 화면이 뷰포트에서 이 스트립 몫으로 빼둬야 하는 총 높이 — 단일 출처.
+  static const double totalHeight = tileSize + topPadding;
 
   final List<String> fileNames;
   final ValueChanged<int> onTap;
@@ -20,7 +23,7 @@ class AttachmentStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.only(top: topPadding),
       child: SizedBox(
         height: tileSize,
         child: ListView.separated(
