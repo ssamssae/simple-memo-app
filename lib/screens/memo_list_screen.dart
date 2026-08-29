@@ -27,6 +27,12 @@ class MemoListScreenState extends State<MemoListScreen>
   // 열려 있는 편집 세션의 대기 파일(아직 어느 메모도 참조 안 함)을 지운다.
   static bool _orphanSweepDone = false;
 
+  @visibleForTesting
+  static void resetOrphanSweepForTest() => _orphanSweepDone = false;
+
+  @visibleForTesting
+  static void markOrphanSweepDoneForTest() => _orphanSweepDone = true;
+
   // [요구사항 1] 단일 리스트로만 관리. 즐겨찾기가 앞, 일반이 뒤 순서 유지.
   List<Memo> _memos = [];
   bool _isLoading = true;
@@ -217,13 +223,17 @@ class MemoListScreenState extends State<MemoListScreen>
       // 휴지통 30일 만료분 자동 영구삭제(cold start/resume). 활성 메모 무영향.
       await MemoStorage.purgeExpiredTrash();
       final memos = await MemoStorage.loadMemos();
-      // 고아 정리는 참조 목록이 비어 있으면 돌리지 않는다 — loadMemos 는 실패를 빈 목록으로
-      // 삼키므로(prefs 일시 오류·JSON 파싱 실패) 빈 목록 = 「메모 0개」와 구분이 안 되고,
-      // 그 상태에서 돌리면 1일 넘은 첨부 전부가 지워진다 (Task 3 리뷰 지적).
+      // 고아 정리는 프로세스당 1회만 시도한다 — 플래그는 이 첫 패스에서 항상 세팅해
+      // 이후 resume 으로 미뤄지지 않게 하고, 그 안에서만 참조 목록이 비어 있으면
+      // 건너뛴다. loadMemos 는 실패를 빈 목록으로 삼키므로(prefs 일시 오류·JSON
+      // 파싱 실패) 빈 목록 = 「메모 0개」와 구분이 안 되고, 그 상태에서 돌리면
+      // 1일 넘은 첨부 전부가 지워진다 (Task 3 리뷰 지적).
       final store = AttachmentStore.maybeInstance;
-      if (store != null && !_orphanSweepDone && memos.isNotEmpty) {
+      if (store != null && !_orphanSweepDone) {
         _orphanSweepDone = true;
-        unawaited(store.sweepOrphans(memos.expand((m) => m.imageFiles)));
+        if (memos.isNotEmpty) {
+          unawaited(store.sweepOrphans(memos.expand((m) => m.imageFiles)));
+        }
       }
       if (!mounted) return;
       setState(() {
