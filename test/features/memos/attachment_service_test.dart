@@ -182,6 +182,44 @@ void main() {
     expect(await service.takePhoto(0), isA<AttachFailed>());
   });
 
+  group('갤러리에 저장', () {
+    late FakeGallerySaver saver;
+
+    setUp(() {
+      saver = FakeGallerySaver();
+      service = fakeAttachmentService(port: port, compressor: compressor, saver: saver);
+    });
+
+    test('성공 → SaveOk, 스토어 파일 경로를 그대로 넘긴다', () async {
+      final name = await seedStoreFile('s.jpg');
+      expect(await service.saveToGallery(name), isA<SaveOk>());
+      expect(saver.savedPaths, [AttachmentStore.instance.fileFor(name).path]);
+    });
+
+    test('파일 없음 → SaveFailed, 플러그인 미호출', () async {
+      expect(await service.saveToGallery('missing.jpg'), isA<SaveFailed>());
+      expect(saver.savedPaths, isEmpty);
+    });
+
+    test('권한 거부(false) → SaveDenied', () async {
+      final name = await seedStoreFile('s.jpg');
+      saver.denyAccess = true;
+      expect(await service.saveToGallery(name), isA<SaveDenied>());
+    });
+
+    test('플러그인이 던지면 SaveFailed (예외는 서비스 밖으로 안 나간다)', () async {
+      final name = await seedStoreFile('s.jpg');
+      saver.throwOnSave = StateError('disk full');
+      final result = await service.saveToGallery(name);
+      expect(result, isA<SaveFailed>());
+      expect((result as SaveFailed).error, isA<StateError>());
+    });
+
+    test('잘못된 파일명 → SaveFailed (fileFor 의 ArgumentError 흡수)', () async {
+      expect(await service.saveToGallery('../etc/passwd'), isA<SaveFailed>());
+    });
+  });
+
   test('production(): 스토어 미초기화면 StateError', () {
     AttachmentStore.instance = null;
     expect(AttachmentService.production, throwsStateError);

@@ -46,6 +46,24 @@ void main() {
     expect(find.byIcon(Icons.delete_outline), findsNothing);
   });
 
+  testWidgets('onSave 없으면 저장 버튼이 없고, 있으면 현재 장 파일명으로 콜백', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: AttachmentViewer(fileNames: [a, b], initialIndex: 1),
+    ));
+    expect(find.byTooltip('갤러리에 저장'), findsNothing);
+
+    final saved = <String>[];
+    await tester.pumpWidget(MaterialApp(
+      home: AttachmentViewer(fileNames: [a, b], initialIndex: 1, onSave: saved.add),
+    ));
+    await tester.pump();
+    await tester.tap(find.byTooltip('갤러리에 저장'));
+    await tester.pump();
+    expect(saved, [b]);
+    // 저장은 첨부를 건드리지 않는다 — 뷰어는 그대로 2장.
+    expect(find.text('2 / 2'), findsOneWidget);
+  });
+
   testWidgets('삭제 → 확인 다이얼로그 → 콜백에 파일명, 마지막 장이면 닫힌다', (tester) async {
     final deleted = <String>[];
     await tester.pumpWidget(MaterialApp(

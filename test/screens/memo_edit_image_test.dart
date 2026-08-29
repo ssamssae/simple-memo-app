@@ -338,6 +338,9 @@ void main() {
 
     await tester.longPress(find.byType(AttachmentThumbnail).first);
     await tester.pumpAndSettle();
+    // 길게 누르기 → 「갤러리에 저장 / 사진 삭제」 시트 → 삭제 → 확인 대화상자.
+    await tester.tap(find.widgetWithText(CupertinoActionSheetAction, '사진 삭제'));
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(CupertinoDialogAction, '사진 삭제'));
     await tester.pumpAndSettle();
     expect(find.byType(AttachmentThumbnail), findsOneWidget);
@@ -355,6 +358,40 @@ void main() {
     expect(onDisk(b), isTrue);
   });
 
+  testWidgets('썸네일 길게 누르기 → 「갤러리에 저장」 → 플러그인에 파일 경로 + 안내, 첨부는 그대로', (tester) async {
+    final saver = FakeGallerySaver();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          memo: existing(images: [a, b]),
+          attachmentService: fakeAttachmentService(port: port, saver: saver),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.byType(AttachmentThumbnail).first);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(CupertinoActionSheetAction, '갤러리에 저장'), findsOneWidget);
+    expect(find.widgetWithText(CupertinoActionSheetAction, '사진 삭제'), findsOneWidget);
+
+    // 저장은 store.fileFor(...).exists() 실제 IO → runAsync.
+    await tester.runAsync(() async {
+      await tester.tap(find.widgetWithText(CupertinoActionSheetAction, '갤러리에 저장'));
+      await tester.pumpAndSettle();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pump();
+
+    expect(saver.savedPaths, [AttachmentStore.instance.fileFor(a).path]);
+    // 스낵바는 showSnackBar 다음 프레임에 트리에 오른다 — 한 프레임 더.
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(SnackBar), findsOneWidget, reason: 'snackbar count');
+    expect(find.text('갤러리에 저장했어요'), findsOneWidget);
+    expect(find.byType(AttachmentThumbnail), findsNWidgets(2));
+    expect(onDisk(a), isTrue);
+  });
+
   testWidgets('이 세션에서 추가한 사진을 바로 지우면 파일도 즉시 삭제', (tester) async {
     port.galleryBytes = kTinyPng;
     await tester.pumpWidget(
@@ -367,6 +404,8 @@ void main() {
     await addViaSheet(tester, '사진첩');
     expect(filesOnDisk(), 13 + 1);
     await tester.longPress(find.byType(AttachmentThumbnail));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CupertinoActionSheetAction, '사진 삭제'));
     await tester.pumpAndSettle();
     await confirmDialog(tester, '사진 삭제');
 

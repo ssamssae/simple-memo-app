@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 「갤러리에 저장」(gal): Android 10 미만만 저장소 쓰기 권한이 필요하다. 10+ 는 MediaStore 로 권한 없이 저장. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <application
         android:label="메모요"
         android:name="${applicationName}"

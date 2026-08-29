@@ -15,17 +15,22 @@ class AttachmentViewer extends StatefulWidget {
     required this.fileNames,
     required this.initialIndex,
     this.onDelete,
+    this.onSave,
   });
 
   final List<String> fileNames;
   final int initialIndex;
   final ValueChanged<String>? onDelete;
 
+  /// 「갤러리에 저장」 — 호출부(편집 화면)가 서비스로 처리하고 안내를 띄운다. null 이면 버튼 없음.
+  final ValueChanged<String>? onSave;
+
   static Future<void> show(
     BuildContext context, {
     required List<String> fileNames,
     required int initialIndex,
     ValueChanged<String>? onDelete,
+    ValueChanged<String>? onSave,
   }) {
     return Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -34,6 +39,7 @@ class AttachmentViewer extends StatefulWidget {
           fileNames: fileNames,
           initialIndex: initialIndex,
           onDelete: onDelete,
+          onSave: onSave,
         ),
       ),
     );
@@ -183,6 +189,12 @@ class _AttachmentViewerState extends State<AttachmentViewer> {
         ),
         centerTitle: true,
         actions: [
+          if (widget.onSave != null && _names.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.save_alt_outlined),
+              tooltip: strings.saveToGallery,
+              onPressed: () => widget.onSave?.call(_names[_index]),
+            ),
           if (widget.onDelete != null && _names.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_outline),

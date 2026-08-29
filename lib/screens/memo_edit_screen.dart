@@ -487,6 +487,63 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     });
   }
 
+  /// 썸네일 길게 누르기 → 「갤러리에 저장 / 삭제 / 취소」 시트.
+  /// (아니키 S24 피드백 2026-08-30 01:2x — 삭제 옆에 갤러리 저장도.)
+  Future<void> _showPhotoActions(int index) async {
+    if (index < 0 || index >= _imageFiles.length) return;
+    final fileName = _imageFiles[index];
+    final strings = AppStrings.of(context);
+    final action = await showCupertinoModalPopup<_PhotoAction>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, _PhotoAction.save),
+            child: Text(strings.saveToGallery),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(ctx, _PhotoAction.delete),
+            child: Text(strings.deletePhotoConfirmTitle),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(strings.cancel),
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+    switch (action) {
+      case _PhotoAction.save:
+        await _savePhotoToGallery(fileName);
+      case _PhotoAction.delete:
+        await _confirmRemovePhoto(_imageFiles.indexOf(fileName));
+    }
+  }
+
+  Future<void> _savePhotoToGallery(String fileName) async {
+    final strings = AppStrings.of(context);
+    final SaveToGalleryResult result;
+    try {
+      result = await _attachments.saveToGallery(fileName);
+    } catch (e) {
+      debugPrint('[MemoEditScreen._savePhotoToGallery] $e');
+      if (mounted) _snack(strings.saveToGalleryFailed);
+      return;
+    }
+    if (!mounted) return;
+    switch (result) {
+      case SaveOk():
+        _snack(strings.savedToGallery);
+      case SaveDenied():
+        _snack(strings.saveToGalleryDenied);
+      case SaveFailed():
+        _snack(strings.saveToGalleryFailed);
+    }
+  }
+
   Future<void> _confirmRemovePhoto(int index) async {
     if (index < 0 || index >= _imageFiles.length) return;
     final fileName = _imageFiles[index];
@@ -520,6 +577,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       fileNames: List.of(_imageFiles),
       initialIndex: index,
       onDelete: _removePhoto,
+      onSave: _savePhotoToGallery,
     );
   }
 
@@ -904,7 +962,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                               AttachmentStrip(
                                 fileNames: _imageFiles,
                                 onTap: _openViewer,
-                                onLongPress: _confirmRemovePhoto,
+                                onLongPress: _showPhotoActions,
                               ),
                           ],
                         ), // end Column
@@ -1028,3 +1086,6 @@ class _LargeCupertinoSelectionControls extends CupertinoTextSelectionControls {
 final _largeCupertinoSelectionControls = _LargeCupertinoSelectionControls();
 
 enum _PhotoSource { gallery, camera, clipboard }
+
+/// 썸네일 길게 누르기 시트의 선택지.
+enum _PhotoAction { save, delete }

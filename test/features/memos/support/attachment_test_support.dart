@@ -89,13 +89,30 @@ class PassthroughCompressor implements ImageCompressor {
   }
 }
 
+/// 갤러리 저장 fake — 받은 경로를 기록하고, [throwOnSave] 가 있으면 던진다.
+class FakeGallerySaver implements GallerySaverPort {
+  final List<String> savedPaths = [];
+  Object? throwOnSave;
+  bool denyAccess = false;
+
+  @override
+  Future<bool> putImage(String path) async {
+    if (throwOnSave != null) throw throwOnSave!;
+    if (denyAccess) return false;
+    savedPaths.add(path);
+    return true;
+  }
+}
+
 /// 실제 파이프라인 + fake 가장자리. `installTempStore()` 뒤에 부를 것.
 AttachmentService fakeAttachmentService({
   FakeImageSourcePort? port,
   PassthroughCompressor? compressor,
+  FakeGallerySaver? saver,
 }) =>
     AttachmentService(
       source: port ?? FakeImageSourcePort(),
       compressor: compressor ?? PassthroughCompressor(),
       store: AttachmentStore.instance,
+      saver: saver ?? FakeGallerySaver(),
     );

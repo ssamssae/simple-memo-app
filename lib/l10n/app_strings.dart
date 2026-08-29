@@ -373,6 +373,14 @@ class AppStrings {
       isEnglish ? 'Up to 10 photos per memo' : '사진은 메모당 최대 10장까지예요';
   String get photoAttachFailed =>
       isEnglish ? "Couldn't add the photo" : '사진을 추가하지 못했어요';
+  String get saveToGallery => isEnglish ? 'Save to gallery' : '갤러리에 저장';
+  String get savedToGallery =>
+      isEnglish ? 'Saved to gallery' : '갤러리에 저장했어요';
+  String get saveToGalleryDenied => isEnglish
+      ? 'Allow photo access in Settings to save'
+      : '저장하려면 설정에서 사진 권한을 허용해 주세요';
+  String get saveToGalleryFailed =>
+      isEnglish ? "Couldn't save to gallery" : '갤러리에 저장하지 못했어요';
   String get deletePhotoConfirmTitle => isEnglish ? 'Delete photo' : '사진 삭제';
   String get deletePhotoConfirmBody =>
       isEnglish ? 'Delete this photo?' : '이 사진을 지울까요?';
