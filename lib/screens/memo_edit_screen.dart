@@ -690,25 +690,19 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
             ),
           ],
         ),
-        // 사진 추가 = 본문 아래 툴바 줄 (키보드 위에 붙어 올라온다).
+        // 사진 추가 = 오른쪽 아래 떠 있는 작은 버튼. Scaffold 의 FAB 는 키보드 위로
+        // 따라 올라온다(bottomNavigationBar 는 키보드 뒤에 깔려 안 보였다 — 아니키
+        // 실기기 스크린샷 2026-08-29 21:26, 「떠 있는 float button 이 좋아보이는데」).
         // 원래 AppBar actions 에 있었는데 402pt 폭에서 뒤로·취소·공유 + 되돌리기·
-        // 다시실행·저장까지 8개가 되자 가운데 제목과 겹쳤다 (아니키 실기기 검증
-        // 2026-08-29 21:05 iPhone 스크린샷). 위 바는 PR 이전 배치 그대로 되돌렸다.
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.add_photo_alternate_outlined, size: 24),
-                  color: palette.textPrimary,
-                  tooltip: AppStrings.of(context).addPhoto,
-                  onPressed: _addPhoto,
-                ),
-              ],
-            ),
-          ),
+        // 다시실행·저장까지 8개가 되자 가운데 제목과 겹쳤다(21:05 스크린샷).
+        // 위 바는 PR 이전 배치 그대로 되돌렸다.
+        floatingActionButton: FloatingActionButton.small(
+          heroTag: null,
+          backgroundColor: palette.accent,
+          foregroundColor: palette.onAccent,
+          tooltip: AppStrings.of(context).addPhoto,
+          onPressed: _addPhoto,
+          child: const Icon(Icons.add_photo_alternate_outlined, size: 22),
         ),
         body: GestureDetector(
           behavior: HitTestBehavior.translucent,

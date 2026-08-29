@@ -29,6 +29,9 @@ class AttachmentStrip extends StatelessWidget {
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
+          // 오른쪽 아래 사진 추가 FAB(작은 40pt + 여백 16) 밑으로 마지막 타일이
+          // 숨지 않게 끝에 여백 — 스크롤하면 타일이 FAB 왼쪽으로 완전히 나온다.
+          padding: const EdgeInsets.only(right: 56),
           itemCount: fileNames.length,
           separatorBuilder: (_, _) => const SizedBox(width: 8),
           itemBuilder: (context, index) => GestureDetector(
