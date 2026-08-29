@@ -39,6 +39,11 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   late final TextEditingController _contentController;
   final UndoHistoryController _undoController = UndoHistoryController();
   final ScrollController _contentScrollController = ScrollController();
+  // 사진 피커/카메라에서 돌아온 뒤 키보드를 다시 올리기 위한 본문 포커스 핸들
+  // (아니키 S24 실기기 피드백 2026-08-30 01:15 「사진 첨부하고 키보드가 바로
+  // 나오지 않는 이슈」). 피커 액티비티가 IME 를 내리지만 포커스는 남아 있어
+  // requestFocus 만으론 no-op — unfocus 후 다음 프레임에 다시 잡는다.
+  final FocusNode _contentFocusNode = FocusNode();
   StreamSubscription<AccelerometerEvent>? _accelSub;
   DateTime _lastShakeAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _shakeDialogOpen = false;
@@ -86,6 +91,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     _contentController.removeListener(_clampSelectionTrailingNewline);
     _contentController.dispose();
     _contentScrollController.dispose();
+    _contentFocusNode.dispose();
     _undoController.dispose();
     super.dispose();
   }
@@ -444,6 +450,16 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       case AttachFailed():
         _snack(strings.photoAttachFailed);
     }
+    // 취소든 성공이든 피커에서 돌아오면 바로 이어서 타이핑할 수 있게 키보드 복귀.
+    _refocusEditor();
+  }
+
+  void _refocusEditor() {
+    if (!mounted) return;
+    _contentFocusNode.unfocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _contentFocusNode.requestFocus();
+    });
   }
 
   // 이번 세션에서 추가한 파일은 어느 메모도 참조하지 않으므로 즉시 삭제,
@@ -752,6 +768,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                               ),
                               child: TextField(
                                 controller: _contentController,
+                                focusNode: _contentFocusNode,
                                 undoController: _undoController,
                                 cursorColor: palette.textPrimary,
                                 cursorHeight: bodyFontSize,
