@@ -273,6 +273,9 @@ void main() {
     await tester.tap(find.text('취소'));
     await tester.pumpAndSettle();
     await confirmDialog(tester, '취소');
+    // confirmDialog 의 고정 300ms 는 위젯 순서 보호용 — store.delete 는 fire-and-forget
+    // 이라 disk 반영 시점은 별도로 보장해야 한다(디스크 전용 단언이라 폴링이 안전).
+    await tester.runAsync(() => waitUntil(() => filesOnDisk() == 13));
 
     expect(onDisk(keep), isTrue);
     expect(filesOnDisk(), 13);
@@ -325,6 +328,9 @@ void main() {
     await confirmDialog(tester, '사진 삭제');
 
     expect(find.byType(AttachmentStrip), findsNothing);
+    // confirmDialog 의 고정 300ms 는 위젯 순서 보호용 — store.delete 는 fire-and-forget
+    // 이라 disk 반영 시점은 별도로 보장해야 한다(디스크 전용 단언이라 폴링이 안전).
+    await tester.runAsync(() => waitUntil(() => filesOnDisk() == 13));
     expect(filesOnDisk(), 13);
   });
 
