@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import '../features/memos/services/attachment_store.dart';
 import '../l10n/app_strings.dart';
 import '../models/memo.dart';
 import '../services/app_review_service.dart';
@@ -22,6 +23,10 @@ class MemoListScreen extends StatefulWidget {
 
 class MemoListScreenState extends State<MemoListScreen>
     with WidgetsBindingObserver {
+  // 고아 첨부 파일 정리는 프로세스당 1회(cold start)만 — resume 때 돌리면
+  // 열려 있는 편집 세션의 대기 파일(아직 어느 메모도 참조 안 함)을 지운다.
+  static bool _orphanSweepDone = false;
+
   // [요구사항 1] 단일 리스트로만 관리. 즐겨찾기가 앞, 일반이 뒤 순서 유지.
   List<Memo> _memos = [];
   bool _isLoading = true;
@@ -212,6 +217,14 @@ class MemoListScreenState extends State<MemoListScreen>
       // 휴지통 30일 만료분 자동 영구삭제(cold start/resume). 활성 메모 무영향.
       await MemoStorage.purgeExpiredTrash();
       final memos = await MemoStorage.loadMemos();
+      // 고아 정리는 참조 목록이 비어 있으면 돌리지 않는다 — loadMemos 는 실패를 빈 목록으로
+      // 삼키므로(prefs 일시 오류·JSON 파싱 실패) 빈 목록 = 「메모 0개」와 구분이 안 되고,
+      // 그 상태에서 돌리면 1일 넘은 첨부 전부가 지워진다 (Task 3 리뷰 지적).
+      final store = AttachmentStore.maybeInstance;
+      if (store != null && !_orphanSweepDone && memos.isNotEmpty) {
+        _orphanSweepDone = true;
+        unawaited(store.sweepOrphans(memos.expand((m) => m.imageFiles)));
+      }
       if (!mounted) return;
       setState(() {
         _memos = memos;

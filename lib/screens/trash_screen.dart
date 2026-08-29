@@ -54,18 +54,15 @@ class _TrashScreenState extends State<TrashScreen> {
   }
 
   // 즉시 영구삭제: 저장소에서 실제 제거(비가역). action sheet 가 확인 게이트.
+  // 첨부 파일 삭제까지 MemoStorage 펀넬이 맡는다 (T-260829-022).
   Future<void> _deleteForever(Memo memo) async {
-    final all = await MemoStorage.loadMemos();
-    all.removeWhere((m) => m.id == memo.id);
-    await MemoStorage.saveMemos(all);
+    await MemoStorage.deleteForever({memo.id});
     await _loadTrash();
   }
 
   // 휴지통 비우기: 휴지통 항목 전체 영구삭제. 활성 메모(deletedAt == null)는 무변경.
   Future<void> _emptyTrash() async {
-    final all = await MemoStorage.loadMemos();
-    all.removeWhere((m) => m.deletedAt != null);
-    await MemoStorage.saveMemos(all);
+    await MemoStorage.emptyTrash();
     await _loadTrash();
   }
 
