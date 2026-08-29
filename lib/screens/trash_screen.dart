@@ -185,7 +185,9 @@ class _TrashScreenState extends State<TrashScreen> {
                       final memo = _trash[index];
                       return ListTile(
                         leading: memo.hasImages
-                            ? AttachmentThumbnail(fileName: memo.imageFiles.first)
+                            ? AttachmentThumbnail(
+                                fileName: memo.imageFiles.first,
+                              )
                             : null,
                         contentPadding:
                             const EdgeInsets.symmetric(horizontal: 12),

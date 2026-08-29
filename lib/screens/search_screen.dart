@@ -407,7 +407,10 @@ class _SearchResultCard extends StatelessWidget {
             if (memo.hasImages)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: AttachmentThumbnail(fileName: memo.imageFiles.first, size: 32),
+                child: AttachmentThumbnail(
+                  fileName: memo.imageFiles.first,
+                  size: 32,
+                ),
               ),
             Expanded(
               child: Column(

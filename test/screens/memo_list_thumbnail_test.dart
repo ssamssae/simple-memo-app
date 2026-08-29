@@ -18,12 +18,12 @@ void main() {
   final now = DateTime(2026, 8, 29, 12);
 
   Memo memo(String id, String title, {List<String> images = const []}) => Memo(
-        id: id,
-        content: '$title\n본문',
-        createdAt: now,
-        updatedAt: now,
-        imageFiles: images,
-      );
+    id: id,
+    content: '$title\n본문',
+    createdAt: now,
+    updatedAt: now,
+    imageFiles: images,
+  );
 
   // Task 7 규칙: 파일 심기는 setUp(실존)에서. Task 10: 고아 정리 once-플래그는 프로세스 정적이라
   // 테스트마다 리셋 — 안 하면 첫 테스트만 실제 sweep(FakeAsync 안 실제 IO)을 타고 나머지는 다른 분기.
@@ -55,22 +55,30 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AttachmentThumbnail), findsOneWidget);
-    expect(tester.getSize(find.byType(AttachmentThumbnail)), const Size(36, 36));
+    expect(
+      tester.getSize(find.byType(AttachmentThumbnail)),
+      const Size(36, 36),
+    );
 
-    final withRow = tester.getRect(find.ancestor(
-      of: find.text('사진 메모'),
-      matching: find.byType(SizedBox),
-    ).first);
-    final withoutRow = tester.getRect(find.ancestor(
-      of: find.text('글 메모'),
-      matching: find.byType(SizedBox),
-    ).first);
-    expect(withRow.height, withoutRow.height);
+    final withRow = tester.getRect(
+      find
+          .ancestor(of: find.text('사진 메모'), matching: find.byType(SizedBox))
+          .first,
+    );
+    expect(withRow.height, 48);
+    // 썸네일(36) + 간격(10)만큼 제목이 오른쪽으로 밀리고, 행 높이는 그대로다.
+    expect(
+      tester.getTopLeft(find.text('사진 메모')).dx -
+          tester.getTopLeft(find.text('글 메모')).dx,
+      46,
+    );
   });
 
   testWidgets('파일이 없으면(복원 뒤 등) 플레이스홀더, 예외 없음', (tester) async {
     SharedPreferences.setMockInitialValues({
-      'memos': Memo.encodeList([memo('lost', '유실 메모', images: ['gone.jpg'])]),
+      'memos': Memo.encodeList([
+        memo('lost', '유실 메모', images: ['gone.jpg']),
+      ]),
     });
 
     await tester.pumpWidget(const MaterialApp(home: MemoListScreen()));
