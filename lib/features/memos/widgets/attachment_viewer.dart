@@ -48,16 +48,58 @@ class _AttachmentViewerState extends State<AttachmentViewer> {
   late final List<String> _names;
   late int _index;
 
+  // 확대 중에는 PageView 가 가로 드래그를 먹지 못하게 잠근다 — 제스처 아레나에서
+  // PageView(kTouchSlop) 가 InteractiveViewer 의 팬(kPanSlop) 보다 먼저 이기기 때문.
+  final Map<int, TransformationController> _transforms = {};
+  bool _zoomed = false;
+
+  TransformationController _transformFor(int page) {
+    return _transforms.putIfAbsent(page, () {
+      final controller = TransformationController();
+      controller.addListener(() {
+        if (page != _index) return;
+        final zoomed = controller.value.getMaxScaleOnAxis() > 1.01;
+        if (zoomed != _zoomed && mounted) setState(() => _zoomed = zoomed);
+      });
+      return controller;
+    });
+  }
+
+  void _disposeTransforms() {
+    for (final c in _transforms.values) {
+      c.dispose();
+    }
+    _transforms.clear();
+    _zoomed = false;
+  }
+
   @override
   void initState() {
     super.initState();
+    // 스냅샷 사본 — 라우트가 떠 있는 동안 호출부의 목록 변경은 반영하지 않는다(삭제는 이 화면이 주도).
     _names = List.of(widget.fileNames);
     _index = widget.initialIndex.clamp(0, _names.isEmpty ? 0 : _names.length - 1);
     _controller = PageController(initialPage: _index);
   }
 
   @override
+  void didUpdateWidget(covariant AttachmentViewer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 같은 위치에서 initialIndex 만 바뀌어 State 가 재사용되는 경우(initState 는 다시 안 돈다) —
+    // 실사용은 항상 새 라우트 push 라 해당 없지만, 방어적으로 새 인덱스를 반영한다.
+    if (widget.initialIndex == oldWidget.initialIndex) return;
+    final next = widget.initialIndex.clamp(0, _names.isEmpty ? 0 : _names.length - 1);
+    if (next == _index) return;
+    setState(() {
+      _disposeTransforms();
+      _index = next;
+      _controller.jumpToPage(_index);
+    });
+  }
+
+  @override
   void dispose() {
+    _disposeTransforms();
     _controller.dispose();
     super.dispose();
   }
@@ -76,6 +118,7 @@ class _AttachmentViewerState extends State<AttachmentViewer> {
   }
 
   Future<void> _confirmDelete() async {
+    if (_names.isEmpty) return;
     final strings = AppStrings.of(context);
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
@@ -105,6 +148,7 @@ class _AttachmentViewerState extends State<AttachmentViewer> {
     setState(() {
       _names.removeAt(_index);
       if (_index >= _names.length) _index = _names.length - 1;
+      _disposeTransforms();
       _controller.jumpToPage(_index);
     });
   }
@@ -130,13 +174,16 @@ class _AttachmentViewerState extends State<AttachmentViewer> {
           tooltip: strings.photoViewerClose,
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
-          '${_index + 1} / ${_names.length}',
-          style: const TextStyle(color: Colors.white, fontSize: 15),
+        title: Semantics(
+          liveRegion: true,
+          child: Text(
+            '${_index + 1} / ${_names.length}',
+            style: const TextStyle(color: Colors.white, fontSize: 15),
+          ),
         ),
         centerTitle: true,
         actions: [
-          if (widget.onDelete != null)
+          if (widget.onDelete != null && _names.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: strings.deletePhotoConfirmTitle,
@@ -146,11 +193,16 @@ class _AttachmentViewerState extends State<AttachmentViewer> {
       ),
       body: PageView.builder(
         controller: _controller,
+        physics: _zoomed ? const NeverScrollableScrollPhysics() : const PageScrollPhysics(),
         itemCount: _names.length,
-        onPageChanged: (i) => setState(() => _index = i),
+        onPageChanged: (i) => setState(() {
+          _index = i;
+          _zoomed = (_transforms[i]?.value.getMaxScaleOnAxis() ?? 1) > 1.01;
+        }),
         itemBuilder: (context, i) {
           final file = _fileAt(i);
           return InteractiveViewer(
+            transformationController: _transformFor(i),
             minScale: 1,
             maxScale: 4,
             child: Center(

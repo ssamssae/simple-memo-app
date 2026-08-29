@@ -104,4 +104,41 @@ void main() {
     expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('스와이프로 다음 장 → 타이틀 2 / 2', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: AttachmentViewer(fileNames: [a, b], initialIndex: 0)));
+    await tester.pump();
+    await tester.drag(find.byType(PageView), const Offset(-600, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('2 / 2'), findsOneWidget);
+  });
+
+  testWidgets('삭제 확인에서 취소 → 아무것도 안 바뀐다', (tester) async {
+    final deleted = <String>[];
+    await tester.pumpWidget(MaterialApp(home: AttachmentViewer(fileNames: [a, b], initialIndex: 0, onDelete: deleted.add)));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CupertinoDialogAction, '취소'));
+    await tester.pumpAndSettle();
+    expect(deleted, isEmpty);
+    expect(find.text('1 / 2'), findsOneWidget);
+    expect(find.byType(AttachmentViewer), findsOneWidget);
+  });
+
+  testWidgets('initialIndex 가 범위를 벗어나면 clamp', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: AttachmentViewer(fileNames: [a, b], initialIndex: 9)));
+    await tester.pump();
+    expect(find.text('2 / 2'), findsOneWidget);
+    await tester.pumpWidget(MaterialApp(home: AttachmentViewer(fileNames: [a, b], initialIndex: -3)));
+    await tester.pump();
+    expect(find.text('1 / 2'), findsOneWidget);
+  });
+
+  testWidgets('빈 목록이면 삭제 버튼이 없고 예외도 없다', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: AttachmentViewer(fileNames: const [], initialIndex: 0, onDelete: (_) {})));
+    await tester.pump();
+    expect(find.byIcon(Icons.delete_outline), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
