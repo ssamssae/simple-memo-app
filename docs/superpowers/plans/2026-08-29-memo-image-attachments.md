@@ -1828,7 +1828,7 @@ void main() {
       home: MemoEditScreen(attachmentService: fakeAttachmentService(port: port)),
     ));
     await addViaSheet(tester, '붙여넣기');
-    expect(find.text('클립보드에 사진이 없어요'), findsOneWidget);
+    expect(find.text('클립보드에 사진이 없거나 붙여넣기가 허용되지 않았어요'), findsOneWidget);
     expect(find.byType(AttachmentStrip), findsNothing);
   });
 
@@ -1956,7 +1956,8 @@ void main() {
     final field = tester.getRect(find.byType(TextField));
     final strip = tester.getRect(find.byType(AttachmentStrip));
     expect(field.height, closeTo(viewport - (AttachmentStrip.tileSize + 16), 1));
-    expect(strip.top - field.bottom, closeTo(16, 1)); // Padding(top: 16)
+    // AttachmentStrip 의 바깥 Padding(top:16) 이 위젯 rect 안에 들어가므로 간격은 0 으로 잰다.
+    expect(strip.top - field.bottom, closeTo(0, 1));
 
     await tester.tapAt(Offset(field.center.dx, field.bottom - 8));
     await tester.pump();
@@ -2358,7 +2359,7 @@ AppBar `actions: [` (440행) 바로 다음, 기존 `ValueListenableBuilder<UndoH
 - [ ] **Step 8: 통과 확인 + 기존 편집 화면 테스트 회귀 없음**
 
 Run: `flutter analyze && flutter test test/screens/ test/l10n/`
-Expected: `No issues found!`, 신규 9개 PASS, 기존 편집 화면·밀림 프로브·en 스모크 전부 PASS. (`use_build_context_synchronously` 경고가 나면 해당 `await` 뒤에 `if (!mounted) return;` 이 빠진 것 — 위 코드대로 보강.)
+Expected: `No issues found!`, 신규 11개 PASS, 기존 편집 화면·밀림 프로브·en 스모크 전부 PASS. (`use_build_context_synchronously` 경고가 나면 해당 `await` 뒤에 `if (!mounted) return;` 이 빠진 것 — 위 코드대로 보강.)
 
 - [ ] **Step 9: 커밋**
 
