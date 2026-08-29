@@ -1420,10 +1420,15 @@ import 'support/attachment_test_support.dart';
 
 void main() {
   late Directory tmp;
+  late String a;
+  late String b;
 
+  // 파일 심기는 setUp(실존)에서 — testWidgets 본문의 실제 dart:io await 는 FakeAsync 에서 멈춘다 (Task 7 규칙).
   setUp(() async {
     tmp = await installTempStore();
-    AttachmentThumbnail.decodeImages = false; // FakeAsync 파일 IO 정지 회피 (Task 7 참조)
+    a = await seedStoreFile('a.jpg');
+    b = await seedStoreFile('b.jpg');
+    AttachmentThumbnail.decodeImages = false;
   });
 
   tearDown(() {
@@ -1433,8 +1438,6 @@ void main() {
   });
 
   testWidgets('PageView 로 넘기고 InteractiveViewer 로 감싼다, 초기 인덱스 반영', (tester) async {
-    final a = await seedStoreFile('a.jpg');
-    final b = await seedStoreFile('b.jpg');
     await tester.pumpWidget(MaterialApp(
       home: AttachmentViewer(fileNames: [a, b], initialIndex: 1),
     ));
@@ -1446,7 +1449,6 @@ void main() {
   });
 
   testWidgets('onDelete 없으면 삭제 버튼이 없다', (tester) async {
-    final a = await seedStoreFile('a.jpg');
     await tester.pumpWidget(MaterialApp(
       home: AttachmentViewer(fileNames: [a], initialIndex: 0),
     ));
@@ -1454,7 +1456,6 @@ void main() {
   });
 
   testWidgets('삭제 → 확인 다이얼로그 → 콜백에 파일명, 마지막 장이면 닫힌다', (tester) async {
-    final a = await seedStoreFile('a.jpg');
     final deleted = <String>[];
     await tester.pumpWidget(MaterialApp(
       home: Builder(
@@ -1724,11 +1725,20 @@ void main() {
 
   late Directory tmp;
   late FakeImageSourcePort port;
+  late String keep;
+  late String a;
+  late String b;
+  late List<String> ten;
 
+  // Task 7 규칙: 파일 심기는 setUp(실존)에서, 실제 IO 를 일으키는 상호작용은 runAsync 로.
   setUp(() async {
     tmp = await installTempStore();
     port = FakeImageSourcePort();
-    AttachmentThumbnail.decodeImages = false; // FakeAsync 파일 IO 정지 회피 (Task 7 참조)
+    keep = await seedStoreFile('keep.jpg');
+    a = await seedStoreFile('a.jpg');
+    b = await seedStoreFile('b.jpg');
+    ten = [for (var i = 0; i < 10; i++) await seedStoreFile('p$i.jpg')];
+    AttachmentThumbnail.decodeImages = false;
   });
 
   tearDown(() {
@@ -1742,10 +1752,29 @@ void main() {
     return Memo(id: 'm1', content: '기존 본문', createdAt: t, updatedAt: t, imageFiles: images);
   }
 
+  bool onDisk(String name) => AttachmentStore.instance.fileFor(name).existsSync();
+  int filesOnDisk() => AttachmentStore.instance.root.listSync().whereType<File>().length;
+
+  // 사진 추가 = 서비스 파이프라인이 실제 파일을 쓴다 → runAsync 안에서 상호작용하고
+  // IO 가 끝날 실시간을 잠깐 준 뒤 바깥에서 한 번 더 settle 한다.
   Future<void> addViaSheet(WidgetTester tester, String action) async {
-    await tester.tap(find.byTooltip('사진 추가'));
+    await tester.runAsync(() async {
+      await tester.tap(find.byTooltip('사진 추가'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(CupertinoActionSheetAction, action));
+      await tester.pumpAndSettle();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(CupertinoActionSheetAction, action));
+  }
+
+  // 삭제·취소 확정 = store.delete 실제 IO → 같은 이유로 runAsync.
+  Future<void> confirmDialog(WidgetTester tester, String actionLabel) async {
+    await tester.runAsync(() async {
+      await tester.tap(find.widgetWithText(CupertinoDialogAction, actionLabel));
+      await tester.pumpAndSettle();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
     await tester.pumpAndSettle();
   }
 
@@ -1772,8 +1801,7 @@ void main() {
 
     expect(find.byType(AttachmentStrip), findsOneWidget);
     expect(find.byType(AttachmentThumbnail), findsOneWidget);
-    final dir = AttachmentStore.instance.root;
-    expect(dir.listSync().whereType<File>().length, 1);
+    expect(filesOnDisk(), 13 + 1); // setUp 13장 + 방금 추가 1장
   });
 
   testWidgets('클립보드에 사진 없음 → 스낵바, 스트립 없음', (tester) async {
@@ -1786,13 +1814,9 @@ void main() {
   });
 
   testWidgets('10장이면 시트 대신 상한 스낵바', (tester) async {
-    final names = <String>[];
-    for (var i = 0; i < 10; i++) {
-      names.add(await seedStoreFile('p$i.jpg'));
-    }
     await tester.pumpWidget(MaterialApp(
       home: MemoEditScreen(
-        memo: existing(images: names),
+        memo: existing(images: ten),
         attachmentService: fakeAttachmentService(port: port),
       ),
     ));
@@ -1835,7 +1859,6 @@ void main() {
   });
 
   testWidgets('편집 취소 → 이 세션에서 추가한 파일은 삭제, 기존 파일은 생존', (tester) async {
-    final keep = await seedStoreFile('keep.jpg');
     port.galleryBytes = kTinyPng;
     await tester.pumpWidget(MaterialApp(
       home: MemoEditScreen(
@@ -1845,21 +1868,17 @@ void main() {
     ));
     await addViaSheet(tester, '사진첩');
     expect(find.byType(AttachmentThumbnail), findsNWidgets(2));
-    final store = AttachmentStore.instance;
-    expect(store.root.listSync().whereType<File>().length, 2);
+    expect(filesOnDisk(), 13 + 1);
 
     await tester.tap(find.text('취소'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(CupertinoDialogAction, '취소'));
-    await tester.pumpAndSettle();
+    await confirmDialog(tester, '취소');
 
-    expect(await store.exists(keep), isTrue);
-    expect(store.root.listSync().whereType<File>().length, 1);
+    expect(onDisk(keep), isTrue);
+    expect(filesOnDisk(), 13);
   });
 
   testWidgets('길게 눌러 기존 사진 삭제 → 저장 시점에 파일 삭제, 저장 결과에서 빠짐', (tester) async {
-    final a = await seedStoreFile('a.jpg');
-    final b = await seedStoreFile('b.jpg');
     Memo? saved;
     await tester.pumpWidget(MaterialApp(
       home: MemoEditScreen(
@@ -1875,13 +1894,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AttachmentThumbnail), findsOneWidget);
     // 아직 저장 전 — 파일은 살아 있다 (취소하면 복귀).
-    expect(await AttachmentStore.instance.exists(a), isTrue);
+    expect(onDisk(a), isTrue);
 
-    await tester.tap(find.text('저장'));
-    await tester.pumpAndSettle();
+    // 저장 = _commitPendingRemovals 가 실제 파일을 지운다 → runAsync.
+    await tester.runAsync(() async {
+      await tester.tap(find.text('저장'));
+      await tester.pumpAndSettle();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
     expect(saved!.imageFiles, [b]);
-    expect(await AttachmentStore.instance.exists(a), isFalse);
-    expect(await AttachmentStore.instance.exists(b), isTrue);
+    expect(onDisk(a), isFalse);
+    expect(onDisk(b), isTrue);
   });
 
   testWidgets('이 세션에서 추가한 사진을 바로 지우면 파일도 즉시 삭제', (tester) async {
@@ -1890,13 +1913,13 @@ void main() {
       home: MemoEditScreen(attachmentService: fakeAttachmentService(port: port)),
     ));
     await addViaSheet(tester, '사진첩');
+    expect(filesOnDisk(), 13 + 1);
     await tester.longPress(find.byType(AttachmentThumbnail));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(CupertinoDialogAction, '사진 삭제'));
-    await tester.pumpAndSettle();
+    await confirmDialog(tester, '사진 삭제');
 
     expect(find.byType(AttachmentStrip), findsNothing);
-    expect(AttachmentStore.instance.root.listSync().whereType<File>(), isEmpty);
+    expect(filesOnDisk(), 13);
   });
 }
 ```
@@ -2584,9 +2607,13 @@ void main() {
         imageFiles: images,
       );
 
+  late String a;
+
+  // Task 7 규칙: 파일 심기는 setUp(실존)에서.
   setUp(() async {
     tmp = await installTempStore();
-    AttachmentThumbnail.decodeImages = false; // FakeAsync 파일 IO 정지 회피 (Task 7 참조)
+    a = await seedStoreFile('a.jpg');
+    AttachmentThumbnail.decodeImages = false;
   });
 
   tearDown(() {
@@ -2596,7 +2623,6 @@ void main() {
   });
 
   testWidgets('사진 있는 행에만 36px 썸네일, 행 높이는 48 그대로', (tester) async {
-    final a = await seedStoreFile('a.jpg');
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([
         memo('with', '사진 메모', images: [a]),
