@@ -2370,7 +2370,9 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
 
 ---
 
-### Task 10: 영구삭제 3경로 파일 정리 + cold start 고아 정리 + 앱 초기화
+### Task 10: 영구삭제 3경로 파일 정리 + cold start 고아 정리 + 앱 초기화 — ✅ 완료 (ee26515a3 + 리뷰 보강 dc8c0cc17, 2026-08-29 19:19)
+
+구현 델타: `_removeWhere` 는 **살아남는 메모가 여전히 참조하는 파일은 지우지 않는다**(공유 파일명 보호) — 테스트 6건(저장 실패 게이트 테스트는 platform_interface 직접 import 가 depend_on_referenced_packages 에 걸려 미추가). 리뷰 반영: **`saveMemos` → `Future<bool>`, 저장 실패면 파일 삭제 없이 0 반환**(디스크 풀 시 사진 유실 방지) · 고아 정리 once-플래그는 게이트와 무관하게 첫 패스에서 세팅(resume 으로 미끄러지지 않게) · `MemoListScreenState.resetOrphanSweepForTest()`(Task 11 목록 테스트 setUp 에서 호출 필수). 후속 메모: 편집 화면 `_commitPendingRemovals` 는 참조 카운트 검사 없이 지운다(파일명이 첨부마다 UUID 라 실제 충돌 없음 — 가져오기/복제 기능이 생기면 재검토) · 구버전 사이드로드 빌드가 `images` 키를 떨어뜨리는 경우 1일 뒤 sweep 대상이 됨(Play 정상 업데이트 경로에선 불가, 코드로 막지 않음).
 
 **Files:**
 - Modify: `lib/services/memo_storage.dart`
@@ -2680,11 +2682,16 @@ void main() {
 
   late String a;
 
-  // Task 7 규칙: 파일 심기는 setUp(실존)에서.
+  // Task 7 규칙: 파일 심기는 setUp(실존)에서. Task 10: 고아 정리 once-플래그는 프로세스 정적이라
+  // 테스트마다 리셋 — 안 하면 첫 테스트만 실제 sweep(FakeAsync 안 실제 IO)을 타고 나머지는 다른 분기.
   setUp(() async {
     tmp = await installTempStore();
     a = await seedStoreFile('a.jpg');
     AttachmentThumbnail.decodeImages = false;
+    MemoListScreenState.resetOrphanSweepForTest();
+    // 이 파일의 테스트는 sweep 이 돌지 않게 한다: 메모가 비어 있지 않으므로 게이트를 통과하는데,
+    // sweepOrphans 는 실제 IO 라 FakeAsync 에서 멈춘다 → 플래그를 미리 세팅해 건너뛴다.
+    MemoListScreenState.markOrphanSweepDoneForTest();
   });
 
   tearDown(() {
