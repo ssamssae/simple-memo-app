@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -390,6 +391,115 @@ void main() {
     expect(find.text('갤러리에 저장했어요'), findsOneWidget);
     expect(find.byType(AttachmentThumbnail), findsNWidgets(2));
     expect(onDisk(a), isTrue);
+  });
+
+  group('공유 방식 선택 (Android 글+사진)', () {
+    const shareChannel = MethodChannel('dev.fluttercommunity.plus/share');
+    late List<MethodCall> calls;
+
+    setUp(() {
+      calls = [];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(shareChannel, (call) async {
+        calls.add(call);
+        return 'share-target';
+      });
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(shareChannel, null);
+    });
+
+    // 플랫폼 오버라이드는 테스트 본문 안에서 되돌려야 한다 — 바인딩이 본문 직후
+    // foundation 디버그 변수 원복을 검사한다(tearDown 은 그 뒤라 늦다).
+    Future<void> onPlatform(TargetPlatform p, Future<void> Function() body) async {
+      debugDefaultTargetPlatformOverride = p;
+      try {
+        await body();
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    }
+
+    Future<void> pumpExisting(WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MemoEditScreen(
+            memo: existing(images: [a]),
+            attachmentService: fakeAttachmentService(port: port),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> tapShare(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('공유'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> pick(WidgetTester tester, String label) async {
+      await tester.tap(find.widgetWithText(CupertinoActionSheetAction, label));
+      await tester.pumpAndSettle();
+    }
+
+    Map<dynamic, dynamic> singleArgs() => calls.single.arguments as Map<dynamic, dynamic>;
+
+    testWidgets('Android: 공유 → 「글과 사진 함께/글만/사진만」 시트, 「사진만」 → 글 없이 파일만', (tester) async {
+      await onPlatform(TargetPlatform.android, () async {
+        await pumpExisting(tester);
+        await tapShare(tester);
+        expect(find.widgetWithText(CupertinoActionSheetAction, '글과 사진 함께'), findsOneWidget);
+        expect(find.widgetWithText(CupertinoActionSheetAction, '글만'), findsOneWidget);
+        expect(find.widgetWithText(CupertinoActionSheetAction, '사진만'), findsOneWidget);
+        expect(calls, isEmpty);
+
+        await pick(tester, '사진만');
+        expect(calls, hasLength(1));
+        expect(singleArgs()['paths'], hasLength(1));
+        expect(singleArgs()['text'], isNull);
+      });
+    });
+
+    testWidgets('Android: 「글만」 → 파일 없이 글만', (tester) async {
+      await onPlatform(TargetPlatform.android, () async {
+        await pumpExisting(tester);
+        await tapShare(tester);
+        await pick(tester, '글만');
+        expect(singleArgs()['text'], '기존 본문');
+        expect(singleArgs()['paths'], isNull);
+      });
+    });
+
+    testWidgets('Android: 「글과 사진 함께」 → 파일 + 글', (tester) async {
+      await onPlatform(TargetPlatform.android, () async {
+        await pumpExisting(tester);
+        await tapShare(tester);
+        await pick(tester, '글과 사진 함께');
+        expect(singleArgs()['paths'], hasLength(1));
+        expect(singleArgs()['text'], '기존 본문');
+      });
+    });
+
+    testWidgets('Android: 취소하면 공유 호출 없음', (tester) async {
+      await onPlatform(TargetPlatform.android, () async {
+        await pumpExisting(tester);
+        await tapShare(tester);
+        await pick(tester, '취소');
+        expect(calls, isEmpty);
+      });
+    });
+
+    testWidgets('iOS: 시트 없이 바로 파일 + 글', (tester) async {
+      await onPlatform(TargetPlatform.iOS, () async {
+        await pumpExisting(tester);
+        await tapShare(tester);
+        expect(find.byType(CupertinoActionSheet), findsNothing);
+        expect(singleArgs()['paths'], hasLength(1));
+        expect(singleArgs()['text'], '기존 본문');
+      });
+    });
   });
 
   testWidgets('이 세션에서 추가한 사진을 바로 지우면 파일도 즉시 삭제', (tester) async {

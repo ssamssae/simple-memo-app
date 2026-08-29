@@ -373,6 +373,14 @@ class AppStrings {
       isEnglish ? 'Up to 10 photos per memo' : '사진은 메모당 최대 10장까지예요';
   String get photoAttachFailed =>
       isEnglish ? "Couldn't add the photo" : '사진을 추가하지 못했어요';
+  // 공유 방식 선택 (Android 전용 — 카카오톡 등이 사진과 함께 온 글을 버린다, 아니키 S24 2026-08-30)
+  String get shareModeTitle => isEnglish ? 'Share as' : '어떻게 공유할까요?';
+  String get shareModeHint => isEnglish
+      ? 'Some apps (e.g. KakaoTalk) drop the text when photos are attached. Send text and photos separately for those.'
+      : '카카오톡 등 일부 앱은 사진과 함께 보낸 글을 빼고 받아요. 그럴 땐 글만·사진만 따로 보내 주세요.';
+  String get shareBoth => isEnglish ? 'Text + photos' : '글과 사진 함께';
+  String get shareTextOnly => isEnglish ? 'Text only' : '글만';
+  String get sharePhotosOnly => isEnglish ? 'Photos only' : '사진만';
   String get saveToGallery => isEnglish ? 'Save to gallery' : '갤러리에 저장';
   String get savedToGallery =>
       isEnglish ? 'Saved to gallery' : '갤러리에 저장했어요';

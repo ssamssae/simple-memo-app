@@ -325,24 +325,70 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
         _snack(AppStrings.of(context).nothingToShare);
         return;
       }
-      if (files.isEmpty) {
-        await Share.share(
-          memo.content,
-          subject: memo.title,
-          sharePositionOrigin: _shareOriginRect(shareContext),
-        );
-      } else {
-        await Share.shareXFiles(
-          files,
-          text: memo.content.isEmpty ? null : memo.content,
-          subject: memo.title,
-          sharePositionOrigin: _shareOriginRect(shareContext),
-        );
+      // Android 는 글+사진 메모면 방식을 먼저 고른다 — 카카오톡 등 일부 수신 앱이
+      // ACTION_SEND_MULTIPLE 의 EXTRA_TEXT 를 버려 사진만 도착한다 (아니키 S24 실기기
+      // 2026-08-30 01:2x, ㉠ 선택). iOS 는 두 항목이 다 실리므로 그대로.
+      // 공유 시트 위치는 시트(await) 전에 계산 — shareContext 를 async gap 뒤에 쓰지 않는다.
+      final origin = _shareOriginRect(shareContext);
+      var mode = _ShareMode.both;
+      if (files.isNotEmpty &&
+          memo.content.isNotEmpty &&
+          defaultTargetPlatform == TargetPlatform.android) {
+        final picked = await _pickShareMode();
+        if (picked == null || !mounted) return;
+        mode = picked;
+      }
+      switch (mode) {
+        case _ShareMode.textOnly:
+          await Share.share(memo.content, subject: memo.title, sharePositionOrigin: origin);
+        case _ShareMode.photosOnly:
+          await Share.shareXFiles(files, subject: memo.title, sharePositionOrigin: origin);
+        case _ShareMode.both:
+          if (files.isEmpty) {
+            await Share.share(memo.content, subject: memo.title, sharePositionOrigin: origin);
+          } else {
+            await Share.shareXFiles(
+              files,
+              text: memo.content.isEmpty ? null : memo.content,
+              subject: memo.title,
+              sharePositionOrigin: origin,
+            );
+          }
       }
     } catch (e) {
       if (!mounted) return;
       _snack(AppStrings.of(context).shareFailed(e));
     }
+  }
+
+  Future<_ShareMode?> _pickShareMode() {
+    final strings = AppStrings.of(context);
+    return showCupertinoModalPopup<_ShareMode>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: Text(strings.shareModeTitle),
+        message: Text(strings.shareModeHint),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, _ShareMode.both),
+            child: Text(strings.shareBoth),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, _ShareMode.textOnly),
+            child: Text(strings.shareTextOnly),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, _ShareMode.photosOnly),
+            child: Text(strings.sharePhotosOnly),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(strings.cancel),
+        ),
+      ),
+    );
   }
 
   Future<void> _cancelEdit() async {
@@ -1089,3 +1135,6 @@ enum _PhotoSource { gallery, camera, clipboard }
 
 /// 썸네일 길게 누르기 시트의 선택지.
 enum _PhotoAction { save, delete }
+
+/// Android 글+사진 공유 방식 (카카오톡 등이 사진과 함께 온 글을 버리는 문제 우회).
+enum _ShareMode { both, textOnly, photosOnly }
