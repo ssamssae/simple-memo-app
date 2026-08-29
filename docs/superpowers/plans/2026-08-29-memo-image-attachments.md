@@ -1150,7 +1150,7 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
 
 ---
 
-### Task 7: `AttachmentThumbnail` + `AttachmentStrip` 위젯 — ✅ 완료 (5a391ed51 + d87828c50, 2026-08-29 17:58)
+### Task 7: `AttachmentThumbnail` + `AttachmentStrip` 위젯 — ✅ 완료 (5a391ed51 + d87828c50 + 리뷰 보강 c8bb1921f: FileSystemException 흡수·ColoredBox 대역·시맨틱 라벨 attachedPhoto·strip ValueKey·테스트 8건, spec/quality 리뷰 통과 2026-08-29 18:13)
 
 ⚠️ 실측(구현 중 발견, 재현 3회 + 진단 테스트 2건): **`testWidgets` 본문 안에서 실제 `dart:io` 비동기 호출을 `await` 하면 무엇이든**(파일 쓰기·`Image.file` 디코딩 모두) FakeAsync 존에서 완료되지 않아 10분 타임아웃으로 멈춘다. `setUp`/`tearDown` 은 실존(real zone)이라 안전하고, 순수 `test()` 도 안전하다. 규칙(Task 8·9·11 테스트 전부 적용):
 1. 파일 심기(`seedStoreFile`)는 **`setUp` 에서** 하거나 본문에서는 **`tester.runAsync(() async { … })` 안에서** 한다.
@@ -1921,6 +1921,41 @@ void main() {
     expect(find.byType(AttachmentStrip), findsNothing);
     expect(filesOnDisk(), 13);
   });
+
+  // Task 7 리뷰 회귀 가드: Column 도입 뒤에도 TextField 가 뷰포트(−스트립)를 채워
+  // 본문 아래 빈 영역 탭이 캐럿을 잡아야 한다.
+  testWidgets('사진이 있어도 본문 아래 빈 영역 탭 → TextField 포커스 (뷰포트 채움 유지)', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: MemoEditScreen(
+        memo: existing(images: [a]),
+        attachmentService: fakeAttachmentService(port: port),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final viewport = tester.getSize(find.byType(SingleChildScrollView)).height;
+    final field = tester.getRect(find.byType(TextField));
+    final strip = tester.getRect(find.byType(AttachmentStrip));
+    expect(field.height, closeTo(viewport - (AttachmentStrip.tileSize + 16), 1));
+    expect(strip.top - field.bottom, closeTo(16, 1)); // Padding(top: 16)
+
+    await tester.tapAt(Offset(field.center.dx, field.bottom - 8));
+    await tester.pump();
+    final editable = tester.state<EditableTextState>(find.byType(EditableText));
+    expect(editable.widget.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('사진이 없으면 TextField 가 뷰포트 전체를 채운다 (기존 동작 무회귀)', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: MemoEditScreen(
+        memo: existing(),
+        attachmentService: fakeAttachmentService(port: port),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    final viewport = tester.getSize(find.byType(SingleChildScrollView)).height;
+    expect(tester.getSize(find.byType(TextField)).height, closeTo(viewport, 1));
+  });
 }
 ```
 
@@ -2247,10 +2282,24 @@ AppBar `actions: [` (440행) 바로 다음, 기존 `ValueListenableBuilder<UndoH
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            TextField(
+                            // ⚠️ Task 7 리뷰 지적: 기존엔 바깥 ConstrainedBox(minHeight: 뷰포트)가
+                            // TextField 를 뷰포트 높이까지 늘려 「본문 아래 빈 곳 탭 → 캐럿」이 됐다.
+                            // Column 은 자식에 min 0 을 주므로 그 동작이 죽는다 → TextField 에
+                            // 직접 (뷰포트 − 스트립 높이) minHeight 를 준다. constraints = LayoutBuilder 인자.
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minHeight: math.max(
+                                  0.0,
+                                  constraints.maxHeight -
+                                      (_imageFiles.isNotEmpty
+                                          ? AttachmentStrip.tileSize + 16
+                                          : 0),
+                                ),
+                              ),
+                              child: TextField(
 ```
 
-로 바꾸고, TextField 가 닫히는 자리 — 기존 614-620행:
+로 바꾸고 (`dart:math as math` 는 이미 import 돼 있다), TextField 가 닫히는 자리 — 기존 614-620행:
 
 ```dart
                             return AdaptiveTextSelectionToolbar.buttonItems(
@@ -2262,7 +2311,7 @@ AppBar `actions: [` (440행) 바로 다음, 기존 `ValueListenableBuilder<UndoH
                       ),
 ```
 
-을 다음으로 교체 (TextField `)` 뒤에 스트립 + Column 닫기, 그 다음 기존 ValueListenableBuilder 닫기):
+을 다음으로 교체 (TextField `)` + ConstrainedBox `)` 뒤에 스트립 + Column 닫기, 그 다음 기존 ValueListenableBuilder 닫기):
 
 ```dart
                             return AdaptiveTextSelectionToolbar.buttonItems(
@@ -2270,6 +2319,7 @@ AppBar `actions: [` (440행) 바로 다음, 기존 `ValueListenableBuilder<UndoH
                               buttonItems: items,
                             );
                           },
+                              ),
                             ),
                             // 사진 0장이면 위젯 자체를 넣지 않는다 → 기존 레이아웃 무변경.
                             if (_imageFiles.isNotEmpty)
