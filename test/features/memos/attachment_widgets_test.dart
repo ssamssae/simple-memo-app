@@ -13,9 +13,11 @@ void main() {
 
   setUp(() async {
     tmp = await installTempStore();
+    AttachmentThumbnail.decodeImages = false;
   });
 
   tearDown(() {
+    AttachmentThumbnail.decodeImages = true;
     AttachmentStore.instance = null;
     tmp.deleteSync(recursive: true);
   });
@@ -23,14 +25,38 @@ void main() {
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
   group('AttachmentThumbnail', () {
-    testWidgets('파일이 있으면 Image.file 을 그 경로로 그린다', (tester) async {
-      final name = await seedStoreFile('a.jpg');
+    testWidgets('파일이 있으면 그 경로로 그린다 (디코딩 스위치 off)', (tester) async {
+      // seedStoreFile 은 실제 dart:io 파일 쓰기(writeAsBytes flush:true) 다 —
+      // testWidgets 본문에서 runAsync 없이 부르면 FakeAsync 존 안에서 완료 신호가
+      // 오지 않아 정지한다(측정: 10분 TimeoutException). setUp 의 installTempStore
+      // 는 FakeAsync 존 진입 전(패키지 test 의 순수 setUp)이라 문제없다.
+      late final String name;
+      await tester.runAsync(() async {
+        name = await seedStoreFile('a.jpg');
+      });
       await tester.pumpWidget(wrap(AttachmentThumbnail(fileName: name)));
-
-      final image = tester.widget<Image>(find.byType(Image));
-      expect(image.image, isA<FileImage>());
-      expect((image.image as FileImage).file.path, AttachmentStore.instance.fileFor(name).path);
+      expect(
+        find.byKey(ValueKey('attachment-file:${AttachmentStore.instance.fileFor(name).path}')),
+        findsOneWidget,
+      );
       expect(find.byIcon(Icons.broken_image_outlined), findsNothing);
+    });
+
+    testWidgets('실제 디코딩 경로 — runAsync 로 파일 IO 를 완료시킨다', (tester) async {
+      AttachmentThumbnail.decodeImages = true;
+      late final String name;
+      await tester.runAsync(() async {
+        name = await seedStoreFile('a.jpg');
+        await tester.pumpWidget(wrap(AttachmentThumbnail(fileName: name)));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump();
+      final image = tester.widget<Image>(find.byType(Image));
+      final provider = image.image;
+      final inner = provider is ResizeImage ? provider.imageProvider : provider;
+      expect(inner, isA<FileImage>());
+      expect((inner as FileImage).file.path, AttachmentStore.instance.fileFor(name).path);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('파일이 없으면 깨진 사진 플레이스홀더, 예외 없음', (tester) async {
@@ -56,8 +82,12 @@ void main() {
 
   group('AttachmentStrip', () {
     testWidgets('파일명 수만큼 72px 썸네일, 탭·길게누름이 인덱스로 온다', (tester) async {
-      final a = await seedStoreFile('a.jpg');
-      final b = await seedStoreFile('b.jpg');
+      late final String a;
+      late final String b;
+      await tester.runAsync(() async {
+        a = await seedStoreFile('a.jpg');
+        b = await seedStoreFile('b.jpg');
+      });
       int? tapped;
       int? held;
       await tester.pumpWidget(wrap(AttachmentStrip(
