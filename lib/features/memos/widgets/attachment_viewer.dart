@@ -156,7 +156,6 @@ class _AttachmentViewerState extends State<AttachmentViewer> {
             child: Center(
               child: file == null
                   ? _missingIcon(strings)
-                  // ignore: invalid_use_of_visible_for_testing_member
                   : !AttachmentThumbnail.decodeImages
                       ? ColoredBox(
                           key: ValueKey('attachment-file:${file.path}'),

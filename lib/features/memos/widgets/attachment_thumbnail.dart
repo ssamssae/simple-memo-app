@@ -20,10 +20,10 @@ class AttachmentThumbnail extends StatelessWidget {
   final double size;
   final double radius;
 
-  /// 위젯 테스트용 스위치. flutter_test 의 FakeAsync 존에서는 FileImage 의 실제 파일 IO 가
-  /// 완료되지 않아(runAsync 없이는) 테스트가 멈춘다. false 면 디코딩 대신 파일 경로를 담은
-  /// 자리표시 상자를 그린다 — 실제 디코딩 경로는 runAsync 테스트 1건이 별도로 증명한다.
-  @visibleForTesting
+  /// 테스트 전용 스위치 (프로덕션 코드는 절대 바꾸지 않는다). flutter_test 의 FakeAsync 존에서는
+  /// FileImage 의 실제 파일 IO 가 완료되지 않아(runAsync 없이는) 테스트가 멈춘다. false 면 디코딩
+  /// 대신 파일 경로를 담은 자리표시 상자를 그린다 — 실제 디코딩 경로는 runAsync 테스트 1건이
+  /// 별도로 증명한다.
   static bool decodeImages = true;
 
   File? _resolve() {
