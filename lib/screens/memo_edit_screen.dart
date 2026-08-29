@@ -439,6 +439,17 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
           _imageFiles.add(fileName);
           _pendingAdded.add(fileName);
         });
+      case AttachOkMany(:final fileNames, :final truncated, :final failed):
+        setState(() {
+          _imageFiles.addAll(fileNames);
+          _pendingAdded.addAll(fileNames);
+        });
+        // 피커가 limit 을 못 지켜 뒤를 잘랐으면 「최대 10장」 안내, 일부 실패면 실패 안내.
+        if (truncated) {
+          _snack(strings.photoLimitReached);
+        } else if (failed > 0) {
+          _snack(strings.photoAttachFailed);
+        }
       case AttachCancelled():
         break;
       case AttachNoImage():

@@ -30,20 +30,27 @@ Future<String> seedStoreFile(String name, [Uint8List? bytes]) async {
 }
 
 /// 피커·클립보드 fake. 필드에 바이트를 넣으면 그걸 돌려주고, null 이면 취소/없음.
+/// 사진첩은 [galleryBatch](여러 장) 가 우선, 없으면 [galleryBytes] 1장, 둘 다 없으면 취소.
 class FakeImageSourcePort implements ImageSourcePort {
   Uint8List? galleryBytes;
+  List<Uint8List>? galleryBatch;
   Uint8List? cameraBytes;
   Uint8List? clipboardBytes;
   Object? throwOnRead;
   int galleryCalls = 0;
+  int? lastGalleryLimit;
   int cameraCalls = 0;
   int clipboardCalls = 0;
 
   @override
-  Future<Uint8List?> pickGallery() async {
+  Future<List<Uint8List>> pickGallery({required int limit}) async {
     galleryCalls++;
+    lastGalleryLimit = limit;
     if (throwOnRead != null) throw throwOnRead!;
-    return galleryBytes;
+    final batch = galleryBatch;
+    if (batch != null) return batch;
+    final single = galleryBytes;
+    return single == null ? const [] : [single];
   }
 
   @override

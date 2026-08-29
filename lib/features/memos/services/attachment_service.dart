@@ -16,6 +16,16 @@ final class AttachOk extends AttachResult {
   final String fileName;
 }
 
+/// 사진첩 복수 선택 결과. [fileNames] 는 저장에 성공한 것만(선택 순서 유지).
+/// [truncated] = 피커가 남은 장수보다 많이 돌려줘 뒤를 잘랐다 (피커가 limit 을
+/// 못 지키는 구형 Android 등). [failed] = 압축·저장 실패로 빠진 장수.
+final class AttachOkMany extends AttachResult {
+  const AttachOkMany(this.fileNames, {this.truncated = false, this.failed = 0});
+  final List<String> fileNames;
+  final bool truncated;
+  final int failed;
+}
+
 /// 피커 취소 (플러그인이 null 반환). 화면은 조용히 넘어간다. 권한 거부는 [AttachPermissionDenied].
 final class AttachCancelled extends AttachResult {
   const AttachCancelled();
@@ -45,7 +55,11 @@ final class AttachFailed extends AttachResult {
 
 /// 이미지 바이트 출처. 플러그인 의존을 여기 가둬 테스트에서 fake 로 바꾼다.
 abstract class ImageSourcePort {
-  Future<Uint8List?> pickGallery();
+  /// 사진첩 복수 선택. 취소면 빈 목록. [limit] = 이번에 고를 수 있는 최대 장수(≥1) —
+  /// 피커가 지원하면 OS 가 그 이상 못 고르게 막고 자기 안내를 띄운다
+  /// (Android Photo Picker·iOS PHPicker). 아니키 S24 피드백 2026-08-30 01:2x
+  /// 「사진첩에서처럼 드래그해서 복수선택이 안됨」.
+  Future<List<Uint8List>> pickGallery({required int limit});
   Future<Uint8List?> takePhoto();
   Future<Uint8List?> clipboardImage();
 }
@@ -56,9 +70,9 @@ class PluginImageSourcePort implements ImageSourcePort {
   final ImagePicker _picker;
 
   @override
-  Future<Uint8List?> pickGallery() async {
-    final file = await _picker.pickImage(source: ImageSource.gallery);
-    return file?.readAsBytes();
+  Future<List<Uint8List>> pickGallery({required int limit}) async {
+    final files = await _picker.pickMultiImage(limit: limit);
+    return [for (final f in files) await f.readAsBytes()];
   }
 
   @override
@@ -101,12 +115,47 @@ class AttachmentService {
   final ImageCompressor _compressor;
   final AttachmentStore store;
 
-  Future<AttachResult> pickFromGallery(int currentCount) => _ingest(
-        currentCount,
-        _source.pickGallery,
-        onNull: const AttachCancelled(),
+  /// 사진첩에서 여러 장. 남은 장수만큼만 받는다 — 피커가 limit 을 못 지키면 뒤를 자르고
+  /// [AttachOkMany.truncated] 로 알린다. 전부 실패면 [AttachFailed], 취소면 [AttachCancelled].
+  Future<AttachResult> pickFromGallery(int currentCount) async {
+    if (currentCount >= maxImages) return const AttachLimit();
+    final remaining = maxImages - currentCount;
+    final List<Uint8List> batch;
+    try {
+      batch = await _source.pickGallery(limit: remaining);
+    } on PlatformException catch (e, st) {
+      debugPrint('[AttachmentService] pickGallery: $e\n$st');
+      return AttachFailed(e);
+    } catch (e, st) {
+      debugPrint('[AttachmentService] pickGallery: $e\n$st');
+      return AttachFailed(e);
+    }
+    if (batch.isEmpty) return const AttachCancelled();
+
+    final truncated = batch.length > remaining;
+    final names = <String>[];
+    Object? lastError;
+    for (final bytes in batch.take(remaining)) {
+      final r = await _ingestBytes(
+        bytes,
         onEmpty: AttachFailed(StateError('empty image bytes')),
       );
+      switch (r) {
+        case AttachOk(:final fileName):
+          names.add(fileName);
+        case AttachFailed(:final error):
+          lastError = error;
+        default:
+          lastError = StateError('unexpected $r');
+      }
+    }
+    if (names.isEmpty) return AttachFailed(lastError ?? StateError('all failed'));
+    return AttachOkMany(
+      names,
+      truncated: truncated,
+      failed: batch.take(remaining).length - names.length,
+    );
+  }
 
   Future<AttachResult> takePhoto(int currentCount) => _ingest(
         currentCount,
@@ -143,6 +192,14 @@ class AttachmentService {
       return AttachFailed(e);
     }
     if (bytes == null) return onNull;
+    return _ingestBytes(bytes, onEmpty: onEmpty);
+  }
+
+  /// 바이트 1장 → 크기 상한 검사 → 압축 → 저장. [AttachOk] 아니면 [onEmpty]/[AttachFailed].
+  Future<AttachResult> _ingestBytes(
+    Uint8List bytes, {
+    required AttachResult onEmpty,
+  }) async {
     if (bytes.isEmpty) return onEmpty;
     if (bytes.length > maxSourceBytes) {
       debugPrint('[AttachmentService] source too large: ${bytes.length}B');

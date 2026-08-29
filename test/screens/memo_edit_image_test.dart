@@ -147,6 +147,49 @@ void main() {
     expect(filesOnDisk(), 13 + 1); // setUp 13장 + 방금 추가 1장
   });
 
+  testWidgets('사진첩 복수 선택 3장 → 스트립에 3장, 안내 없음', (tester) async {
+    port.galleryBatch = [kTinyPng, kTinyPng, kTinyPng];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await addViaSheet(tester, '사진첩');
+
+    expect(find.byType(AttachmentThumbnail), findsNWidgets(3));
+    expect(find.byType(SnackBar), findsNothing);
+    expect(port.lastGalleryLimit, 10);
+    expect(filesOnDisk(), 13 + 3);
+  });
+
+  testWidgets('사진첩 복수 선택이 남은 장수를 넘기면 잘라 넣고 「최대 10장」 안내', (tester) async {
+    // 8장 있는 메모에 5장 선택 → 2장만 추가 + 안내.
+    // 파일 심기는 실제 IO — testWidgets 의 FakeAsync 안에서는 완료되지 않으므로 runAsync.
+    final seeded = <String>[];
+    await tester.runAsync(() async {
+      for (var i = 0; i < 8; i++) {
+        seeded.add(await seedStoreFile('exist-$i.jpg'));
+      }
+    });
+    port.galleryBatch = List.filled(5, kTinyPng);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          memo: existing(images: seeded),
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await addViaSheet(tester, '사진첩');
+
+    expect(port.lastGalleryLimit, 2);
+    expect(find.byType(AttachmentThumbnail), findsNWidgets(10));
+    expect(find.text('사진은 메모당 최대 10장까지예요'), findsOneWidget);
+  });
+
   testWidgets('카메라에서 추가 → takePhoto 경로, 스트립에 1장', (tester) async {
     port.cameraBytes = kTinyPng;
     await tester.pumpWidget(

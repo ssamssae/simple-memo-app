@@ -44,12 +44,66 @@ void main() {
     port.galleryBytes = kTinyPng;
     final result = await service.pickFromGallery(0);
 
-    expect(result, isA<AttachOk>());
-    final name = (result as AttachOk).fileName;
+    expect(result, isA<AttachOkMany>());
+    final name = (result as AttachOkMany).fileNames.single;
+    expect(result.truncated, isFalse);
+    expect(result.failed, 0);
     expect(await AttachmentStore.instance.exists(name), isTrue);
     expect(compressor.calls, 1);
     expect(compressor.lastMaxLongEdge, 1600);
     expect(compressor.lastQuality, 85);
+  });
+
+  test('사진첩 복수: 3장 → 3개 파일명(순서 유지), 피커 limit = 남은 장수', () async {
+    port.galleryBatch = [kTinyPng, kTinyPng, kTinyPng];
+    final result = await service.pickFromGallery(4);
+
+    expect(result, isA<AttachOkMany>());
+    final names = (result as AttachOkMany).fileNames;
+    expect(names.length, 3);
+    expect(names.toSet().length, 3);
+    for (final n in names) {
+      expect(await AttachmentStore.instance.exists(n), isTrue);
+    }
+    expect(port.lastGalleryLimit, 6);
+    expect(compressor.calls, 3);
+  });
+
+  test('사진첩 복수: 피커가 limit 을 넘겨 주면 남은 장수까지만 저장하고 truncated', () async {
+    port.galleryBatch = List.filled(5, kTinyPng);
+    final result = await service.pickFromGallery(8);
+
+    expect(result, isA<AttachOkMany>());
+    result as AttachOkMany;
+    expect(result.fileNames.length, 2);
+    expect(result.truncated, isTrue);
+    expect(result.failed, 0);
+    expect(port.lastGalleryLimit, 2);
+    expect(compressor.calls, 2);
+  });
+
+  test('사진첩 복수: 일부(원본 상한 초과) 실패 → 나머지 저장 + failed 계수', () async {
+    port.galleryBatch = [kTinyPng, Uint8List(AttachmentService.maxSourceBytes + 1), kTinyPng];
+    final result = await service.pickFromGallery(0);
+
+    expect(result, isA<AttachOkMany>());
+    result as AttachOkMany;
+    expect(result.fileNames.length, 2);
+    expect(result.failed, 1);
+    expect(result.truncated, isFalse);
+  });
+
+  test('사진첩 복수: 전부 실패면 AttachFailed', () async {
+    port.galleryBatch = [kTinyPng, kTinyPng];
+    compressor.shouldThrow = true;
+    expect(await service.pickFromGallery(0), isA<AttachFailed>());
+    expect(AttachmentStore.instance.root.existsSync(), isFalse);
+  });
+
+  test('사진첩: 9장 있으면 limit 1 로 피커를 연다', () async {
+    port.galleryBatch = [kTinyPng];
+    expect(await service.pickFromGallery(9), isA<AttachOkMany>());
+    expect(port.lastGalleryLimit, 1);
   });
 
   test('카메라: 성공 경로 동일', () async {
@@ -97,7 +151,7 @@ void main() {
 
   test('deleteFiles 는 스토어 delete 위임', () async {
     port.galleryBytes = kTinyPng;
-    final name = ((await service.pickFromGallery(0)) as AttachOk).fileName;
+    final name = ((await service.pickFromGallery(0)) as AttachOkMany).fileNames.single;
     await service.deleteFiles([name]);
     expect(await AttachmentStore.instance.exists(name), isFalse);
   });
