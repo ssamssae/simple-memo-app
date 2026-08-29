@@ -258,13 +258,15 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
 
 ---
 
-### Task 2: 의존성 3개 + iOS 권한 문구
+### Task 2: 의존성 3개 + iOS 권한 문구 — ✅ 완료 (cca3f7d6f + registrant 13e0cae02, 리뷰 통과 2026-08-29 15:43)
+
+리뷰 실측 노트: `pubspec.lock` 에서 SDK 고정 패키지 2개가 볼칸 Flutter 3.41.9 핀으로 바뀜(meta 1.18.0→1.17.0, test_api 0.7.11→0.7.10). 새 패키지 탓이 아니라 base lock 이 더 새 SDK(3.44) 노드에서 생성된 함대 SDK 편차. 맥미니 = 릴리스 빌드 노드(flutter-ci.yml 주석도 맥미니 핀을 기준으로 명시)라 이 노드 핀을 정본으로 수용. 구현자 보고의 「기존 패키지 버전 변경 0」 주장은 실측과 달랐음(셸 grep shim 거짓 결과 — 판정은 /usr/bin/git 직접).
 
 **Files:**
 - Modify: `pubspec.yaml:36-41`
 - Modify: `ios/Runner/Info.plist:30-32`
 
-- [ ] **Step 1: pubspec 의존성 추가**
+- [x] **Step 1: pubspec 의존성 추가**
 
 `pubspec.yaml` 의 `  path_provider: ^2.1.5` (41행) 바로 아래에:
 
