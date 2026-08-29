@@ -1397,7 +1397,9 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
 
 ---
 
-### Task 8: `AttachmentViewer` — 전체화면 보기·넘기기·확대·삭제
+### Task 8: `AttachmentViewer` — 전체화면 보기·넘기기·확대·삭제 — ✅ 완료 (5c1acfdbb + b1ef42fd0 + 리뷰 보강 09ba0dd86, 리뷰 통과 2026-08-29 18:33)
+
+리뷰 실측(에뮬레이터 드래그 프로브): 확대 뒤 한 손가락 **가로** 드래그는 PageView(kTouchSlop 18px)가 InteractiveViewer 팬(kPanSlop 36px)보다 아레나에서 먼저 이겨 **사진이 아니라 페이지가 넘어갔다**. 보강 = 페이지별 `TransformationController` + 배율 > 1 이면 `NeverScrollableScrollPhysics` 로 페이지 스와이프 잠금(축소하면 복귀) · 빈 목록 삭제 가드 · 스냅샷 사본 주석 · 타이틀 `Semantics(liveRegion)` · 테스트 4건 추가(총 9). 메모리 실측: 정지 시 1페이지만 mount, 10장 훑으면 ImageCache 약 77MB(기본 상한 100MB 안) — 뷰어엔 `cacheWidth` 를 걸지 않는 것이 맞다(확대 화질). `_openViewer` 는 사진 0장이면 열지 않는다(Task 9).
 
 **Files:**
 - Create: `lib/features/memos/widgets/attachment_viewer.dart`
@@ -1703,7 +1705,7 @@ class _AttachmentViewerState extends State<AttachmentViewer> {
 - [ ] **Step 4: 통과 확인**
 
 Run: `flutter test test/features/memos/attachment_viewer_test.dart`
-Expected: 4 PASS.
+Expected: 5 PASS (리뷰 보강 후 9).
 
 - [ ] **Step 5: 커밋**
 
@@ -2228,6 +2230,7 @@ initState (`_isEditing = widget.memo != null;` 뒤에):
   }
 
   void _openViewer(int index) {
+    if (_imageFiles.isEmpty || index < 0 || index >= _imageFiles.length) return;
     AttachmentViewer.show(
       context,
       fileNames: List.of(_imageFiles),
@@ -2923,7 +2926,7 @@ PR #137 본문에 구현 범위·테스트 수·`flutter test` 결과 요약을 
 
 1. `/device-run ios` (또는 android) 로 앱 실행.
 2. 편집 화면 → 사진 추가 → 사진첩: 시스템 피커 → 선택 → 스트립에 썸네일. 카메라: 촬영 → 스트립. 붙여넣기: 다른 앱에서 스크린샷 복사 → 붙여넣기 → iOS 「붙여넣기 허용?」 1회 → 스트립. 추가 확인(Task 5 리뷰): 프롬프트에서 「허용 안 함」 → 「사진이 없거나 붙여넣기가 허용되지 않았어요」 안내 · 카메라 권한 거부 상태에서 카메라 선택 → 「설정에서 카메라 권한」 안내 · iOS 클립보드는 PNG 재인코딩이라 원본보다 3~6배 크게 들어옴(40MB 가드 실동작 확인).
-3. 저장 → 목록 썸네일 36px 확인. 탭 → 뷰어 넘김·핀치. 삭제 → 확인 → 목록 반영.
+3. 저장 → 목록 썸네일 36px 확인. 탭 → 뷰어 넘김·핀치. 삭제 → 확인 → 목록 반영. 뷰어 추가 확인(Task 8 리뷰): ① 2배 이상 확대 후 한 손가락 가로 드래그 = 사진이 좌우로 움직이고 페이지는 안 넘어감(잠금), 축소하면 스와이프 복귀 ② 확대 후 세로 드래그 이동 ③ 확대 상태에서 축소 후 넘긴 다음 장은 배율 1 시작 ④ 더블탭 확대는 없음 — 필요하면 별건 ⑤ 10장 메모 끝까지 넘긴 뒤 저가 안드로이드 메모리·프레임 체감(예상 이미지 캐시 ~77MB) ⑥ 세로 사진 contain 표시·AppBar 검정 연속 ⑦ iOS 백스와이프로 닫히지 않음(fullscreenDialog) 및 노치 영역 닫기/삭제 탭 타겟.
 4. 공유 → 시트에 사진 파일 동봉 확인.
 5. 휴지통 → 영구삭제 → 파일 앱(iOS 파일/Android 탐색기 불가 시 `flutter run` 콘솔 `[AttachmentStore]` 로그) 로 파일 소실 확인.
 6. 결과·스크린샷을 PR 코멘트 + mac-report 로 남기고, 통과 시 `[no-auto-merge]` 해제 요청.
