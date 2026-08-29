@@ -29,6 +29,7 @@ class AttachmentStrip extends StatelessWidget {
           itemCount: fileNames.length,
           separatorBuilder: (_, _) => const SizedBox(width: 8),
           itemBuilder: (context, index) => GestureDetector(
+            key: ValueKey(fileNames[index]),
             behavior: HitTestBehavior.opaque,
             onTap: () => onTap(index),
             onLongPress: () => onLongPress(index),

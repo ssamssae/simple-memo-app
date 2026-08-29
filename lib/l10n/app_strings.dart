@@ -380,5 +380,6 @@ class AppStrings {
       ? 'Photos are not included in backups'
       : '사진은 백업에 포함되지 않습니다';
   String get photoMissing => isEnglish ? 'Photo missing' : '사진 없음';
+  String get attachedPhoto => isEnglish ? 'Attached photo' : '첨부 사진';
   String get photoViewerClose => isEnglish ? 'Close' : '닫기';
 }

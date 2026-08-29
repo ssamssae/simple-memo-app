@@ -34,6 +34,8 @@ class AttachmentThumbnail extends StatelessWidget {
       return file.existsSync() ? file : null;
     } on ArgumentError {
       return null;
+    } on FileSystemException {
+      return null;
     }
   }
 
@@ -48,13 +50,17 @@ class AttachmentThumbnail extends StatelessWidget {
         child: file == null
             ? _Placeholder(size: size)
             : !decodeImages
-                ? SizedBox.expand(key: ValueKey('attachment-file:${file.path}'))
-                : Image.file(
-                    file,
-                    fit: BoxFit.cover,
-                    cacheWidth: (size * 3).round(),
-                    errorBuilder: (_, _, _) => _Placeholder(size: size),
-                  ),
+            ? ColoredBox(
+                key: ValueKey('attachment-file:${file.path}'),
+                color: const Color(0x00000000),
+              )
+            : Image.file(
+                file,
+                fit: BoxFit.cover,
+                cacheWidth: (size * 3).round(),
+                semanticLabel: AppStrings.of(context).attachedPhoto,
+                errorBuilder: (_, _, _) => _Placeholder(size: size),
+              ),
       ),
     );
   }
