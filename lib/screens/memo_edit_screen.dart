@@ -646,16 +646,6 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
             ),
           ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.add_photo_alternate_outlined, size: 22),
-              padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(),
-              color: palette.textPrimary,
-              tooltip: AppStrings.of(context).addPhoto,
-              onPressed: _addPhoto,
-            ),
-            const SizedBox(width: 8),
             ValueListenableBuilder<UndoHistoryValue>(
               valueListenable: _undoController,
               builder: (context, value, _) {
@@ -699,6 +689,26 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               ),
             ),
           ],
+        ),
+        // 사진 추가 = 본문 아래 툴바 줄 (키보드 위에 붙어 올라온다).
+        // 원래 AppBar actions 에 있었는데 402pt 폭에서 뒤로·취소·공유 + 되돌리기·
+        // 다시실행·저장까지 8개가 되자 가운데 제목과 겹쳤다 (아니키 실기기 검증
+        // 2026-08-29 21:05 iPhone 스크린샷). 위 바는 PR 이전 배치 그대로 되돌렸다.
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.add_photo_alternate_outlined, size: 24),
+                  color: palette.textPrimary,
+                  tooltip: AppStrings.of(context).addPhoto,
+                  onPressed: _addPhoto,
+                ),
+              ],
+            ),
+          ),
         ),
         body: GestureDetector(
           behavior: HitTestBehavior.translucent,
