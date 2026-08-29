@@ -312,14 +312,16 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "chore(memoy
 
 ---
 
-### Task 3: `AttachmentStore` — 파일 디렉토리
+### Task 3: `AttachmentStore` — 파일 디렉토리 — ✅ 완료 (6072ccd7d + 909edbdb2 한글리터럴 수정 + 리뷰 보강 커밋, spec/quality 리뷰 통과 2026-08-29 15:5x)
+
+리뷰 반영: `exists()` 는 검증 실패 파일명에 false(던지지 않음, `delete` 와 같은 계약) · 회귀 테스트 4건 추가(총 13) · Task 10 의 `sweepOrphans` 호출은 `memos.isNotEmpty` 게이트 필수(빈 참조 = 전부 삭제 위험).
 
 **Files:**
 - Create: `lib/features/memos/services/attachment_store.dart`
 - Create: `test/features/memos/support/attachment_test_support.dart`
 - Test: `test/features/memos/attachment_store_test.dart`
 
-- [ ] **Step 1: 테스트 지원 파일 (v1)**
+- [x] **Step 1: 테스트 지원 파일 (v1)**
 
 ```dart
 // test/features/memos/support/attachment_test_support.dart
@@ -570,7 +572,7 @@ class AttachmentStore {
 - [ ] **Step 5: 통과 확인**
 
 Run: `flutter test test/features/memos/attachment_store_test.dart`
-Expected: 9 PASS.
+Expected: 9 PASS (리뷰 보강 후 13).
 
 - [ ] **Step 6: 커밋**
 
@@ -1067,7 +1069,7 @@ class AttachmentService {
 - [ ] **Step 5: 통과 확인**
 
 Run: `flutter test test/features/memos/`
-Expected: store 9 + ingest 5 + service 9 = 23 PASS.
+Expected: store 13 + ingest 5 + service 9 = 27 PASS.
 
 - [ ] **Step 6: 커밋**
 
@@ -2455,8 +2457,11 @@ class MemoStorage {
 `_loadMemos` (210-229행) 의 `final memos = await MemoStorage.loadMemos();` 바로 뒤에:
 
 ```dart
+      // 고아 정리는 참조 목록이 비어 있으면 돌리지 않는다 — loadMemos 는 실패를 빈 목록으로
+      // 삼키므로(prefs 일시 오류·JSON 파싱 실패) 빈 목록 = 「메모 0개」와 구분이 안 되고,
+      // 그 상태에서 돌리면 1일 넘은 첨부 전부가 지워진다 (Task 3 리뷰 지적).
       final store = AttachmentStore.maybeInstance;
-      if (store != null && !_orphanSweepDone) {
+      if (store != null && !_orphanSweepDone && memos.isNotEmpty) {
         _orphanSweepDone = true;
         unawaited(store.sweepOrphans(memos.expand((m) => m.imageFiles)));
       }
