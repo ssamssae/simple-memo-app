@@ -81,6 +81,10 @@ void main() {
       expect(Memo.isValidImageFileName('a..b.jpg'), isFalse);
       expect(Memo.isValidImageFileName('a/b.jpg'), isFalse);
       expect(Memo.isValidImageFileName(''), isFalse);
+      expect(Memo.isValidImageFileName('a.jpg\n'), isFalse); // Dart $ 는 엄격 — 줄끝 우회 없음을 고정
+      expect(Memo.isValidImageFileName('a .jpg'), isFalse);
+      expect(Memo.isValidImageFileName('A' * 128), isTrue); // 상한 = 1 + 127
+      expect(Memo.isValidImageFileName('A' * 129), isFalse);
     });
   });
 }

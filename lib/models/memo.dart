@@ -55,6 +55,8 @@ class Memo {
 
   // 파일명 = uuid.jpg 형태만. 경로 구분자·`..`·선행 점을 막아 JSON(백업 복원 포함)에서
   // 들어온 값이 attachments/ 밖을 가리킬 수 없게 한다.
+  // `..` 검사는 이중 방어 — 현재 regex 가 `/`·`\` 를 막아 traversal 은 불가하지만,
+  // 문자 클래스를 넓히는 미래 변경에 대비해 남겨 둔다.
   static final _imageFileNamePattern = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$');
   static bool isValidImageFileName(String name) =>
       !name.contains('..') && _imageFileNamePattern.hasMatch(name);
