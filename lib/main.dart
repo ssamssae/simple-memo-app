@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'features/memos/services/attachment_store.dart';
 import 'l10n/app_strings.dart';
 import 'screens/splash_screen.dart';
 import 'services/ads_service.dart';
@@ -48,6 +49,8 @@ Future<void> main() async {
       PremiumService.instance.init();
       RemoveAdsPurchase.instance.init();
       await SettingsService.instance.init();
+      // 첨부 사진 디렉토리 (T-260829-022). 실패해도 던지지 않는다 — 사진 기능만 비활성.
+      await AttachmentStore.init();
       runApp(const MemoApp());
     },
     (Object error, StackTrace stack) {

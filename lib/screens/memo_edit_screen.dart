@@ -13,16 +13,22 @@ import '../models/memo.dart';
 import '../services/settings_service.dart';
 import '../utils/app_palette.dart';
 import '../l10n/app_strings.dart';
-
+import '../features/memos/services/attachment_service.dart';
+import '../features/memos/services/attachment_store.dart';
+import '../features/memos/widgets/attachment_strip.dart';
+import '../features/memos/widgets/attachment_viewer.dart';
 
 class MemoEditScreen extends StatefulWidget {
   final Memo? memo;
   final ValueChanged<Memo>? onSave;
+  // 테스트 주입용. null 이면 AttachmentService.production() 을 첫 사용 시 조립한다.
+  final AttachmentService? attachmentService;
 
   const MemoEditScreen({
     super.key,
     this.memo,
     this.onSave,
+    this.attachmentService,
   });
 
   @override
@@ -33,13 +39,32 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   late final TextEditingController _contentController;
   final UndoHistoryController _undoController = UndoHistoryController();
   final ScrollController _contentScrollController = ScrollController();
+  // 사진 피커/카메라에서 돌아온 뒤 키보드를 다시 올리기 위한 본문 포커스 핸들
+  // (아니키 S24 실기기 피드백 2026-08-30 01:15 「사진 첨부하고 키보드가 바로
+  // 나오지 않는 이슈」). 피커 액티비티가 IME 를 내리지만 포커스는 남아 있어
+  // requestFocus 만으론 no-op — unfocus 후 다음 프레임에 다시 잡는다.
+  final FocusNode _contentFocusNode = FocusNode();
   StreamSubscription<AccelerometerEvent>? _accelSub;
   DateTime _lastShakeAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _shakeDialogOpen = false;
+  bool _photoSheetOpen = false;
   bool _isEditing = false;
   bool _popHandled = false;
   Offset? _lastTouchPosition;
   bool _isClampingSelection = false;
+
+  // 첨부 사진 — 화면에 보이는 현재 목록 + 저장/취소 때 확정할 대기 목록 (spec §3.4).
+  late final List<String> _imageFiles;
+  final List<String> _pendingAdded = [];
+  final List<String> _pendingRemoved = [];
+  AttachmentService? _defaultService;
+
+  AttachmentService get _attachments =>
+      widget.attachmentService ??
+      (_defaultService ??= AttachmentService.production());
+
+  AttachmentStore? get _store =>
+      widget.attachmentService?.store ?? AttachmentStore.maybeInstance;
 
   static const double _shakeThreshold = 18.0;
   static const Duration _shakeCooldown = Duration(milliseconds: 1500);
@@ -48,6 +73,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   void initState() {
     super.initState();
     _isEditing = widget.memo != null;
+    _imageFiles = List.of(widget.memo?.imageFiles ?? const <String>[]);
     _contentController = TextEditingController(
       text: widget.memo?.content ?? '',
     );
@@ -65,6 +91,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     _contentController.removeListener(_clampSelectionTrailingNewline);
     _contentController.dispose();
     _contentScrollController.dispose();
+    _contentFocusNode.dispose();
     _undoController.dispose();
     super.dispose();
   }
@@ -160,7 +187,11 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       await showCupertinoDialog<void>(
         context: context,
         builder: (ctx) => CupertinoAlertDialog(
-          title: Text(showRedoOnly ? AppStrings.of(context).redo : AppStrings.of(context).undoAction),
+          title: Text(
+            showRedoOnly
+                ? AppStrings.of(context).redo
+                : AppStrings.of(context).undoAction,
+          ),
           content: Text(AppStrings.of(context).whichAction),
           actions: [
             CupertinoDialogAction(
@@ -203,19 +234,45 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
 
   Memo? _buildMemo() {
     final content = _normalizeContent(_contentController.text);
-    if (content.isEmpty) return null;
+    final images = List<String>.unmodifiable(_imageFiles);
+    // 본문이 비어도 사진이 있으면 저장 대상 (사진만 있는 메모 허용, 제목은 untitledMemo 폴백).
+    if (content.isEmpty && images.isEmpty) return null;
 
     if (_isEditing && widget.memo != null) {
-      return widget.memo!.copyWith(content: content, updatedAt: DateTime.now());
+      return widget.memo!.copyWith(
+        content: content,
+        updatedAt: DateTime.now(),
+        imageFiles: images,
+      );
     } else {
-      return Memo.create(content: content);
+      return Memo.create(content: content, imageFiles: images);
     }
+  }
+
+  // 저장 확정 뒤: 이번 세션에서 뺀 기존 파일을 실제로 지운다.
+  void _commitPendingRemovals() {
+    if (_pendingRemoved.isEmpty) return;
+    final removed = List<String>.of(_pendingRemoved);
+    _pendingRemoved.clear();
+    unawaited(_store?.delete(removed) ?? Future<void>.value());
+  }
+
+  // 미저장 이탈: 이번 세션에서 추가한 파일을 지운다 (기존 파일은 손대지 않음).
+  void _discardPendingAdded() {
+    if (_pendingAdded.isEmpty) return;
+    final added = List<String>.of(_pendingAdded);
+    _pendingAdded.clear();
+    _imageFiles.removeWhere(added.contains);
+    unawaited(_store?.delete(added) ?? Future<void>.value());
   }
 
   void _dispatchSave() {
     final memo = _buildMemo();
     if (memo != null) {
       widget.onSave?.call(memo);
+      _commitPendingRemovals();
+      // 저장된 메모가 참조하는 파일 — 이후 취소가 지우면 안 된다.
+      _pendingAdded.clear();
     }
   }
 
@@ -228,13 +285,16 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   void _saveMemo() {
     final memo = _buildMemo();
     if (memo == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(AppStrings.of(context).enterContent)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.of(context).enterContent)),
+      );
       return;
     }
     _popHandled = true;
     widget.onSave?.call(memo);
+    _commitPendingRemovals();
+    // 저장된 메모가 참조하는 파일 — 이후 취소가 지우면 안 된다.
+    _pendingAdded.clear();
     Navigator.pop(context);
   }
 
@@ -247,23 +307,88 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   Future<void> _shareMemo(BuildContext shareContext) async {
     final memo = _buildMemo();
     if (memo == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(AppStrings.of(context).nothingToShare)));
+      _snack(AppStrings.of(context).nothingToShare);
       return;
     }
     try {
-      await Share.share(
-        memo.content,
-        subject: memo.title,
-        sharePositionOrigin: _shareOriginRect(shareContext),
-      );
+      final store = _store;
+      final files = <XFile>[
+        if (store != null)
+          for (final name in memo.imageFiles)
+            if (store.fileFor(name).existsSync())
+              XFile(store.fileFor(name).path, mimeType: 'image/jpeg'),
+      ];
+      if (files.isEmpty && memo.content.isEmpty) {
+        // 사진만 있는 메모인데 파일이 디스크에 없다(백업 복원 등) — 공유할 게 없다.
+        // Share.share('') 는 share_plus 의 빈 문자열 assert 를 때려 "공유 실패"로
+        // 오분류되므로, 그 경로를 타기 전에 여기서 막는다.
+        _snack(AppStrings.of(context).nothingToShare);
+        return;
+      }
+      // Android 는 글+사진 메모면 방식을 먼저 고른다 — 카카오톡 등 일부 수신 앱이
+      // ACTION_SEND_MULTIPLE 의 EXTRA_TEXT 를 버려 사진만 도착한다 (아니키 S24 실기기
+      // 2026-08-30 01:2x, ㉠ 선택). iOS 는 두 항목이 다 실리므로 그대로.
+      // 공유 시트 위치는 시트(await) 전에 계산 — shareContext 를 async gap 뒤에 쓰지 않는다.
+      final origin = _shareOriginRect(shareContext);
+      var mode = _ShareMode.both;
+      if (files.isNotEmpty &&
+          memo.content.isNotEmpty &&
+          defaultTargetPlatform == TargetPlatform.android) {
+        final picked = await _pickShareMode();
+        if (picked == null || !mounted) return;
+        mode = picked;
+      }
+      switch (mode) {
+        case _ShareMode.textOnly:
+          await Share.share(memo.content, subject: memo.title, sharePositionOrigin: origin);
+        case _ShareMode.photosOnly:
+          await Share.shareXFiles(files, subject: memo.title, sharePositionOrigin: origin);
+        case _ShareMode.both:
+          if (files.isEmpty) {
+            await Share.share(memo.content, subject: memo.title, sharePositionOrigin: origin);
+          } else {
+            await Share.shareXFiles(
+              files,
+              text: memo.content.isEmpty ? null : memo.content,
+              subject: memo.title,
+              sharePositionOrigin: origin,
+            );
+          }
+      }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(AppStrings.of(context).shareFailed(e))));
+      _snack(AppStrings.of(context).shareFailed(e));
     }
+  }
+
+  Future<_ShareMode?> _pickShareMode() {
+    final strings = AppStrings.of(context);
+    return showCupertinoModalPopup<_ShareMode>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: Text(strings.shareModeTitle),
+        message: Text(strings.shareModeHint),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, _ShareMode.both),
+            child: Text(strings.shareBoth),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, _ShareMode.textOnly),
+            child: Text(strings.shareTextOnly),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, _ShareMode.photosOnly),
+            child: Text(strings.sharePhotosOnly),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(strings.cancel),
+        ),
+      ),
+    );
   }
 
   Future<void> _cancelEdit() async {
@@ -286,8 +411,220 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    _discardPendingAdded();
     _popHandled = true;
     Navigator.pop(context);
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _addPhoto() async {
+    final strings = AppStrings.of(context);
+    if (_imageFiles.length >= AttachmentService.maxImages) {
+      _snack(strings.photoLimitReached);
+      return;
+    }
+    // 더블탭 등으로 시트가 겹쳐 뜨는 것을 막는다 (_shakeDialogOpen 과 같은 패턴).
+    if (_photoSheetOpen) return;
+    _photoSheetOpen = true;
+    final _PhotoSource? source;
+    try {
+      // 붙여넣기는 항상 노출 — 미리 클립보드를 읽어 활성/비활성을 정하면
+      // iOS 「붙여넣기 허용?」 시스템 프롬프트가 두 번 뜬다.
+      source = await showCupertinoModalPopup<_PhotoSource>(
+        context: context,
+        builder: (ctx) => CupertinoActionSheet(
+          actions: [
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, _PhotoSource.gallery),
+              child: Text(strings.fromGallery),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, _PhotoSource.camera),
+              child: Text(strings.fromCamera),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, _PhotoSource.clipboard),
+              child: Text(strings.pasteImage),
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(strings.cancel),
+          ),
+        ),
+      );
+    } finally {
+      _photoSheetOpen = false;
+    }
+    if (source == null || !mounted) return;
+
+    final count = _imageFiles.length;
+    AttachResult result;
+    try {
+      result = switch (source) {
+        _PhotoSource.gallery => await _attachments.pickFromGallery(count),
+        _PhotoSource.camera => await _attachments.takePhoto(count),
+        _PhotoSource.clipboard => await _attachments.pasteFromClipboard(count),
+      };
+    } catch (e) {
+      // AttachmentService.production() 이 스토어 미초기화로 던지는 경우 등.
+      debugPrint('[MemoEditScreen._addPhoto] $e');
+      result = AttachFailed(e);
+    }
+    if (!mounted) return;
+
+    switch (result) {
+      case AttachOk(:final fileName):
+        setState(() {
+          _imageFiles.add(fileName);
+          _pendingAdded.add(fileName);
+        });
+      case AttachOkMany(:final fileNames, :final truncated, :final failed):
+        setState(() {
+          _imageFiles.addAll(fileNames);
+          _pendingAdded.addAll(fileNames);
+        });
+        // 피커가 limit 을 못 지켜 뒤를 잘랐으면 「최대 10장」 안내, 일부 실패면 실패 안내.
+        if (truncated) {
+          _snack(strings.photoLimitReached);
+        } else if (failed > 0) {
+          _snack(strings.photoAttachFailed);
+        }
+      case AttachCancelled():
+        break;
+      case AttachNoImage():
+        _snack(strings.noImageInClipboard);
+      case AttachLimit():
+        _snack(strings.photoLimitReached);
+      case AttachPermissionDenied():
+        _snack(strings.cameraPermissionDenied);
+      case AttachFailed():
+        _snack(strings.photoAttachFailed);
+    }
+    // 취소든 성공이든 피커에서 돌아오면 바로 이어서 타이핑할 수 있게 키보드 복귀.
+    _refocusEditor();
+  }
+
+  void _refocusEditor() {
+    if (!mounted) return;
+    _contentFocusNode.unfocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _contentFocusNode.requestFocus();
+    });
+  }
+
+  // 이번 세션에서 추가한 파일은 어느 메모도 참조하지 않으므로 즉시 삭제,
+  // 기존 파일은 저장 시점까지 보류 (취소하면 복귀).
+  void _removePhoto(String fileName) {
+    if (!_imageFiles.contains(fileName)) return;
+    setState(() {
+      _imageFiles.remove(fileName);
+      if (_pendingAdded.remove(fileName)) {
+        unawaited(_store?.delete([fileName]) ?? Future<void>.value());
+      } else {
+        _pendingRemoved.add(fileName);
+      }
+    });
+  }
+
+  /// 썸네일 길게 누르기 → 「갤러리에 저장 / 삭제 / 취소」 시트.
+  /// (아니키 S24 피드백 2026-08-30 01:2x — 삭제 옆에 갤러리 저장도.)
+  Future<void> _showPhotoActions(int index) async {
+    if (index < 0 || index >= _imageFiles.length) return;
+    final fileName = _imageFiles[index];
+    final strings = AppStrings.of(context);
+    final action = await showCupertinoModalPopup<_PhotoAction>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, _PhotoAction.save),
+            child: Text(strings.saveToGallery),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(ctx, _PhotoAction.delete),
+            child: Text(strings.deletePhotoConfirmTitle),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(strings.cancel),
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+    switch (action) {
+      case _PhotoAction.save:
+        await _savePhotoToGallery(fileName);
+      case _PhotoAction.delete:
+        await _confirmRemovePhoto(_imageFiles.indexOf(fileName));
+    }
+  }
+
+  Future<void> _savePhotoToGallery(String fileName) async {
+    final strings = AppStrings.of(context);
+    final SaveToGalleryResult result;
+    try {
+      result = await _attachments.saveToGallery(fileName);
+    } catch (e) {
+      debugPrint('[MemoEditScreen._savePhotoToGallery] $e');
+      if (mounted) _snack(strings.saveToGalleryFailed);
+      return;
+    }
+    if (!mounted) return;
+    switch (result) {
+      case SaveOk():
+        _snack(strings.savedToGallery);
+      case SaveDenied():
+        _snack(strings.saveToGalleryDenied);
+      case SaveFailed():
+        _snack(strings.saveToGalleryFailed);
+    }
+  }
+
+  Future<void> _confirmRemovePhoto(int index) async {
+    if (index < 0 || index >= _imageFiles.length) return;
+    final fileName = _imageFiles[index];
+    final strings = AppStrings.of(context);
+    final confirmed = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: Text(strings.deletePhotoConfirmTitle),
+        content: Text(strings.deletePhotoConfirmBody),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(strings.cancel),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(strings.deletePhotoConfirmTitle),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    _removePhoto(fileName);
+  }
+
+  void _openViewer(int index) {
+    if (_imageFiles.isEmpty || index < 0 || index >= _imageFiles.length) return;
+    AttachmentViewer.show(
+      context,
+      fileNames: List.of(_imageFiles),
+      initialIndex: index,
+      onDelete: _removePhoto,
+      onSave: _savePhotoToGallery,
+    );
   }
 
   Future<void> _handlePasteWithNewline(
@@ -358,7 +695,9 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final titleText = _isEditing ? AppStrings.of(context).editMemoTitle : AppStrings.of(context).newMemoTitle;
+    final titleText = _isEditing
+        ? AppStrings.of(context).editMemoTitle
+        : AppStrings.of(context).newMemoTitle;
     final palette = AppPalette.of(context);
     final appBarTheme = Theme.of(context).appBarTheme;
     final baseTitleStyle =
@@ -482,6 +821,20 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
             ),
           ],
         ),
+        // 사진 추가 = 오른쪽 아래 떠 있는 작은 버튼. Scaffold 의 FAB 는 키보드 위로
+        // 따라 올라온다(bottomNavigationBar 는 키보드 뒤에 깔려 안 보였다 — 아니키
+        // 실기기 스크린샷 2026-08-29 21:26, 「떠 있는 float button 이 좋아보이는데」).
+        // 원래 AppBar actions 에 있었는데 402pt 폭에서 뒤로·취소·공유 + 되돌리기·
+        // 다시실행·저장까지 8개가 되자 가운데 제목과 겹쳤다(21:05 스크린샷).
+        // 위 바는 PR 이전 배치 그대로 되돌렸다.
+        floatingActionButton: FloatingActionButton.small(
+          heroTag: null,
+          backgroundColor: palette.accent,
+          foregroundColor: palette.onAccent,
+          tooltip: AppStrings.of(context).addPhoto,
+          onPressed: _addPhoto,
+          child: const Icon(Icons.add_photo_alternate_outlined, size: 22),
+        ),
         body: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onHorizontalDragEnd: (details) {
@@ -510,113 +863,155 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       onPointerSignal: _handleContentPointerSignal,
                       child: ValueListenableBuilder<double>(
                         valueListenable: SettingsService.instance.bodyFontSize,
-                        builder: (context, bodyFontSize, _) => TextField(
-                          controller: _contentController,
-                          undoController: _undoController,
-                          cursorColor: palette.textPrimary,
-                          cursorHeight: bodyFontSize,
-                          selectionControls: _largeCupertinoSelectionControls,
-                          scrollPhysics: const NeverScrollableScrollPhysics(),
-                          selectionHeightStyle:
-                              ui.BoxHeightStyle.includeLineSpacingMiddle,
-                          strutStyle: StrutStyle(
-                            fontSize: bodyFontSize,
-                            height: 1.5,
-                            leading: 0,
-                            forceStrutHeight: true,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: AppStrings.of(context).contentHint,
-                            hintStyle: TextStyle(
-                              color: palette.textSecondary,
-                            ),
-                            border: InputBorder.none,
-                            isCollapsed: true,
-                          ),
-                          style: TextStyle(
-                            color: palette.textPrimary,
-                            fontSize: bodyFontSize,
-                            height: 1.5,
-                            leadingDistribution: TextLeadingDistribution.even,
-                            letterSpacing: 0.2,
-                            decoration: TextDecoration.none,
-                            decorationColor: Colors.transparent,
-                            decorationThickness: 0,
-                          ),
-                          maxLines: null,
-                          autofocus: !_isEditing,
-                          contextMenuBuilder: (context, editableTextState) {
-                            final items = List<ContextMenuButtonItem>.from(
-                              editableTextState.contextMenuButtonItems,
-                            );
-                            if (!Platform.isIOS) {
-                              for (var i = 0; i < items.length; i++) {
-                                if (items[i].type ==
-                                    ContextMenuButtonType.paste) {
-                                  items[i] = ContextMenuButtonItem(
-                                    type: ContextMenuButtonType.paste,
-                                    onPressed: () => _handlePasteWithNewline(
-                                      editableTextState,
-                                    ),
+                        builder: (context, bodyFontSize, _) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // 기존엔 바깥 ConstrainedBox(minHeight: 뷰포트)가 TextField 를 뷰포트
+                            // 높이까지 늘려 「본문 아래 빈 곳 탭 → 캐럿」이 됐다. Column 은 자식에
+                            // min 0 을 주므로 그 동작이 죽는다 → TextField 에 직접
+                            // (뷰포트 − 스트립 높이) minHeight 를 준다. constraints = LayoutBuilder 인자.
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minHeight: math.max(
+                                  0.0,
+                                  constraints.maxHeight -
+                                      (_imageFiles.isNotEmpty
+                                          ? AttachmentStrip.totalHeight
+                                          : 0),
+                                ),
+                              ),
+                              child: TextField(
+                                controller: _contentController,
+                                focusNode: _contentFocusNode,
+                                undoController: _undoController,
+                                cursorColor: palette.textPrimary,
+                                cursorHeight: bodyFontSize,
+                                selectionControls:
+                                    _largeCupertinoSelectionControls,
+                                scrollPhysics:
+                                    const NeverScrollableScrollPhysics(),
+                                selectionHeightStyle:
+                                    ui.BoxHeightStyle.includeLineSpacingMiddle,
+                                strutStyle: StrutStyle(
+                                  fontSize: bodyFontSize,
+                                  height: 1.5,
+                                  leading: 0,
+                                  forceStrutHeight: true,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: AppStrings.of(context).contentHint,
+                                  hintStyle: TextStyle(
+                                    color: palette.textSecondary,
+                                  ),
+                                  border: InputBorder.none,
+                                  isCollapsed: true,
+                                ),
+                                style: TextStyle(
+                                  color: palette.textPrimary,
+                                  fontSize: bodyFontSize,
+                                  height: 1.5,
+                                  leadingDistribution:
+                                      TextLeadingDistribution.even,
+                                  letterSpacing: 0.2,
+                                  decoration: TextDecoration.none,
+                                  decorationColor: Colors.transparent,
+                                  decorationThickness: 0,
+                                ),
+                                maxLines: null,
+                                autofocus: !_isEditing,
+                                contextMenuBuilder: (context, editableTextState) {
+                                  final items =
+                                      List<ContextMenuButtonItem>.from(
+                                        editableTextState
+                                            .contextMenuButtonItems,
+                                      );
+                                  if (!Platform.isIOS) {
+                                    for (var i = 0; i < items.length; i++) {
+                                      if (items[i].type ==
+                                          ContextMenuButtonType.paste) {
+                                        items[i] = ContextMenuButtonItem(
+                                          type: ContextMenuButtonType.paste,
+                                          onPressed: () =>
+                                              _handlePasteWithNewline(
+                                                editableTextState,
+                                              ),
+                                        );
+                                      }
+                                    }
+                                  }
+                                  final sel = editableTextState
+                                      .textEditingValue
+                                      .selection;
+                                  final text =
+                                      editableTextState.textEditingValue.text;
+                                  items.removeWhere(
+                                    (item) =>
+                                        item.type ==
+                                        ContextMenuButtonType.selectAll,
                                   );
-                                }
-                              }
-                            }
-                            final sel =
-                                editableTextState.textEditingValue.selection;
-                            final text =
-                                editableTextState.textEditingValue.text;
-                            items.removeWhere(
-                              (item) =>
-                                  item.type == ContextMenuButtonType.selectAll,
-                            );
-                            final allSelected =
-                                sel.isValid &&
-                                sel.start == 0 &&
-                                sel.end == text.length;
-                            if (text.isNotEmpty && !allSelected) {
-                              final selectAll = ContextMenuButtonItem(
-                                type: ContextMenuButtonType.selectAll,
-                                label: 'Select All',
-                                onPressed: () {
-                                  editableTextState.selectAll(
-                                    SelectionChangedCause.toolbar,
+                                  final allSelected =
+                                      sel.isValid &&
+                                      sel.start == 0 &&
+                                      sel.end == text.length;
+                                  if (text.isNotEmpty && !allSelected) {
+                                    final selectAll = ContextMenuButtonItem(
+                                      type: ContextMenuButtonType.selectAll,
+                                      label: 'Select All',
+                                      onPressed: () {
+                                        editableTextState.selectAll(
+                                          SelectionChangedCause.toolbar,
+                                        );
+                                      },
+                                    );
+                                    final pasteIdx = items.indexWhere(
+                                      (item) =>
+                                          item.type ==
+                                          ContextMenuButtonType.paste,
+                                    );
+                                    if (pasteIdx >= 0) {
+                                      items.insert(pasteIdx, selectAll);
+                                    } else {
+                                      items.add(selectAll);
+                                    }
+                                  }
+
+                                  var anchors =
+                                      editableTextState.contextMenuAnchors;
+                                  if (allSelected) {
+                                    final s = MediaQuery.of(context).size;
+                                    final mid = Offset(
+                                      s.width / 2,
+                                      s.height / 2,
+                                    );
+                                    anchors = TextSelectionToolbarAnchors(
+                                      primaryAnchor: mid,
+                                      secondaryAnchor: mid,
+                                    );
+                                  } else if (sel.isValid &&
+                                      _lastTouchPosition != null) {
+                                    anchors = TextSelectionToolbarAnchors(
+                                      primaryAnchor: _lastTouchPosition!,
+                                      secondaryAnchor: _lastTouchPosition!,
+                                    );
+                                  }
+
+                                  return AdaptiveTextSelectionToolbar.buttonItems(
+                                    anchors: anchors,
+                                    buttonItems: items,
                                   );
-                                },
-                              );
-                              final pasteIdx = items.indexWhere(
-                                (item) =>
-                                    item.type == ContextMenuButtonType.paste,
-                              );
-                              if (pasteIdx >= 0) {
-                                items.insert(pasteIdx, selectAll);
-                              } else {
-                                items.add(selectAll);
-                              }
-                            }
-
-                            var anchors = editableTextState.contextMenuAnchors;
-                            if (allSelected) {
-                              final s = MediaQuery.of(context).size;
-                              final mid = Offset(s.width / 2, s.height / 2);
-                              anchors = TextSelectionToolbarAnchors(
-                                primaryAnchor: mid,
-                                secondaryAnchor: mid,
-                              );
-                            } else if (sel.isValid &&
-                                _lastTouchPosition != null) {
-                              anchors = TextSelectionToolbarAnchors(
-                                primaryAnchor: _lastTouchPosition!,
-                                secondaryAnchor: _lastTouchPosition!,
-                              );
-                            }
-
-                            return AdaptiveTextSelectionToolbar.buttonItems(
-                              anchors: anchors,
-                              buttonItems: items,
-                            );
-                          },
-                        ),
+                                }, // end contextMenuBuilder
+                              ), // end TextField
+                            ), // end ConstrainedBox
+                            // 사진 0장이면 위젯 자체를 넣지 않는다 → 기존 레이아웃 무변경.
+                            if (_imageFiles.isNotEmpty)
+                              AttachmentStrip(
+                                fileNames: _imageFiles,
+                                onTap: _openViewer,
+                                onLongPress: _showPhotoActions,
+                              ),
+                          ],
+                        ), // end Column
                       ),
                     ),
                   ),
@@ -735,3 +1130,11 @@ class _LargeCupertinoSelectionControls extends CupertinoTextSelectionControls {
 }
 
 final _largeCupertinoSelectionControls = _LargeCupertinoSelectionControls();
+
+enum _PhotoSource { gallery, camera, clipboard }
+
+/// 썸네일 길게 누르기 시트의 선택지.
+enum _PhotoAction { save, delete }
+
+/// Android 글+사진 공유 방식 (카카오톡 등이 사진과 함께 온 글을 버리는 문제 우회).
+enum _ShareMode { both, textOnly, photosOnly }

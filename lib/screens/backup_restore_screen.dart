@@ -351,6 +351,16 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       fontSize: 12,
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  // 1단계(T-260829-022): 백업 JSON 엔 사진 파일명만 실리고 실물은 안 간다.
+                  Text(
+                    AppStrings.of(context).photosNotInBackup,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: palette.textSecondary.withValues(alpha: 0.8),
+                      fontSize: 12,
+                    ),
+                  ),
                   const SizedBox(height: 28),
                   FilledButton.icon(
                     onPressed: _isBackupRunning ? null : _handleBackup,

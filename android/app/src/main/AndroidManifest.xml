@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 권한 0건 유지 (test/platform/android_manifest_permissions_test.dart 게이트).
+         「갤러리에 저장」(gal) 은 Android 10+ 에서 MediaStore 로 권한 없이 저장한다.
+         Android 9 이하는 저장소 쓰기 권한이 필요하지만 선언하지 않는다 → 그 기기에선
+         「설정에서 사진 권한을 허용해 주세요」 안내로 끝난다 (2026 점유율상 수용). -->
     <application
         android:label="메모요"
         android:name="${applicationName}"

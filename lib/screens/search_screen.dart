@@ -10,6 +10,7 @@ import '../features/memos/services/mini_lm_embedding_engine.dart';
 import '../features/memos/services/mini_lm_model_installer.dart';
 import '../features/memos/services/mini_lm_runtime.dart';
 import '../features/memos/services/semantic_search_coordinator.dart';
+import '../features/memos/widgets/attachment_thumbnail.dart';
 import '../models/memo.dart';
 import '../services/memo_storage.dart';
 import '../services/premium_service.dart';
@@ -402,6 +403,14 @@ class _SearchResultCard extends StatelessWidget {
               const Padding(
                 padding: EdgeInsets.only(right: 8),
                 child: Icon(Icons.star, size: 16, color: Color(0xFF7C5CFF)),
+              ),
+            if (memo.hasImages)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: AttachmentThumbnail(
+                  fileName: memo.imageFiles.first,
+                  size: 32,
+                ),
               ),
             Expanded(
               child: Column(

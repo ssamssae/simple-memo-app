@@ -1,0 +1,572 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show debugDefaultTargetPlatformOverride;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:simple_memo_app/features/memos/services/attachment_store.dart';
+import 'package:simple_memo_app/features/memos/widgets/attachment_strip.dart';
+import 'package:simple_memo_app/features/memos/widgets/attachment_thumbnail.dart';
+import 'package:simple_memo_app/models/memo.dart';
+import 'package:simple_memo_app/screens/memo_edit_screen.dart';
+
+import '../features/memos/support/attachment_test_support.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late Directory tmp;
+  late FakeImageSourcePort port;
+  late String keep;
+  late String a;
+  late String b;
+  late List<String> ten;
+
+  // Task 7 규칙: 파일 심기는 setUp(실존)에서, 실제 IO 를 일으키는 상호작용은 runAsync 로.
+  setUp(() async {
+    tmp = await installTempStore();
+    port = FakeImageSourcePort();
+    keep = await seedStoreFile('keep.jpg');
+    a = await seedStoreFile('a.jpg');
+    b = await seedStoreFile('b.jpg');
+    ten = [for (var i = 0; i < 10; i++) await seedStoreFile('p$i.jpg')];
+    AttachmentThumbnail.decodeImages = false;
+  });
+
+  tearDown(() {
+    AttachmentThumbnail.decodeImages = true;
+    AttachmentStore.instance = null;
+    tmp.deleteSync(recursive: true);
+  });
+
+  Memo existing({List<String> images = const []}) {
+    final t = DateTime(2026, 8, 29, 12);
+    return Memo(
+      id: 'm1',
+      content: '기존 본문',
+      createdAt: t,
+      updatedAt: t,
+      imageFiles: images,
+    );
+  }
+
+  bool onDisk(String name) =>
+      AttachmentStore.instance.fileFor(name).existsSync();
+  int filesOnDisk() =>
+      AttachmentStore.instance.root.listSync().whereType<File>().length;
+
+  // 실제 IO 완료를 조건으로 기다린다 — 고정 sleep 보다 빠르고 느린 CI 에서 안전.
+  Future<void> waitUntil(
+    bool Function() done, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (!done()) {
+      if (DateTime.now().isAfter(deadline)) {
+        throw TimeoutException('waitUntil');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+  }
+
+  // 사진 추가 = 서비스 파이프라인이 실제 파일을 쓴다 → runAsync 안에서 상호작용하고
+  // IO 가 끝날 실시간을 잠깐 준 뒤 바깥에서 한 번 더 settle 한다.
+  //
+  // ★waitUntil(filesOnDisk()==N) 로 바꿔봤다가 되돌렸다(T-260829-022 코디네이터 리뷰 fix #7).
+  // filesOnDisk() 는 Directory.listSync() 로 디스크를 직접 찌르는 syscall이라, 원래
+  // store.save() 의 await 체인(그 결과로 이어지는 _addPhoto 의 setState)이 아직 재개되지
+  // 않았어도 "파일은 이미 있음"을 먼저 관측할 수 있다 — 즉 디스크 반영과 위젯 반영
+  // 사이에 진짜 레이스가 있다. 실측: 이 예측대로 바꾸자 AttachmentThumbnail 위젯 카운트가
+  // 1개 모자라거나(편집 취소 테스트) longPress 대상 위젯을 못 찾는(즉시삭제 테스트) 실패가
+  // 재현됐다. 이 헬퍼처럼 "디스크 상태 확인 뒤 곧바로 위젯 트리를 확인"하는 호출부는
+  // 고정 지연이 정답이다 — waitUntil 은 이후에 위젯을 보지 않는 순수 디스크 확인
+  // (아래 "저장 시점에 파일 삭제" 테스트)에만 쓴다.
+  Future<void> addViaSheet(WidgetTester tester, String action) async {
+    await tester.runAsync(() async {
+      await tester.tap(find.byTooltip('사진 추가'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(CupertinoActionSheetAction, action));
+      await tester.pumpAndSettle();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+  }
+
+  // 삭제·취소 확정 = store.delete 실제 IO → 같은 이유로 runAsync. addViaSheet 위 주석 참조 —
+  // 이 헬퍼 호출부도 직후 위젯 트리를 확인하므로 같은 이유로 고정 지연을 유지한다.
+  Future<void> confirmDialog(WidgetTester tester, String actionLabel) async {
+    await tester.runAsync(() async {
+      await tester.tap(find.widgetWithText(CupertinoDialogAction, actionLabel));
+      await tester.pumpAndSettle();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('사진 추가 버튼이 있고, 시트에 사진첩·카메라·붙여넣기 3항목', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    expect(find.byTooltip('사진 추가'), findsOneWidget);
+    expect(find.byType(AttachmentStrip), findsNothing);
+
+    await tester.tap(find.byTooltip('사진 추가'));
+    await tester.pumpAndSettle();
+    expect(
+      find.widgetWithText(CupertinoActionSheetAction, '사진첩'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(CupertinoActionSheetAction, '카메라'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(CupertinoActionSheetAction, '붙여넣기'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('사진첩에서 추가 → 스트립에 1장, 파일 존재', (tester) async {
+    port.galleryBytes = kTinyPng;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await addViaSheet(tester, '사진첩');
+
+    expect(find.byType(AttachmentStrip), findsOneWidget);
+    expect(find.byType(AttachmentThumbnail), findsOneWidget);
+    expect(filesOnDisk(), 13 + 1); // setUp 13장 + 방금 추가 1장
+  });
+
+  testWidgets('사진첩 복수 선택 3장 → 스트립에 3장, 안내 없음', (tester) async {
+    port.galleryBatch = [kTinyPng, kTinyPng, kTinyPng];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await addViaSheet(tester, '사진첩');
+
+    expect(find.byType(AttachmentThumbnail), findsNWidgets(3));
+    expect(find.byType(SnackBar), findsNothing);
+    expect(port.lastGalleryLimit, 10);
+    expect(filesOnDisk(), 13 + 3);
+  });
+
+  testWidgets('사진첩 복수 선택이 남은 장수를 넘기면 잘라 넣고 「최대 10장」 안내', (tester) async {
+    // 8장 있는 메모에 5장 선택 → 2장만 추가 + 안내.
+    // 파일 심기는 실제 IO — testWidgets 의 FakeAsync 안에서는 완료되지 않으므로 runAsync.
+    final seeded = <String>[];
+    await tester.runAsync(() async {
+      for (var i = 0; i < 8; i++) {
+        seeded.add(await seedStoreFile('exist-$i.jpg'));
+      }
+    });
+    port.galleryBatch = List.filled(5, kTinyPng);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          memo: existing(images: seeded),
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await addViaSheet(tester, '사진첩');
+
+    expect(port.lastGalleryLimit, 2);
+    expect(find.byType(AttachmentThumbnail), findsNWidgets(10));
+    expect(find.text('사진은 메모당 최대 10장까지예요'), findsOneWidget);
+  });
+
+  testWidgets('카메라에서 추가 → takePhoto 경로, 스트립에 1장', (tester) async {
+    port.cameraBytes = kTinyPng;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await addViaSheet(tester, '카메라');
+    expect(port.cameraCalls, 1);
+    expect(port.galleryCalls, 0);
+    expect(find.byType(AttachmentThumbnail), findsOneWidget);
+  });
+
+  testWidgets('카메라 권한 거부 → 설정 안내 스낵바', (tester) async {
+    port.throwOnRead = PlatformException(code: 'camera_access_denied');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await addViaSheet(tester, '카메라');
+    await tester.pump();
+    expect(find.text('사진을 찍으려면 설정에서 카메라 권한을 허용해 주세요'), findsOneWidget);
+    expect(find.byType(AttachmentStrip), findsNothing);
+  });
+
+  testWidgets('가져오기 실패 → 실패 스낵바', (tester) async {
+    port.throwOnRead = StateError('boom');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await addViaSheet(tester, '사진첩');
+    await tester.pump();
+    expect(find.text('사진을 추가하지 못했어요'), findsOneWidget);
+  });
+
+  testWidgets('클립보드에 사진 없음 → 스낵바, 스트립 없음', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await addViaSheet(tester, '붙여넣기');
+    await tester.pump();
+    expect(find.text('클립보드에 사진이 없거나 붙여넣기가 허용되지 않았어요'), findsOneWidget);
+    expect(find.byType(AttachmentStrip), findsNothing);
+  });
+
+  testWidgets('10장이면 시트 대신 상한 스낵바', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          memo: existing(images: ten),
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await tester.tap(find.byTooltip('사진 추가'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CupertinoActionSheet), findsNothing);
+    expect(find.text('사진은 메모당 최대 10장까지예요'), findsOneWidget);
+  });
+
+  testWidgets('본문 없이 사진만 있어도 저장이 호출되고 imageFiles 가 실린다', (tester) async {
+    port.galleryBytes = kTinyPng;
+    Memo? saved;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          attachmentService: fakeAttachmentService(port: port),
+          onSave: (m) => saved = m,
+        ),
+      ),
+    );
+    await addViaSheet(tester, '사진첩');
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(saved, isNotNull);
+    expect(saved!.content, isEmpty);
+    expect(saved!.imageFiles.length, 1);
+  });
+
+  testWidgets('본문도 사진도 없으면 저장 시 기존 안내 스낵바(회귀 없음)', (tester) async {
+    Memo? saved;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          attachmentService: fakeAttachmentService(port: port),
+          onSave: (m) => saved = m,
+        ),
+      ),
+    );
+    await tester.tap(find.text('저장'));
+    await tester.pump();
+    expect(saved, isNull);
+    expect(find.byType(SnackBar), findsOneWidget);
+  });
+
+  testWidgets('편집 취소 → 이 세션에서 추가한 파일은 삭제, 기존 파일은 생존', (tester) async {
+    port.galleryBytes = kTinyPng;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          memo: existing(images: [keep]),
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await addViaSheet(tester, '사진첩');
+    expect(find.byType(AttachmentThumbnail), findsNWidgets(2));
+    expect(filesOnDisk(), 13 + 1);
+
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+    await confirmDialog(tester, '취소');
+    // confirmDialog 의 고정 300ms 는 위젯 순서 보호용 — store.delete 는 fire-and-forget
+    // 이라 disk 반영 시점은 별도로 보장해야 한다(디스크 전용 단언이라 폴링이 안전).
+    await tester.runAsync(() => waitUntil(() => filesOnDisk() == 13));
+
+    expect(onDisk(keep), isTrue);
+    expect(filesOnDisk(), 13);
+  });
+
+  testWidgets('길게 눌러 기존 사진 삭제 → 저장 시점에 파일 삭제, 저장 결과에서 빠짐', (tester) async {
+    Memo? saved;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          memo: existing(images: [a, b]),
+          attachmentService: fakeAttachmentService(port: port),
+          onSave: (m) => saved = m,
+        ),
+      ),
+    );
+
+    await tester.longPress(find.byType(AttachmentThumbnail).first);
+    await tester.pumpAndSettle();
+    // 길게 누르기 → 「갤러리에 저장 / 사진 삭제」 시트 → 삭제 → 확인 대화상자.
+    await tester.tap(find.widgetWithText(CupertinoActionSheetAction, '사진 삭제'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CupertinoDialogAction, '사진 삭제'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AttachmentThumbnail), findsOneWidget);
+    // 아직 저장 전 — 파일은 살아 있다 (취소하면 복귀).
+    expect(onDisk(a), isTrue);
+
+    // 저장 = _commitPendingRemovals 가 실제 파일을 지운다 → runAsync.
+    await tester.runAsync(() async {
+      await tester.tap(find.text('저장'));
+      await tester.pumpAndSettle();
+      await waitUntil(() => !onDisk(a));
+    });
+    expect(saved!.imageFiles, [b]);
+    expect(onDisk(a), isFalse);
+    expect(onDisk(b), isTrue);
+  });
+
+  testWidgets('썸네일 길게 누르기 → 「갤러리에 저장」 → 플러그인에 파일 경로 + 안내, 첨부는 그대로', (tester) async {
+    final saver = FakeGallerySaver();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          memo: existing(images: [a, b]),
+          attachmentService: fakeAttachmentService(port: port, saver: saver),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.byType(AttachmentThumbnail).first);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(CupertinoActionSheetAction, '갤러리에 저장'), findsOneWidget);
+    expect(find.widgetWithText(CupertinoActionSheetAction, '사진 삭제'), findsOneWidget);
+
+    // 저장은 store.fileFor(...).exists() 실제 IO → runAsync.
+    await tester.runAsync(() async {
+      await tester.tap(find.widgetWithText(CupertinoActionSheetAction, '갤러리에 저장'));
+      await tester.pumpAndSettle();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pump();
+
+    expect(saver.savedPaths, [AttachmentStore.instance.fileFor(a).path]);
+    // 스낵바는 showSnackBar 다음 프레임에 트리에 오른다 — 한 프레임 더.
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(SnackBar), findsOneWidget, reason: 'snackbar count');
+    expect(find.text('갤러리에 저장했어요'), findsOneWidget);
+    expect(find.byType(AttachmentThumbnail), findsNWidgets(2));
+    expect(onDisk(a), isTrue);
+  });
+
+  group('공유 방식 선택 (Android 글+사진)', () {
+    const shareChannel = MethodChannel('dev.fluttercommunity.plus/share');
+    late List<MethodCall> calls;
+
+    setUp(() {
+      calls = [];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(shareChannel, (call) async {
+        calls.add(call);
+        return 'share-target';
+      });
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(shareChannel, null);
+    });
+
+    // 플랫폼 오버라이드는 테스트 본문 안에서 되돌려야 한다 — 바인딩이 본문 직후
+    // foundation 디버그 변수 원복을 검사한다(tearDown 은 그 뒤라 늦다).
+    Future<void> onPlatform(TargetPlatform p, Future<void> Function() body) async {
+      debugDefaultTargetPlatformOverride = p;
+      try {
+        await body();
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    }
+
+    Future<void> pumpExisting(WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MemoEditScreen(
+            memo: existing(images: [a]),
+            attachmentService: fakeAttachmentService(port: port),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> tapShare(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('공유'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> pick(WidgetTester tester, String label) async {
+      await tester.tap(find.widgetWithText(CupertinoActionSheetAction, label));
+      await tester.pumpAndSettle();
+    }
+
+    Map<dynamic, dynamic> singleArgs() => calls.single.arguments as Map<dynamic, dynamic>;
+
+    testWidgets('Android: 공유 → 「글과 사진 함께/글만/사진만」 시트, 「사진만」 → 글 없이 파일만', (tester) async {
+      await onPlatform(TargetPlatform.android, () async {
+        await pumpExisting(tester);
+        await tapShare(tester);
+        expect(find.widgetWithText(CupertinoActionSheetAction, '글과 사진 함께'), findsOneWidget);
+        expect(find.widgetWithText(CupertinoActionSheetAction, '글만'), findsOneWidget);
+        expect(find.widgetWithText(CupertinoActionSheetAction, '사진만'), findsOneWidget);
+        expect(calls, isEmpty);
+
+        await pick(tester, '사진만');
+        expect(calls, hasLength(1));
+        expect(singleArgs()['paths'], hasLength(1));
+        expect(singleArgs()['text'], isNull);
+      });
+    });
+
+    testWidgets('Android: 「글만」 → 파일 없이 글만', (tester) async {
+      await onPlatform(TargetPlatform.android, () async {
+        await pumpExisting(tester);
+        await tapShare(tester);
+        await pick(tester, '글만');
+        expect(singleArgs()['text'], '기존 본문');
+        expect(singleArgs()['paths'], isNull);
+      });
+    });
+
+    testWidgets('Android: 「글과 사진 함께」 → 파일 + 글', (tester) async {
+      await onPlatform(TargetPlatform.android, () async {
+        await pumpExisting(tester);
+        await tapShare(tester);
+        await pick(tester, '글과 사진 함께');
+        expect(singleArgs()['paths'], hasLength(1));
+        expect(singleArgs()['text'], '기존 본문');
+      });
+    });
+
+    testWidgets('Android: 취소하면 공유 호출 없음', (tester) async {
+      await onPlatform(TargetPlatform.android, () async {
+        await pumpExisting(tester);
+        await tapShare(tester);
+        await pick(tester, '취소');
+        expect(calls, isEmpty);
+      });
+    });
+
+    testWidgets('iOS: 시트 없이 바로 파일 + 글', (tester) async {
+      await onPlatform(TargetPlatform.iOS, () async {
+        await pumpExisting(tester);
+        await tapShare(tester);
+        expect(find.byType(CupertinoActionSheet), findsNothing);
+        expect(singleArgs()['paths'], hasLength(1));
+        expect(singleArgs()['text'], '기존 본문');
+      });
+    });
+  });
+
+  testWidgets('이 세션에서 추가한 사진을 바로 지우면 파일도 즉시 삭제', (tester) async {
+    port.galleryBytes = kTinyPng;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await addViaSheet(tester, '사진첩');
+    expect(filesOnDisk(), 13 + 1);
+    await tester.longPress(find.byType(AttachmentThumbnail));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CupertinoActionSheetAction, '사진 삭제'));
+    await tester.pumpAndSettle();
+    await confirmDialog(tester, '사진 삭제');
+
+    expect(find.byType(AttachmentStrip), findsNothing);
+    // confirmDialog 의 고정 300ms 는 위젯 순서 보호용 — store.delete 는 fire-and-forget
+    // 이라 disk 반영 시점은 별도로 보장해야 한다(디스크 전용 단언이라 폴링이 안전).
+    await tester.runAsync(() => waitUntil(() => filesOnDisk() == 13));
+    expect(filesOnDisk(), 13);
+  });
+
+  // Task 7 리뷰 회귀 가드: Column 도입 뒤에도 TextField 가 뷰포트(−스트립)를 채워
+  // 본문 아래 빈 영역 탭이 캐럿을 잡아야 한다.
+  testWidgets('사진이 있어도 본문 아래 빈 영역 탭 → TextField 포커스 (뷰포트 채움 유지)', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          memo: existing(images: [a]),
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final viewport = tester.getSize(find.byType(SingleChildScrollView)).height;
+    final field = tester.getRect(find.byType(TextField));
+    final strip = tester.getRect(find.byType(AttachmentStrip));
+    expect(field.height, closeTo(viewport - AttachmentStrip.totalHeight, 1));
+    // AttachmentStrip 자신의 outermost Padding(top: 16) 이 getRect 경계에 포함돼
+    // TextField.bottom 과 strip.top 사이 실측 간격은 0 — 레이아웃은 올바르고
+    // 경계 측정 지점의 차이일 뿐 (플랜 메모 참조).
+    expect(strip.top - field.bottom, closeTo(0, 1));
+
+    await tester.tapAt(Offset(field.center.dx, field.bottom - 8));
+    await tester.pump();
+    final editable = tester.state<EditableTextState>(find.byType(EditableText));
+    expect(editable.widget.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('사진이 없으면 TextField 가 뷰포트 전체를 채운다 (기존 동작 무회귀)', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemoEditScreen(
+          memo: existing(),
+          attachmentService: fakeAttachmentService(port: port),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final viewport = tester.getSize(find.byType(SingleChildScrollView)).height;
+    expect(tester.getSize(find.byType(TextField)).height, closeTo(viewport, 1));
+  });
+}

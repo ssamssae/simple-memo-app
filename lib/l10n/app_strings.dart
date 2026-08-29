@@ -357,4 +357,45 @@ class AppStrings {
   String get docLoadFailed =>
       isEnglish ? 'Could not load the document' : '문서를 불러올 수 없습니다';
   String get untitledMemo => isEnglish ? 'New memo' : '새 메모';
+
+  // 메모 이미지 첨부 (T-260829-022)
+  String get addPhoto => isEnglish ? 'Add photo' : '사진 추가';
+  String get fromGallery => isEnglish ? 'Photo library' : '사진첩';
+  String get fromCamera => isEnglish ? 'Camera' : '카메라';
+  String get pasteImage => isEnglish ? 'Paste' : '붙여넣기';
+  String get noImageInClipboard => isEnglish
+      ? 'No image in clipboard, or paste was not allowed'
+      : '클립보드에 사진이 없거나 붙여넣기가 허용되지 않았어요';
+  String get cameraPermissionDenied => isEnglish
+      ? 'Allow camera access in Settings to take a photo'
+      : '사진을 찍으려면 설정에서 카메라 권한을 허용해 주세요';
+  String get photoLimitReached =>
+      isEnglish ? 'Up to 10 photos per memo' : '사진은 메모당 최대 10장까지예요';
+  String get photoAttachFailed =>
+      isEnglish ? "Couldn't add the photo" : '사진을 추가하지 못했어요';
+  // 공유 방식 선택 (Android 전용 — 카카오톡 등이 사진과 함께 온 글을 버린다, 아니키 S24 2026-08-30)
+  String get shareModeTitle => isEnglish ? 'Share as' : '어떻게 공유할까요?';
+  String get shareModeHint => isEnglish
+      ? 'Some apps (e.g. KakaoTalk) drop the text when photos are attached. Send text and photos separately for those.'
+      : '카카오톡 등 일부 앱은 사진과 함께 보낸 글을 빼고 받아요. 그럴 땐 글만·사진만 따로 보내 주세요.';
+  String get shareBoth => isEnglish ? 'Text + photos' : '글과 사진 함께';
+  String get shareTextOnly => isEnglish ? 'Text only' : '글만';
+  String get sharePhotosOnly => isEnglish ? 'Photos only' : '사진만';
+  String get saveToGallery => isEnglish ? 'Save to gallery' : '갤러리에 저장';
+  String get savedToGallery =>
+      isEnglish ? 'Saved to gallery' : '갤러리에 저장했어요';
+  String get saveToGalleryDenied => isEnglish
+      ? 'Allow photo access in Settings to save'
+      : '저장하려면 설정에서 사진 권한을 허용해 주세요';
+  String get saveToGalleryFailed =>
+      isEnglish ? "Couldn't save to gallery" : '갤러리에 저장하지 못했어요';
+  String get deletePhotoConfirmTitle => isEnglish ? 'Delete photo' : '사진 삭제';
+  String get deletePhotoConfirmBody =>
+      isEnglish ? 'Delete this photo?' : '이 사진을 지울까요?';
+  String get photosNotInBackup => isEnglish
+      ? 'Photos are not included in backups'
+      : '사진은 백업에 포함되지 않습니다';
+  String get photoMissing => isEnglish ? 'Photo missing' : '사진 없음';
+  String get attachedPhoto => isEnglish ? 'Attached photo' : '첨부 사진';
+  String get photoViewerClose => isEnglish ? 'Close' : '닫기';
 }

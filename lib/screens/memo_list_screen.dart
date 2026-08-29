@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import '../features/memos/services/attachment_store.dart';
+import '../features/memos/widgets/attachment_thumbnail.dart';
 import '../l10n/app_strings.dart';
 import '../models/memo.dart';
 import '../services/app_review_service.dart';
@@ -22,6 +24,16 @@ class MemoListScreen extends StatefulWidget {
 
 class MemoListScreenState extends State<MemoListScreen>
     with WidgetsBindingObserver {
+  // 고아 첨부 파일 정리는 프로세스당 1회(cold start)만 — resume 때 돌리면
+  // 열려 있는 편집 세션의 대기 파일(아직 어느 메모도 참조 안 함)을 지운다.
+  static bool _orphanSweepDone = false;
+
+  @visibleForTesting
+  static void resetOrphanSweepForTest() => _orphanSweepDone = false;
+
+  @visibleForTesting
+  static void markOrphanSweepDoneForTest() => _orphanSweepDone = true;
+
   // [요구사항 1] 단일 리스트로만 관리. 즐겨찾기가 앞, 일반이 뒤 순서 유지.
   List<Memo> _memos = [];
   bool _isLoading = true;
@@ -212,6 +224,18 @@ class MemoListScreenState extends State<MemoListScreen>
       // 휴지통 30일 만료분 자동 영구삭제(cold start/resume). 활성 메모 무영향.
       await MemoStorage.purgeExpiredTrash();
       final memos = await MemoStorage.loadMemos();
+      // 고아 정리는 프로세스당 1회만 시도한다 — 플래그는 이 첫 패스에서 항상 세팅해
+      // 이후 resume 으로 미뤄지지 않게 하고, 그 안에서만 참조 목록이 비어 있으면
+      // 건너뛴다. loadMemos 는 실패를 빈 목록으로 삼키므로(prefs 일시 오류·JSON
+      // 파싱 실패) 빈 목록 = 「메모 0개」와 구분이 안 되고, 그 상태에서 돌리면
+      // 1일 넘은 첨부 전부가 지워진다 (Task 3 리뷰 지적).
+      final store = AttachmentStore.maybeInstance;
+      if (store != null && !_orphanSweepDone) {
+        _orphanSweepDone = true;
+        if (memos.isNotEmpty) {
+          unawaited(store.sweepOrphans(memos.expand((m) => m.imageFiles)));
+        }
+      }
       if (!mounted) return;
       setState(() {
         _memos = memos;
@@ -682,8 +706,9 @@ class MemoListScreenState extends State<MemoListScreen>
               )
             : Padding(
                 padding: const EdgeInsets.only(left: 12, right: 12, bottom: 16),
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.all(Radius.circular(14)),
+                // 모서리는 각지게 — 위·아래 둥근 모서리(14) 는 아니키 지시로 제거
+                // (2026-08-29 21:05 실기기 검증 중 직접 지시).
+                child: ClipRect(
                   // 드래그 핸들로 reorder 시 화면 끝에서 자동 스크롤이 먹도록
                   // CustomScrollView + SliverReorderableList 로 구성한다.
                   // (옛 구조: NeverScrollableScrollPhysics 인 ReorderableListView 를
@@ -1012,6 +1037,13 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                                 color: Color(0xFF7C5CFF),
                                 size: 18,
                               ),
+                            ),
+                          ),
+                        if (widget.memo.hasImages)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: AttachmentThumbnail(
+                              fileName: widget.memo.imageFiles.first,
                             ),
                           ),
                         Expanded(
