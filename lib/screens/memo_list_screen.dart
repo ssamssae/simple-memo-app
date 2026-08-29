@@ -706,8 +706,9 @@ class MemoListScreenState extends State<MemoListScreen>
               )
             : Padding(
                 padding: const EdgeInsets.only(left: 12, right: 12, bottom: 16),
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.all(Radius.circular(14)),
+                // 모서리는 각지게 — 위·아래 둥근 모서리(14) 는 아니키 지시로 제거
+                // (2026-08-29 21:05 실기기 검증 중 직접 지시).
+                child: ClipRect(
                   // 드래그 핸들로 reorder 시 화면 끝에서 자동 스크롤이 먹도록
                   // CustomScrollView + SliverReorderableList 로 구성한다.
                   // (옛 구조: NeverScrollableScrollPhysics 인 ReorderableListView 를
