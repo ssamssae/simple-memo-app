@@ -19,6 +19,10 @@ class Memo {
   final List<double>? semanticEmbedding;
   final String? semanticEmbeddingModel;
   final String? semanticEmbeddingSource;
+  // 첨부 사진 파일명 목록 (경로 없음, <앱문서>/attachments/ 아래). 순서 = 표시 순서.
+  // 1.0.18 이하 JSON 엔 키가 없고 → 빈 목록. 상한(10장)은 모델이 아니라
+  // AttachmentService 가 강제한다 — 백업 복원 등 외부 유입 값은 자르지 않는다.
+  final List<String> imageFiles;
 
   Memo({
     required this.id,
@@ -30,9 +34,11 @@ class Memo {
     List<double>? semanticEmbedding,
     this.semanticEmbeddingModel,
     this.semanticEmbeddingSource,
+    List<String>? imageFiles,
   }) : semanticEmbedding = semanticEmbedding == null
            ? null
-           : List<double>.unmodifiable(semanticEmbedding);
+           : List<double>.unmodifiable(semanticEmbedding),
+       imageFiles = List<String>.unmodifiable(imageFiles ?? const <String>[]);
 
   String get firstLine {
     final line = content
@@ -44,6 +50,14 @@ class Memo {
   String get title => firstLine;
 
   bool get isInTrash => deletedAt != null;
+
+  bool get hasImages => imageFiles.isNotEmpty;
+
+  // 파일명 = uuid.jpg 형태만. 경로 구분자·`..`·선행 점을 막아 JSON(백업 복원 포함)에서
+  // 들어온 값이 attachments/ 밖을 가리킬 수 없게 한다.
+  static final _imageFileNamePattern = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$');
+  static bool isValidImageFileName(String name) =>
+      !name.contains('..') && _imageFileNamePattern.hasMatch(name);
 
   // 영구삭제까지 남은 시간. 활성 메모(deletedAt == null)는 Duration.zero.
   // 이미 기간 지났으면 음수 Duration(= purge 대상).
@@ -69,6 +83,7 @@ class Memo {
     Object? semanticEmbedding = _undefinedSemanticEmbedding,
     Object? semanticEmbeddingModel = _undefinedSemanticEmbeddingModel,
     Object? semanticEmbeddingSource = _undefinedSemanticEmbeddingSource,
+    List<String>? imageFiles,
   }) {
     return Memo(
       id: id,
@@ -91,18 +106,20 @@ class Memo {
           identical(semanticEmbeddingSource, _undefinedSemanticEmbeddingSource)
           ? this.semanticEmbeddingSource
           : semanticEmbeddingSource as String?,
+      imageFiles: imageFiles ?? this.imageFiles,
     );
   }
 
   static const _uuid = Uuid();
 
-  factory Memo.create({required String content}) {
+  factory Memo.create({required String content, List<String>? imageFiles}) {
     final now = DateTime.now();
     return Memo(
       id: _uuid.v4(),
       content: content,
       createdAt: now,
       updatedAt: now,
+      imageFiles: imageFiles,
     );
   }
 
@@ -119,6 +136,8 @@ class Memo {
       'semanticEmbeddingModel': semanticEmbeddingModel,
     if (semanticEmbeddingSource != null)
       'semanticEmbeddingSource': semanticEmbeddingSource,
+    // 사진 없는 메모는 키 자체를 안 박음 — 1.0.18 이하 JSON 과 동일(백워드 호환).
+    if (imageFiles.isNotEmpty) 'images': imageFiles,
   };
 
   factory Memo.fromJson(Map<String, dynamic> json) {
@@ -134,6 +153,7 @@ class Memo {
       semanticEmbedding: _parseEmbedding(json['semanticEmbedding']),
       semanticEmbeddingModel: json['semanticEmbeddingModel'] as String?,
       semanticEmbeddingSource: json['semanticEmbeddingSource'] as String?,
+      imageFiles: _parseImageFiles(json['images']),
     );
   }
 
@@ -145,6 +165,14 @@ class Memo {
       values.add(value.toDouble());
     }
     return values;
+  }
+
+  static List<String> _parseImageFiles(Object? raw) {
+    if (raw is! List) return const [];
+    return [
+      for (final value in raw)
+        if (value is String && isValidImageFileName(value)) value,
+    ];
   }
 
   static String encodeList(List<Memo> memos) =>
