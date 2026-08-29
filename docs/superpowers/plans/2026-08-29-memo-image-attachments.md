@@ -488,7 +488,7 @@ class AttachmentStore {
   static AttachmentStore? get maybeInstance => _instance;
 
   static AttachmentStore get instance =>
-      _instance ?? (throw StateError('AttachmentStore.init() 이 먼저 불려야 한다'));
+      _instance ?? (throw StateError('AttachmentStore.init() must be called first'));
 
   @visibleForTesting
   static set instance(AttachmentStore? store) => _instance = store;
