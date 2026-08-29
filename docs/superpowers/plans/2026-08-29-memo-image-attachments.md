@@ -1150,7 +1150,12 @@ git -c user.email=gayoremix@gmail.com -c user.name=vulcan commit -m "feat(memoyo
 
 ---
 
-### Task 7: `AttachmentThumbnail` + `AttachmentStrip` 위젯
+### Task 7: `AttachmentThumbnail` + `AttachmentStrip` 위젯 — ✅ 완료 (5a391ed51 + d87828c50, 2026-08-29 17:58)
+
+⚠️ 실측(구현 중 발견, 재현 3회 + 진단 테스트 2건): **`testWidgets` 본문 안에서 실제 `dart:io` 비동기 호출을 `await` 하면 무엇이든**(파일 쓰기·`Image.file` 디코딩 모두) FakeAsync 존에서 완료되지 않아 10분 타임아웃으로 멈춘다. `setUp`/`tearDown` 은 실존(real zone)이라 안전하고, 순수 `test()` 도 안전하다. 규칙(Task 8·9·11 테스트 전부 적용):
+1. 파일 심기(`seedStoreFile`)는 **`setUp` 에서** 하거나 본문에서는 **`tester.runAsync(() async { … })` 안에서** 한다.
+2. 위젯 동작이 실제 IO 를 일으키는 상호작용(편집 화면의 사진 추가 → `store.save`, 삭제/취소 → `store.delete`)은 **그 상호작용과 직후 pump 를 `tester.runAsync` 블록으로 감싼다.**
+3. 썸네일 디코딩은 `AttachmentThumbnail.decodeImages`(`@visibleForTesting static bool`, 기본 true) 스위치로 끈다 — false 면 `Image.file` 대신 `SizedBox.expand(key: ValueKey('attachment-file:<path>'))`. setUp 에서 false, tearDown 에서 true 복원. 뷰어(Task 8)도 같은 스위치를 본다. 실디코딩 경로는 Task 7 의 `runAsync` 테스트 1건이 증명한다(6 PASS, 3초).
 
 **Files:**
 - Create: `lib/features/memos/widgets/attachment_thumbnail.dart`
@@ -1408,6 +1413,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_memo_app/features/memos/services/attachment_store.dart';
+import 'package:simple_memo_app/features/memos/widgets/attachment_thumbnail.dart';
 import 'package:simple_memo_app/features/memos/widgets/attachment_viewer.dart';
 
 import 'support/attachment_test_support.dart';
@@ -1417,9 +1423,11 @@ void main() {
 
   setUp(() async {
     tmp = await installTempStore();
+    AttachmentThumbnail.decodeImages = false; // FakeAsync 파일 IO 정지 회피 (Task 7 참조)
   });
 
   tearDown(() {
+    AttachmentThumbnail.decodeImages = true;
     AttachmentStore.instance = null;
     tmp.deleteSync(recursive: true);
   });
@@ -1506,6 +1514,7 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/app_strings.dart';
 import '../services/attachment_store.dart';
+import 'attachment_thumbnail.dart' show AttachmentThumbnail;
 
 /// 전체화면 사진 뷰어 — 좌우 넘김(PageView) + 핀치 확대(InteractiveViewer) + 삭제.
 /// 새 패키지 없음. 삭제는 [onDelete] 콜백으로 호출부(편집 화면)가 처리한다.
@@ -1652,7 +1661,9 @@ class _AttachmentViewerState extends State<AttachmentViewer> {
                       color: Colors.white54,
                       semanticLabel: strings.photoMissing,
                     )
-                  : Image.file(
+                  : !AttachmentThumbnail.decodeImages
+                      ? SizedBox.expand(key: ValueKey('attachment-file:${file.path}'))
+                      : Image.file(
                       file,
                       fit: BoxFit.contain,
                       errorBuilder: (_, _, _) => Icon(
@@ -1717,9 +1728,11 @@ void main() {
   setUp(() async {
     tmp = await installTempStore();
     port = FakeImageSourcePort();
+    AttachmentThumbnail.decodeImages = false; // FakeAsync 파일 IO 정지 회피 (Task 7 참조)
   });
 
   tearDown(() {
+    AttachmentThumbnail.decodeImages = true;
     AttachmentStore.instance = null;
     tmp.deleteSync(recursive: true);
   });
@@ -2573,9 +2586,11 @@ void main() {
 
   setUp(() async {
     tmp = await installTempStore();
+    AttachmentThumbnail.decodeImages = false; // FakeAsync 파일 IO 정지 회피 (Task 7 참조)
   });
 
   tearDown(() {
+    AttachmentThumbnail.decodeImages = true;
     AttachmentStore.instance = null;
     tmp.deleteSync(recursive: true);
   });
