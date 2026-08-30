@@ -23,6 +23,11 @@ HOST="memoyo-worker.example.workers.dev"
 
 # 각 케이스마다 격리된 샌드박스 + flutter 스텁을 새로 만든다.
 # $1 = libapp.so 에 심을 문자열 (빈 값이면 endpoint 미포함 = 조용한 누락 재현)
+# $2 = 소비처 모드 (기본 declared) — T-260830-013 으로 게이트가 조건부가 됐다.
+#      declared   = lib/ 가 MEMOYO_API 를 읽는다 → 2겹 게이트가 살아 있어야 한다
+#      undeclared = 읽는 곳이 0건 → 주입 요구·산출물 검증 없이 그냥 빌드한다
+#      ★undeclared 를 「게이트가 없어졌다」로 읽지 마라. 선언이 돌아오면 자동 복귀하며,
+#        그 복귀 자체를 케이스 9/10 이 대조군으로 잰다.
 setup() {
   SANDBOX="$(mktemp -d)"
   CALLS="$SANDBOX/flutter-calls.txt"
@@ -51,9 +56,14 @@ shutil.move(sys.argv[1][:-4]+'.zip', sys.argv[1])
 STUB
   chmod +x "$SANDBOX/bin/flutter"
   # 산출물 경로 계산이 repo_root 기준이라 최소 git repo 를 흉내낸다.
-  mkdir -p "$SANDBOX/repo"
+  mkdir -p "$SANDBOX/repo/lib"
   git -C "$SANDBOX/repo" init -q 2>/dev/null
   cp "$SCRIPT" "$SANDBOX/repo/build-store.sh" 2>/dev/null
+  if [ "${2:-declared}" = "declared" ]; then
+    # 소비처 1건을 흉내낸다. 이 한 줄이 있어야 2겹 게이트가 켜진다.
+    printf "const x = String.fromEnvironment('MEMOYO_API');\n" \
+      > "$SANDBOX/repo/lib/consumer.dart"
+  fi
 }
 teardown() { rm -rf "$SANDBOX"; }
 
@@ -133,6 +143,30 @@ elif sed 's/[[:space:]]*#.*$//' "$SCRIPT" | grep -qE 'strings[^|]*\|[[:space:]]*
 else
   ok "금지 패턴 없음"
 fi
+
+echo "== 9. 소비처 0건 → 주입 없이도 빌드한다 (T-260830-013) =="
+# lib/ 가 MEMOYO_API 를 안 읽으면 요구할 대상이 없다. 여기서 계속 exit 1 이면
+# 지킬 것도 없는데 스토어 출고가 막힌다 — 실제로 그래서 업로드가 멈췄다.
+setup "" undeclared
+unset MEMOYO_API
+run_gate android
+[ "$RC" -eq 0 ] && ok "exit 0" || bad "exit $RC (want 0) — 소비처가 없는데 막았다 / 출력: $OUT"
+grep -q -- "appbundle" "$CALLS" && ok "빌드는 실제로 돌았다" || bad "flutter 를 안 불렀다"
+grep -q -- "--dart-define=MEMOYO_API" "$CALLS" \
+  && bad "읽는 곳이 없는데 define 을 붙였다" \
+  || ok "define 을 안 붙였다"
+teardown
+
+echo "== 10. ★소비처가 돌아오면 게이트도 돌아온다 (조건부의 대조군) =="
+# 9 만 있으면 「게이트를 껐다」와 구분이 안 된다. 같은 조건에서 선언 한 줄만 되살려
+# 다시 fail-closed 가 되는지 잰다. 이 본이 없으면 조건 분기가 항상-skip 으로
+# 퇴화해도 아무도 못 잡는다.
+setup "" declared
+unset MEMOYO_API
+run_gate android
+[ "$RC" -eq 1 ] && ok "선언 복귀 시 exit 1 (fail-closed 부활)" || bad "exit $RC (want 1) — 게이트가 안 돌아왔다"
+[ "$(awk 'END{print NR+0}' "$CALLS")" -eq 0 ] && ok "flutter 호출 0회" || bad "산출을 막지 못했다"
+teardown
 
 echo
 echo "PASS=$pass FAIL=$fail"

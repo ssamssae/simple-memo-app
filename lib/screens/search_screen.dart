@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../features/memos/semantic_search_availability.dart';
 import '../features/memos/services/embedding_engine.dart';
-import '../features/memos/services/gemini_embedding_engine.dart';
-import '../features/memos/services/memoyo_embedding_client.dart';
 import '../features/memos/services/mini_lm_embedding_engine.dart';
 import '../features/memos/services/mini_lm_model_installer.dart';
 import '../features/memos/services/mini_lm_runtime.dart';
@@ -13,7 +11,6 @@ import '../features/memos/services/semantic_search_coordinator.dart';
 import '../features/memos/widgets/attachment_thumbnail.dart';
 import '../models/memo.dart';
 import '../services/memo_storage.dart';
-import '../services/premium_service.dart';
 import '../services/search_service.dart';
 import '../utils/app_palette.dart';
 import 'memo_edit_screen.dart';
@@ -25,13 +22,8 @@ import '../l10n/app_strings.dart';
 /// AppBar morph 대신 별 화면 push — 뒤로가기 = 검색 이탈(§6.1 step 6). 활성 메모만 대상(§4.1 A).
 /// 입력 디바운스 300ms(§2.4), 결과 카드 RichText amber 하이라이트(§3.3/§3.5), 빈 결과 empty state(§3.7).
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({
-    super.key,
-    this.embeddingClient,
-    this.semanticCoordinator,
-  });
+  const SearchScreen({super.key, this.semanticCoordinator});
 
-  final MemoyoEmbeddingClient? embeddingClient;
   final SemanticSearchCoordinator? semanticCoordinator;
 
   @override
@@ -59,8 +51,6 @@ class _SearchScreenState extends State<SearchScreen> {
   _SearchMode _mode = _SearchMode.lexical;
   int _searchTicket = 0;
 
-  late final MemoyoEmbeddingClient _embeddingClient =
-      widget.embeddingClient ?? MemoyoEmbeddingClient();
   late final SemanticSearchCoordinator _semanticCoordinator =
       widget.semanticCoordinator ?? _buildSemanticCoordinator();
 
@@ -79,8 +69,6 @@ class _SearchScreenState extends State<SearchScreen> {
     }
     return SemanticSearchCoordinator(
       policy: policy,
-      geminiEngineFactory: (userId) =>
-          GeminiEmbeddingEngine(client: _embeddingClient, userId: userId),
       onDeviceEngine: onDeviceEngine,
     );
   }
@@ -161,9 +149,7 @@ class _SearchScreenState extends State<SearchScreen> {
     });
 
     try {
-      final userId = await PremiumService.instance.userId();
       final outcome = await _semanticCoordinator.search(
-        userId: userId,
         query: query,
         memos: _all,
         persist: (memos) async {

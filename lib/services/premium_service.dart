@@ -1,13 +1,26 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
-import 'premium_entitlement_client.dart';
+import 'premium_entitlement.dart';
 
+/// 구독 권한 보관소 — T-260830-013 에서 서버 조회축을 걷어냈다.
+///
+/// ■지금 하는 일은 ★캐시 복원 하나다
+///   구독은 2026-08-03 판매 종료(T-260803-038)라 새 권한이 생길 길이 없고, 권한을
+///   조회하던 백엔드는 만들어진 적이 없다. 그래서 종전의 status/verify 왕복은 전부
+///   도달 불가능한 죽은 배선이었다 — `MEMOYO_API` 가 비어 `isConfigured` 가 거짓이라
+///   `refreshStatus` 는 호출조차 안 됐다. 남은 실효 경로는 SharedPreferences 에
+///   저장된 권한을 읽어 오는 것뿐이고, 그것이 ★이미 결제한 사람의 광고 제거
+///   유예(grandfather)를 지탱한다.
+///
+/// ■지우면 안 되는 것
+///   `isPremium` 은 죽은 코드가 아니다. `ad_banner` 가 `AdsService.removeAds.value ||
+///   PremiumService.instance.isPremium` 로 배너를 끄며, 뒤쪽 항이 유예다. 환불
+///   (T-260804-082 4페이즈)이 끝나기 전에 이걸 정리하면 ★돈 낸 사람에게 광고가
+///   되살아난다. 회귀축 = test/screens/subscription_sales_ended_test.dart.
 class PremiumService {
   PremiumService._();
   static final PremiumService instance = PremiumService._();
@@ -18,14 +31,19 @@ class PremiumService {
   final ValueNotifier<PremiumEntitlement> entitlement =
       ValueNotifier<PremiumEntitlement>(const PremiumEntitlement.inactive());
 
-  PremiumEntitlementClient _client = PremiumEntitlementClient();
   String? _userId;
   bool _initialized = false;
 
   bool get isPremium => entitlement.value.active;
 
-  Future<void> init({PremiumEntitlementClient? client}) async {
-    if (client != null) _client = client;
+  @visibleForTesting
+  void resetForTest() {
+    _initialized = false;
+    _userId = null;
+    entitlement.value = const PremiumEntitlement.inactive();
+  }
+
+  Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
 
@@ -49,69 +67,10 @@ class PremiumService {
         await prefs.remove(_entitlementKey);
       }
     }
-    if (_client.isConfigured) {
-      unawaited(refreshStatus().catchError((Object _) => entitlement.value));
-    }
   }
 
   Future<String> userId() async {
     if (!_initialized) await init();
     return _userId!;
-  }
-
-  Future<PremiumEntitlement> refreshStatus() async {
-    final status = await _client.status(await userId());
-    return _store(status);
-  }
-
-  Future<PremiumEntitlement> verifyPremiumPurchase(PurchaseDetails purchase) {
-    return _verifyPurchase(purchase, _client.verifySubscription);
-  }
-
-  Future<PremiumEntitlement> claimRemoveAdsCoupon(PurchaseDetails purchase) {
-    return _verifyPurchase(purchase, _client.claimRemoveAdsCoupon);
-  }
-
-  Future<PremiumEntitlement> _verifyPurchase(
-    PurchaseDetails purchase,
-    Future<PremiumEntitlement> Function({
-      required String userId,
-      required String platform,
-      required String purchaseId,
-      required String serverVerificationData,
-    })
-    verify,
-  ) async {
-    final platform = _storePlatform();
-    if (platform == null) return const PremiumEntitlement.inactive();
-    final purchaseId =
-        purchase.purchaseID ??
-        purchase.verificationData.localVerificationData.trim();
-    if (purchaseId.isEmpty) return const PremiumEntitlement.inactive();
-    final status = await verify(
-      userId: await userId(),
-      platform: platform,
-      purchaseId: purchaseId,
-      serverVerificationData: purchase.verificationData.serverVerificationData,
-    );
-    return _store(status);
-  }
-
-  Future<PremiumEntitlement> _store(PremiumEntitlement status) async {
-    entitlement.value = status.active
-        ? status
-        : const PremiumEntitlement.inactive();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _entitlementKey,
-      jsonEncode(entitlement.value.toJson()),
-    );
-    return entitlement.value;
-  }
-
-  String? _storePlatform() {
-    if (defaultTargetPlatform == TargetPlatform.iOS) return 'ios';
-    if (defaultTargetPlatform == TargetPlatform.android) return 'android';
-    return null;
   }
 }

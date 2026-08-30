@@ -5,7 +5,6 @@ import '../../../services/search_service.dart';
 import 'embedding_engine.dart';
 import 'semantic_search_service.dart';
 
-typedef GeminiEngineFactory = EmbeddingEngine Function(String userId);
 typedef SemanticIndexPersist = Future<void> Function(List<Memo> memos);
 
 class SemanticReindexProgress {
@@ -36,18 +35,15 @@ class SemanticSearchOutcome {
 class SemanticSearchCoordinator {
   SemanticSearchCoordinator({
     required this.policy,
-    required GeminiEngineFactory geminiEngineFactory,
     this.onDeviceEngine,
     this.batchSize = 16,
-  }) : _geminiEngineFactory = geminiEngineFactory;
+  });
 
   final SemanticEnginePolicy policy;
-  final GeminiEngineFactory _geminiEngineFactory;
   final EmbeddingEngine? onDeviceEngine;
   final int batchSize;
 
   Future<SemanticSearchOutcome> search({
-    required String userId,
     required String query,
     required List<Memo> memos,
     required SemanticIndexPersist persist,
@@ -78,14 +74,16 @@ class SemanticSearchCoordinator {
         }
       }
     }
-    // ★유료 폴백 없음 (T-260806-022). gemini 는 policy 가 ★명시적으로 gemini 일 때만
-    //   후보가 된다.
+    // ★유료 후보가 아예 없다 (T-260830-013). 여기 있던
+    //   `if (policy == gemini) candidates.add(_geminiEngineFactory(userId))` 를 걷었다.
     //
-    //   종전에는 이 add 가 policy 와 무관하게 무조건 실행됐다. 그래서
-    //   ondevice_preferred 인데 온디바이스가 부재·미지원·실패인 순간 후보가 gemini 하나만
-    //   남아, 유료 임베딩(/api/memoyo/ai/embed)이 아니키 비용으로 호출됐다. 기본 정책이
-    //   ondevice_preferred 이므로(embedding_engine.dart) 그게 출고 빌드의 기본 경로였다.
-    //   124MB 모델을 안 받은 사용자에게 메모 전건 + 질의마다 과금되는 모양이다.
+    //   경위: 종전에는 이 add 가 policy 와 무관하게 무조건 실행돼서, ondevice_preferred
+    //   인데 온디바이스가 부재·미지원·실패인 순간 후보가 유료 임베딩 엔드포인트
+    //   하나만 남아 아니키 비용으로 호출됐다. T-260806-022 가
+    //   그걸 「policy 가 명시적으로 gemini 일 때만」으로 좁혔고, 기본값이
+    //   ondevice_preferred 라 출고 빌드에선 도달 불가능해졌다. 즉 그 시점부터 이미
+    //   죽은 가지였는데, 남은 선언이 MEMOYO_API 를 붙들어 스토어 업로드 관문을 막았다.
+    //   그래서 가지째 걷었다 — 애초에 그 백엔드는 만들어진 적도 없다.
     //
     //   ondevice_preferred 의 뜻은 「온디바이스를 먼저 쓴다」가 아니라
     //   ★「온디바이스로만 쓴다, 안 되면 공짜 경로로 내려간다」이다. 온디바이스가 없거나
@@ -93,10 +91,7 @@ class SemanticSearchCoordinator {
     //   기능이 조금 나빠지는 것과 비용이 새는 것 중 후자를 막는 쪽을 고른 것이다
     //   (아니키 2026-08-04 「내 api 로 비용은 못내겠어」, 본진 판정 옵션1 T-260806-022).
     //
-    //   회귀축 = test/features/memos/semantic_ondevice_cost_axis_test.dart (4행)
-    if (policy == SemanticEnginePolicy.gemini) {
-      candidates.add(_geminiEngineFactory(userId));
-    }
+    //   회귀축 = test/features/memos/semantic_ondevice_cost_axis_test.dart
 
     var working = List<Memo>.of(memos);
     var changed = false;
