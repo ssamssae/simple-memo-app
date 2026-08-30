@@ -14,7 +14,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:simple_memo_app/main.dart';
-import 'package:simple_memo_app/features/memos/services/memoyo_embedding_client.dart';
+import 'package:simple_memo_app/features/memos/services/embedding_engine.dart';
+import 'package:simple_memo_app/features/memos/services/semantic_search_coordinator.dart';
 import 'package:simple_memo_app/models/memo.dart';
 import 'package:simple_memo_app/screens/search_screen.dart';
 import 'package:simple_memo_app/services/ads_service.dart';
@@ -150,31 +151,19 @@ void main() {
     await tester.tap(find.text('뒤로'));
     await pumpUi(tester);
 
-    // ⑦ 뜻으로 찾기 — 실제 SearchScreen + 테스트 임베딩 전송계층.
-    final embeddingClient = MemoyoEmbeddingClient(
-      transport: (_, payload) async {
-        final texts = (payload['texts'] as List).cast<String>();
-        return {
-          'model': 'gemini-embedding-001',
-          'dimensions': 2,
-          'embeddings': texts
-              .map(
-                (text) =>
-                    text.contains('회의') ||
-                        text.contains('분기') ||
-                        text.contains('프로젝트')
-                    ? [1.0, 0.0]
-                    : [0.0, 1.0],
-              )
-              .toList(),
-        };
-      },
+    // ⑦ 뜻으로 찾기 — 실제 SearchScreen + 테스트용 온디바이스 임베딩 엔진.
+    //   ★T-260830-013: 종전에는 유료 Worker 클라이언트(MemoyoEmbeddingClient)에
+    //   가짜 transport 를 꽂았다. 그 경로가 lib/ 에서 철거돼, 같은 벡터를 주는
+    //   온디바이스 가짜 엔진을 coordinator 로 주입한다. 캡처되는 화면은 동일하다.
+    final coordinator = SemanticSearchCoordinator(
+      policy: SemanticEnginePolicy.ondevicePreferred,
+      onDeviceEngine: _ShotEmbeddingEngine(),
     );
     final searchContext = tester.element(find.byType(Scaffold).last);
     unawaited(
       Navigator.of(searchContext).push<void>(
         MaterialPageRoute(
-          builder: (_) => SearchScreen(embeddingClient: embeddingClient),
+          builder: (_) => SearchScreen(semanticCoordinator: coordinator),
         ),
       ),
     );
@@ -201,4 +190,41 @@ void main() {
       await captureStoreShot(tester, '07-semantic-search');
     }
   });
+}
+
+/// 스크린샷용 가짜 온디바이스 엔진. 종전 유료 transport 와 같은 벡터를 준다 —
+/// 회의·분기·프로젝트 계열만 한 축으로 몰아 「뜻으로 찾기」 결과를 재현 가능하게 만든다.
+class _ShotEmbeddingEngine implements EmbeddingEngine {
+  @override
+  String get engineId => 'minilm-shot';
+
+  @override
+  int get dimensions => 2;
+
+  @override
+  Future<EmbeddingCapability> capability() async =>
+      const EmbeddingCapability(supported: true, ready: true);
+
+  List<double> _vector(String text) =>
+      text.contains('회의') || text.contains('분기') || text.contains('프로젝트')
+      ? const [1.0, 0.0]
+      : const [0.0, 1.0];
+
+  @override
+  Future<EmbeddingBatch> embedDocuments(List<String> texts) async =>
+      EmbeddingBatch(
+        engineId: engineId,
+        dimensions: 2,
+        embeddings: texts.map(_vector).toList(),
+      );
+
+  @override
+  Future<EmbeddingBatch> embedQuery(String text) async => EmbeddingBatch(
+    engineId: engineId,
+    dimensions: 2,
+    embeddings: [_vector(text)],
+  );
+
+  @override
+  Future<void> close() async {}
 }

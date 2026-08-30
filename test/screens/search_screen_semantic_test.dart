@@ -3,12 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/features/memos/semantic_search_availability.dart';
 import 'package:simple_memo_app/features/memos/services/embedding_engine.dart';
-import 'package:simple_memo_app/features/memos/services/gemini_embedding_engine.dart';
-import 'package:simple_memo_app/features/memos/services/memoyo_embedding_client.dart';
 import 'package:simple_memo_app/features/memos/services/semantic_search_coordinator.dart';
 import 'package:simple_memo_app/models/memo.dart';
 import 'package:simple_memo_app/screens/search_screen.dart';
-import 'package:simple_memo_app/services/premium_entitlement_client.dart';
+import 'package:simple_memo_app/services/premium_entitlement.dart';
 import 'package:simple_memo_app/services/premium_service.dart';
 
 // ★이 파일의 테스트는 말로찾기를 ★UI 세그먼트를 눌러서 검증한다. T-260804-086 으로 그
@@ -38,8 +36,12 @@ void main() {
   //   되살릴 것이 아니다 — 「비구독자는 결제화면으로 간다」는 계약이 이제 존재하지 않는다.
   //   말로찾기 잠금 계약은 test/features/memos/semantic_search_hidden_test.dart 가 지킨다.
 
+  // ★T-260830-013: 엔진을 유료(Gemini/Worker)에서 ★온디바이스 가짜로 갈아끼웠다.
+  //   이 본이 재는 것은 「어느 엔진이냐」가 아니라 「세그먼트를 눌러 뜻 검색으로 들어가면
+  //   임베딩이 갱신되고 코사인 유사도로 답이 좁혀지는가」다. 유료 경로가 lib/ 에서
+  //   철거돼도 그 계약은 그대로 살아 있어야 한다 — 오히려 이제 이게 유일한 경로다.
   testWidgets(
-    'premium semantic mode refreshes embeddings and returns cosine match',
+    'semantic mode refreshes embeddings and returns cosine match',
     (tester) async {
       SharedPreferences.setMockInitialValues({
         'premium_user_id': 'memoyo-user-1',
@@ -50,37 +52,17 @@ void main() {
       });
       PremiumService.instance.entitlement.value = PremiumEntitlement(
         premium: true,
-        productId: PremiumEntitlementClient.premiumProductId,
+        productId: PremiumEntitlement.premiumProductId,
         expiresAt: DateTime(2999),
         source: PremiumEntitlementSource.subscription,
       );
-      final client = MemoyoEmbeddingClient(
-        transport: (_, payload) async {
-          final texts = (payload['texts'] as List).cast<String>();
-          final vectors = texts.map((text) {
-            if (text.contains('카레')) return [0.0, 1.0];
-            return [1.0, 0.0];
-          }).toList();
-          return {
-            'model': 'gemini-embedding-001',
-            'dimensions': 2,
-            'embeddings': vectors,
-          };
-        },
-      );
       final coordinator = SemanticSearchCoordinator(
-        policy: SemanticEnginePolicy.gemini,
-        geminiEngineFactory: (userId) =>
-            GeminiEmbeddingEngine(client: client, userId: userId),
+        policy: SemanticEnginePolicy.ondevicePreferred,
+        onDeviceEngine: _CosineFakeEngine(),
       );
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: SearchScreen(
-            embeddingClient: client,
-            semanticCoordinator: coordinator,
-          ),
-        ),
+        MaterialApp(home: SearchScreen(semanticCoordinator: coordinator)),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text('뜻으로 찾기'));
@@ -95,4 +77,40 @@ void main() {
     },
     skip: _semanticHidden,
   );
+}
+
+/// 2차원 가짜 온디바이스 엔진 — '카레' 계열만 다른 축으로 보낸다.
+/// 종전 유료 transport 가 주던 벡터와 같은 모양이라, 이 본이 재던 코사인 판정이
+/// 엔진 교체 뒤에도 동일하게 성립한다.
+class _CosineFakeEngine implements EmbeddingEngine {
+  @override
+  String get engineId => 'minilm-fake';
+
+  @override
+  int get dimensions => 2;
+
+  @override
+  Future<EmbeddingCapability> capability() async =>
+      const EmbeddingCapability(supported: true, ready: true);
+
+  List<double> _vector(String text) =>
+      text.contains('카레') ? const [0.0, 1.0] : const [1.0, 0.0];
+
+  @override
+  Future<EmbeddingBatch> embedDocuments(List<String> texts) async =>
+      EmbeddingBatch(
+        engineId: engineId,
+        dimensions: 2,
+        embeddings: texts.map(_vector).toList(),
+      );
+
+  @override
+  Future<EmbeddingBatch> embedQuery(String text) async => EmbeddingBatch(
+    engineId: engineId,
+    dimensions: 2,
+    embeddings: [_vector(text)],
+  );
+
+  @override
+  Future<void> close() async {}
 }

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 import 'ads_service.dart';
-import 'premium_service.dart';
 
 /// '광고 제거' 비소모성 인앱결제 래퍼.
 ///
@@ -46,12 +45,15 @@ class RemoveAdsPurchase {
       if (p.productID != productId) continue;
       if (p.status == PurchaseStatus.purchased ||
           p.status == PurchaseStatus.restored) {
+        // ★광고를 끄는 축은 이 한 줄이다 — 로컬 저장이라 서버가 없어도 완결된다.
+        //
+        //   종전에는 바로 뒤에 `PremiumService.claimRemoveAdsCoupon(p)` 서버 왕복이
+        //   붙어 있었고 try/catch 로 감싸여 있었다. 그 엔드포인트
+        //   (`/api/memoyo/entitlement/remove-ads-coupon`)의 백엔드는 만들어진 적이
+        //   없어 항상 실패했고, 실패가 삼켜졌으므로 ★관측 가능한 동작은 이 줄 하나가
+        //   전부였다. T-260830-013 에서 그 죽은 왕복을 걷었다 — 구매 결과는 이전과
+        //   동일하다(광고 즉시 꺼짐). 회귀축 = test/services/remove_ads_purchase_test.dart.
         await AdsService.instance.setRemoveAds(true);
-        try {
-          await PremiumService.instance.claimRemoveAdsCoupon(p);
-        } catch (_) {
-          // 광고 제거 엔티틀먼트는 기존 권리라 유지한다. 쿠폰 검증은 복원 시 재시도 가능.
-        }
       }
       if (p.pendingCompletePurchase) {
         await _iap.completePurchase(p);

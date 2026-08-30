@@ -1,7 +1,8 @@
+// T-260830-013 — Gemini(유료 Worker) 전처리 골든은 함께 삭제됐다.
+// 그 엔진·클라이언트가 lib/ 에서 철거돼 검증 대상 자체가 없어졌기 때문이다.
+// 남은 온디바이스(MiniLM) 전처리 골든이 지금 유일한 임베딩 경로의 계약이다.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_memo_app/features/memos/services/embedding_engine.dart';
-import 'package:simple_memo_app/features/memos/services/gemini_embedding_engine.dart';
-import 'package:simple_memo_app/features/memos/services/memoyo_embedding_client.dart';
 import 'package:simple_memo_app/features/memos/services/mini_lm_embedding_engine.dart';
 import 'package:simple_memo_app/features/memos/services/xlm_roberta_sentencepiece.dart';
 
@@ -20,31 +21,4 @@ void main() {
     expect(XlmRobertaSentencePiece.sentencePieceIdToXlmRobertaId(0), 3);
     expect(XlmRobertaSentencePiece.sentencePieceIdToXlmRobertaId(42), 43);
   });
-
-  test(
-    'Gemini query/document preprocessing preserves exact Worker text',
-    () async {
-      final payloads = <List<String>>[];
-      final client = MemoyoEmbeddingClient(
-        transport: (_, payload) async {
-          final texts = (payload['texts'] as List).cast<String>();
-          payloads.add(texts);
-          return {
-            'model': 'gemini-embedding-001',
-            'dimensions': 2,
-            'embeddings': texts.map((_) => [1.0, 0.0]).toList(),
-          };
-        },
-      );
-      final engine = GeminiEmbeddingEngine(client: client, userId: 'test-user');
-
-      await engine.embedQuery(' query 그대로 ');
-      await engine.embedDocuments(['문서 그대로', 'second document']);
-
-      expect(payloads, [
-        [' query 그대로 '],
-        ['문서 그대로', 'second document'],
-      ]);
-    },
-  );
 }

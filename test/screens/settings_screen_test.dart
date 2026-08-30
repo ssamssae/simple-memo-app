@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/screens/settings_screen.dart';
 import 'package:simple_memo_app/services/app_review_service.dart';
-import 'package:simple_memo_app/services/premium_entitlement_client.dart';
+import 'package:simple_memo_app/services/premium_entitlement.dart';
 import 'package:simple_memo_app/services/premium_service.dart';
 import 'package:simple_memo_app/services/settings_service.dart';
 
@@ -257,7 +257,7 @@ void main() {
   testWidgets('엔티틀먼트가 살아 있어도 프리미엄 칸·가격이 뜨지 않는다', (tester) async {
     PremiumService.instance.entitlement.value = PremiumEntitlement(
       premium: true,
-      productId: PremiumEntitlementClient.premiumProductId,
+      productId: PremiumEntitlement.premiumProductId,
       expiresAt: DateTime(2999),
       source: PremiumEntitlementSource.subscription,
     );

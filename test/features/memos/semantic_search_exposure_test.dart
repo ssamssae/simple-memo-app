@@ -28,12 +28,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/features/memos/semantic_search_availability.dart';
-import 'package:simple_memo_app/features/memos/services/memoyo_embedding_client.dart';
 import 'package:simple_memo_app/features/memos/services/mini_lm_model_controller.dart';
 import 'package:simple_memo_app/models/memo.dart';
 import 'package:simple_memo_app/screens/search_screen.dart';
 import 'package:simple_memo_app/screens/settings_screen.dart';
-import 'package:simple_memo_app/services/premium_entitlement_client.dart';
+import 'package:simple_memo_app/services/premium_entitlement.dart';
 import 'package:simple_memo_app/services/premium_service.dart';
 
 void main() {
@@ -63,7 +62,7 @@ void main() {
     });
     PremiumService.instance.entitlement.value = PremiumEntitlement(
       premium: true,
-      productId: PremiumEntitlementClient.premiumProductId,
+      productId: PremiumEntitlement.premiumProductId,
       expiresAt: DateTime(2999),
       source: PremiumEntitlementSource.subscription,
     );
@@ -94,30 +93,20 @@ void main() {
         reason: '말로찾기 세그먼트가 안 보인다 — 노출 스위치가 안 먹었다 (T-260806-022)');
   });
 
-  testWidgets('★(b) 노출된 뒤에도 유료 임베딩 클라이언트가 한 번도 호출되지 않는다', (tester) async {
-    // 스파이 — 전송계층이 불리면 계수가 올라간다. 실제 네트워크는 타지 않는다.
-    var embedCalls = 0;
-    final spy = MemoyoEmbeddingClient(
-      transport: (_, payload) async {
-        embedCalls++;
-        final texts = (payload['texts'] as List).cast<String>();
-        return {
-          'model': 'gemini-embedding-001',
-          'dimensions': 2,
-          'embeddings': texts.map((_) => [1.0, 0.0]).toList(),
-        };
-      },
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(home: SearchScreen(embeddingClient: spy)),
-    );
+  testWidgets('★(b) 온디바이스가 미지원인 기기에서도 말로찾기가 답을 돌려준다', (tester) async {
+    // ■T-260830-013 로 계기가 바뀌었다
+    //   종전에는 유료 클라이언트에 스파이를 꽂아 `embedCalls == 0` 을 셌다. 그
+    //   클라이언트가 lib/ 에서 철거돼 꽂을 자리가 없다 — 「유료를 안 탄다」는 이제
+    //   타입이 보증하고, 되살아나면 semantic_ondevice_cost_axis_test.dart (A)
+    //   소스 스캔이 잡는다. 여기서는 그 대신 ★사용자에게 보이는 쪽을 지킨다:
+    //   온디바이스가 없는 기기에서 세그먼트를 눌러도 화면이 죽지 않고 어휘 검색으로
+    //   내려가 답을 준다. 이 축이 없으면 유료를 걷어낸 뒤 「안 부르긴 하는데 아무것도
+    //   안 나온다」를 아무도 안 잡는다.
+    await tester.pumpWidget(const MaterialApp(home: SearchScreen()));
     await tester.pumpAndSettle();
 
     // ★사람이 하는 짓 그대로 — 문이 열렸으니 ★실제로 들어간다.
-    //   여기가 이 파일의 심장이다. 세그먼트를 눌러 시맨틱 경로로 진입시킨 뒤에도
-    //   embedCalls 가 0 이어야 한다. setUp 이 온디바이스를 미지원으로 못박아 뒀으므로
-    //   수리 전이라면 여기서 gemini 로 내려가 스파이가 불렸다(2회 실측, T-260806-021).
+    //   setUp 이 온디바이스를 미지원으로 못박아 뒀으므로 이 경로는 lexical 강등을 탄다.
     //   조건부 tap 을 남겨 둔 이유는 스위치를 끈 실행(mutation probe)에서 「대상 없음」
     //   으로 죽지 않고 (a) 가 먼저 실패를 말하게 하려는 것이다.
     final semanticSegment = find.text('뜻으로 찾기');
@@ -132,14 +121,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pumpAndSettle();
 
-    // ★대조군 — 어휘 검색은 정상 동작해야 한다. 여기서 결과가 0이면 검색 자체가 죽은 것이고,
-    //   그때의 embedCalls==0 은 「막았다」가 아니라 「아무 일도 안 일어났다」다.
+    // ★여기가 이 본의 심장 — 온디바이스가 없는데도 사용자는 답을 받아야 한다.
+    //   결과가 0이면 유료를 안 부르는 데는 성공했지만 기능이 죽은 것이다.
     expect(find.textContaining('치과 예약', findRichText: true), findsWidgets,
-        reason: '어휘 검색이 죽었다 — embedCalls==0 이 잠금의 증거가 되지 못한다');
-
-    expect(embedCalls, 0,
-        reason: '유료 임베딩 API 가 호출됐다 — 유료 폴백이 되살아났다 (아니키 비용축). '
-            'coordinator 가 gemini 를 무조건 후보에 넣고 있지 않은지 볼 것');
+        reason: '말로찾기로 들어간 뒤 어휘 강등이 답을 못 돌려줬다 — 기능이 죽었다');
   });
 
   test('(c) 스위치는 기본 ON 이다 — 유료 경로가 없으니 감출 이유가 없다', () {

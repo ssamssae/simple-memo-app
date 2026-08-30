@@ -38,6 +38,45 @@ case "$target" in
     ;;
 esac
 
+# ── 이 앱이 아직 그 값을 소비하는가 ──────────────────────────────────────────
+#
+# T-260830-013: 백엔드가 끝내 만들어지지 않아(구독은 2026-08-03 판매 종료,
+# T-260803-038) MEMOYO_API 를 읽던 3개 클라이언트를 lib/ 에서 철거했다. 소비처가
+# 0건이면 이 게이트는 ★지킬 대상이 없는데도 빌드를 막는 장애물이 된다 — 실제로
+# 스토어 업로드가 그 때문에 멈췄다.
+#
+# 그래서 게이트를 없애지 않고 ★조건부로 만든다. 판정 기준은 사람의 기억이 아니라
+# lib/ 의 선언 유무다. 백엔드가 생겨 클라이언트가 돌아오는 날 선언도 같이 돌아오고,
+# 그 순간 아래 2겹(미주입 거부 + 산출물 검증)이 ★자동으로 되살아난다.
+#
+# ⚠️ 이 분기를 「항상 skip」으로 바꾸지 마라. 그러면 클라이언트가 돌아온 날
+#    T-260803-038 과 똑같은 먹통 출고가 조용히 다시 나간다.
+if grep -rqE "String\.fromEnvironment\([[:space:]]*'MEMOYO_API'" lib 2>/dev/null; then
+  endpoint_consumed=1
+else
+  endpoint_consumed=0
+fi
+
+if [[ "$endpoint_consumed" -eq 0 ]]; then
+  printf '▶ store build: %s (MEMOYO_API 소비처 0건 — 주입·검증 생략, T-260830-013)\n' \
+    "$target" >&2
+  if [[ -n "${MEMOYO_API:-}" ]]; then
+    printf '  ⚠️ MEMOYO_API 가 설정돼 있지만 lib/ 에 읽는 곳이 없어 무시한다.\n' >&2
+  fi
+  flutter_bin="${FLUTTER_BIN:-$(command -v flutter || true)}"
+  if [[ -z "$flutter_bin" ]]; then
+    printf '✗ flutter 를 찾지 못했다. FLUTTER_BIN 으로 지정하라.\n' >&2
+    exit 1
+  fi
+  if [[ "$target" == "ios" ]]; then
+    "$flutter_bin" build ipa --release
+  else
+    "$flutter_bin" build appbundle --release
+  fi
+  printf '✓ store build 완료 (%s)\n' "$target" >&2
+  exit 0
+fi
+
 # 공백만 있는 값도 거부한다 — Dart 쪽이 .trim() 을 걸어 "   " 는 결국 '' 와 같고,
 # 비어 있지 않다는 이유로 통과시키면 정확히 같은 먹통 빌드가 나간다.
 api="${MEMOYO_API:-}"

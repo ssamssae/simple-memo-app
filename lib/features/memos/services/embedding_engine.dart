@@ -1,5 +1,17 @@
+/// 말로찾기가 쓸 엔진 정책.
+///
+/// ■`gemini` 가 없어진 이유 — T-260830-013
+///   유료 임베딩 엔드포인트를 부르던 항목이었다. 그 백엔드는 만들어진
+///   적이 없고(T-260803-038), T-260806-022 이후로는 `SemanticSearchCoordinator` 가
+///   policy 가 ★명시적으로 gemini 일 때만 후보에 넣었는데 기본값은
+///   `ondevice_preferred` 라 출고 빌드에서 도달할 수 없었다. 즉 선언만 남은 죽은
+///   가지였고, 그 선언이 `MEMOYO_API` 를 붙들어 스토어 업로드 관문을 막고 있었다.
+///
+/// ■미지정 값이 이제 유료가 아니라 무료로 떨어진다
+///   종전 fallback 은 `_ => gemini` 였다. 오타 하나가 과금 경로로 떨어지는 모양이라,
+///   남은 둘 중 ★공짜인 온디바이스로 내린다. 유료 경로를 되살릴 생각이면 이 기본값이
+///   아니라 명시 항목을 새로 만들어라(아니키 2026-08-04 「내 api 로 비용은 못내겠어」).
 enum SemanticEnginePolicy {
-  gemini,
   ondevicePreferred,
   lexical;
 
@@ -12,9 +24,8 @@ enum SemanticEnginePolicy {
 
   static SemanticEnginePolicy fromValue(String value) {
     return switch (value.trim().toLowerCase()) {
-      'ondevice_preferred' => SemanticEnginePolicy.ondevicePreferred,
       'lexical' => SemanticEnginePolicy.lexical,
-      _ => SemanticEnginePolicy.gemini,
+      _ => SemanticEnginePolicy.ondevicePreferred,
     };
   }
 }

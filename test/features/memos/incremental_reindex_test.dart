@@ -20,15 +20,8 @@ void main() {
         failDocumentCall: 2,
         failureCode: 'MINILM_INTERRUPTED',
       );
-      final gemini = FakeEmbeddingEngine(
-        engineId: 'gemini-embedding-001',
-        dimensions: 2,
-        failDocumentCall: 1,
-        failureCode: 'GEMINI_OFFLINE',
-      );
       final coordinator = SemanticSearchCoordinator(
         policy: SemanticEnginePolicy.ondevicePreferred,
-        geminiEngineFactory: (_) => gemini,
         onDeviceEngine: onDevice,
         batchSize: 2,
       );
@@ -36,7 +29,6 @@ void main() {
       final initial = [_memo('one'), _memo('two'), _memo('three')];
 
       final interrupted = await coordinator.search(
-        userId: 'u',
         query: '메모',
         memos: initial,
         persist: (memos) async => persisted.add(List<Memo>.of(memos)),
@@ -47,8 +39,11 @@ void main() {
       //   끊긴 뒤 유료 Gemini 까지 시도하고 그것도 실패해서 나온 코드였다.
       //   이제 ondevice_preferred 는 유료로 안 넘어가므로 온디바이스 실패에서 멈춘다.
       //   이 테스트의 본론(배치별 persist·lexical 유지·재개)은 그대로다.
+      // ★T-260830-013: 여기 있던 `expect(gemini.documentCalls, 0)` 는 유료 후보가
+      //   ★타입 수준에서 사라져(SemanticEnginePolicy 에 gemini 없음) 표현할 대상이
+      //   없어졌다. 비용축은 이제 런타임 카운터가 아니라 구조가 지킨다 —
+      //   대체 계기 = semantic_ondevice_cost_axis_test.dart.
       expect(interrupted.fallbackCode, 'MINILM_INTERRUPTED');
-      expect(gemini.documentCalls, 0, reason: '유료 임베딩이 호출됐다 — 비용축 위반');
       expect(interrupted.results, hasLength(3));
       expect(persisted, hasLength(1));
       expect(
@@ -59,7 +54,6 @@ void main() {
 
       onDevice.failDocumentCall = null;
       final resumed = await coordinator.search(
-        userId: 'u',
         query: '메모',
         memos: interrupted.memos,
         persist: (memos) async => persisted.add(List<Memo>.of(memos)),

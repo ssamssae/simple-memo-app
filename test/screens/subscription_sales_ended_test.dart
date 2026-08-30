@@ -23,7 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/screens/settings_screen.dart';
 import 'package:simple_memo_app/services/ads_service.dart';
-import 'package:simple_memo_app/services/premium_entitlement_client.dart';
+import 'package:simple_memo_app/services/premium_entitlement.dart';
 import 'package:simple_memo_app/services/premium_service.dart';
 
 void main() {
@@ -53,7 +53,7 @@ void main() {
 
   PremiumEntitlement activeSubscription() => PremiumEntitlement(
     premium: true,
-    productId: PremiumEntitlementClient.premiumProductId,
+    productId: PremiumEntitlement.premiumProductId,
     expiresAt: DateTime(2999),
     source: PremiumEntitlementSource.subscription,
   );
