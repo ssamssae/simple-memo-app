@@ -23,7 +23,7 @@ void main() {
         (await SharedPreferences.getInstance()).getString('memos')!,
       );
 
-  testWidgets('휴지통 항목만 노출 + "N일 후 영구삭제" 라벨 (활성 제외)', (tester) async {
+  testWidgets('휴지통 항목만 노출 + 수동 보관 안내 (활성 제외)', (tester) async {
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([
         active('a', '활성 메모'),
@@ -35,7 +35,8 @@ void main() {
 
     expect(find.text('휴지통 메모'), findsOneWidget);
     expect(find.text('활성 메모'), findsNothing);
-    expect(find.textContaining('영구삭제'), findsWidgets);
+    expect(find.text('비울 때까지 보관'), findsOneWidget);
+    expect(find.textContaining('일 후 영구삭제'), findsNothing);
   });
 
   testWidgets('빈 상태 — 휴지통 비었을 때 안내 텍스트', (tester) async {

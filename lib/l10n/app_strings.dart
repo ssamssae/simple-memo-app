@@ -113,8 +113,8 @@ class AppStrings {
   String get helpDeleteQuestion =>
       isEnglish ? 'Can I recover deleted notes?' : '삭제한 메모를 복구할 수 있나요?';
   String get helpDeleteAnswer => isEnglish
-      ? 'Deleted notes stay in Trash for 30 days before permanent deletion.'
-      : '삭제한 메모는 휴지통에 30일 동안 보관된 뒤 영구 삭제됩니다.';
+      ? 'Deleted notes stay in Trash until you restore them, delete one, or empty Trash. Nothing is removed automatically.'
+      : '삭제한 메모는 휴지통에 보관됩니다. 복구하거나 직접 영구 삭제·비우기 전까지 자동으로 지워지지 않습니다.';
   String get helpFeedbackQuestion =>
       isEnglish ? 'How can I send feedback?' : '피드백은 어떻게 보내나요?';
   String get helpFeedbackAnswer => isEnglish
@@ -305,10 +305,9 @@ class AppStrings {
 
   // 휴지통 화면
   String get memoRestored => isEnglish ? 'Memo restored' : '메모를 복구했습니다';
-  String get purgeSoon => isEnglish ? 'Permanently deleted soon' : '곧 영구삭제';
-  String purgeAfterDays(int days) => isEnglish
-      ? 'Permanently deleted in $days days'
-      : '$days일 후 영구삭제';
+  String get keptInTrashHint => isEnglish
+      ? 'Kept until you empty Trash'
+      : '비울 때까지 보관';
   String get restoreAction => isEnglish ? 'Restore' : '복구';
   String get purgeNow => isEnglish ? 'Delete permanently now' : '즉시 영구삭제';
   String get emptyTrashTitle => isEnglish ? 'Empty Trash' : '휴지통 비우기';
@@ -317,8 +316,8 @@ class AppStrings {
       : '휴지통의 $count개 메모를 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.';
   String get emptyTrashAction => isEnglish ? 'Empty' : '비우기';
   String get trashEmptyHint => isEnglish
-      ? 'Trash is empty.\nDeleted memos are kept for 30 days.'
-      : '휴지통이 비어있습니다.\n삭제한 메모는 30일간 보관됩니다.';
+      ? 'Trash is empty.\nDeleted memos stay here until you empty Trash.'
+      : '휴지통이 비어있습니다.\n삭제한 메모는 비울 때까지 보관됩니다.';
 
   // 검색 화면
   String get searchHint => isEnglish ? 'Search memos' : '메모 검색';

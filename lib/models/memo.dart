@@ -5,10 +5,6 @@ import '../services/settings_service.dart';
 
 
 class Memo {
-  // 휴지통 보관 기간 — 이 기간 지난 soft-deleted 메모는 영구 삭제(purge).
-  // timeUntilPurge / MemoStorage.purgeExpiredTrash 의 단일 기준값.
-  static const trashRetention = Duration(days: 30);
-
   final String id;
   String content;
   bool isFavorite;
@@ -60,14 +56,6 @@ class Memo {
   static final _imageFileNamePattern = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$');
   static bool isValidImageFileName(String name) =>
       !name.contains('..') && _imageFileNamePattern.hasMatch(name);
-
-  // 영구삭제까지 남은 시간. 활성 메모(deletedAt == null)는 Duration.zero.
-  // 이미 기간 지났으면 음수 Duration(= purge 대상).
-  Duration get timeUntilPurge {
-    final d = deletedAt;
-    if (d == null) return Duration.zero;
-    return d.add(trashRetention).difference(DateTime.now());
-  }
 
   // deletedAt 의 "미지정(기존값 유지)" 과 "명시적 null(휴지통에서 복구)" 을
   // 구분하기 위한 sentinel. content/isFavorite/updatedAt 은 기존 동작 유지.

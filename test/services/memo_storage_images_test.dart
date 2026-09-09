@@ -26,7 +26,7 @@ void main() {
     tmp.deleteSync(recursive: true);
   });
 
-  test('purgeExpiredTrash: 만료 메모의 파일만 삭제, 활성·미만료 파일 생존', () async {
+  test('31일 지난 휴지통 첨부도 load 후 파일·메모 생존 (자동 영구삭제 없음)', () async {
     final old = await seedStoreFile('old.jpg');
     final fresh = await seedStoreFile('fresh.jpg');
     final keep = await seedStoreFile('keep.jpg');
@@ -38,13 +38,13 @@ void main() {
       ]),
     });
 
-    expect(await MemoStorage.purgeExpiredTrash(), 1);
+    final loaded = await MemoStorage.loadMemos();
+    expect(loaded.map((m) => m.id).toSet(), {'expired', 'recent', 'active'});
 
     final store = AttachmentStore.instance;
-    expect(await store.exists(old), isFalse);
+    expect(await store.exists(old), isTrue);
     expect(await store.exists(fresh), isTrue);
     expect(await store.exists(keep), isTrue);
-    expect((await MemoStorage.loadMemos()).map((m) => m.id), ['recent', 'active']);
   });
 
   test('deleteForever: 지정 id 메모 제거 + 그 파일 삭제, 나머지 무변경', () async {
@@ -62,6 +62,25 @@ void main() {
     expect(await AttachmentStore.instance.exists(a), isFalse);
     expect(await AttachmentStore.instance.exists(b), isTrue);
     expect((await MemoStorage.loadMemos()).map((m) => m.id), ['y']);
+  });
+
+  test('deleteForever: 활성 ID 입력은 메모·고유 첨부를 지우지 않는다', () async {
+    final keep = await seedStoreFile('keep.jpg');
+    final trashFile = await seedStoreFile('trash.jpg');
+    SharedPreferences.setMockInitialValues({
+      'memos': Memo.encodeList([
+        memo('active', images: [keep]),
+        memo('trashed', images: [trashFile], deletedAt: now),
+      ]),
+    });
+
+    expect(await MemoStorage.deleteForever({'active'}), 0);
+
+    final remaining = await MemoStorage.loadMemos();
+    expect(remaining.map((m) => m.id).toSet(), {'active', 'trashed'});
+    expect(remaining.firstWhere((m) => m.id == 'active').deletedAt, isNull);
+    expect(await AttachmentStore.instance.exists(keep), isTrue);
+    expect(await AttachmentStore.instance.exists(trashFile), isTrue);
   });
 
   test('emptyTrash: 휴지통 전부 제거 + 파일 삭제, 활성 메모·파일 무변경', () async {
@@ -100,7 +119,6 @@ void main() {
     });
     expect(await MemoStorage.deleteForever({'nope'}), 0);
     expect(await MemoStorage.emptyTrash(), 0);
-    expect(await MemoStorage.purgeExpiredTrash(), 0);
     expect(await AttachmentStore.instance.exists(a), isTrue);
   });
 
