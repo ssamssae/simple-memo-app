@@ -106,28 +106,4 @@ void main() {
       expect(restored.isInTrash, isFalse);
     });
   });
-
-  group('Memo.timeUntilPurge', () {
-    test('활성 메모는 Duration.zero', () {
-      expect(active('a').timeUntilPurge, Duration.zero);
-    });
-
-    test('방금 삭제된 메모는 보관기간(30일)에 가깝게 남음', () {
-      final justDeleted =
-          active('a').copyWith(deletedAt: DateTime.now());
-
-      final remaining = justDeleted.timeUntilPurge;
-
-      expect(remaining.inDays, greaterThanOrEqualTo(29));
-      expect(remaining.inDays, lessThanOrEqualTo(30));
-    });
-
-    test('보관기간 지난 메모는 음수 Duration (purge 대상)', () {
-      final expired = active('a').copyWith(
-        deletedAt: DateTime.now().subtract(const Duration(days: 31)),
-      );
-
-      expect(expired.timeUntilPurge.isNegative, isTrue);
-    });
-  });
 }

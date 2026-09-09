@@ -25,7 +25,7 @@ Keep outside this domain when:
 - Legacy imports: `models/memo.dart` (file-name validation), `l10n/app_strings.dart`,
   `utils/app_palette.dart`. These stay shared — they are app-wide, not memo-owned.
 - `services/memo_storage.dart` (legacy) now imports `AttachmentStore` so that the single
-  permanent-delete funnel (`deleteForever` / `emptyTrash` / `purgeExpiredTrash`) also removes
+  permanent-delete funnel (`deleteForever` / `emptyTrash`) also removes
   attachment files. That dependency points legacy → domain on purpose: file cleanup must never
   be skipped by a new delete path. Known exception (1단계): backup restore
   (`export_import_service.dart` → `saveMemos(restored)`) replaces the list without the funnel, so

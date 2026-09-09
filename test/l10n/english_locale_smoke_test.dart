@@ -82,5 +82,9 @@ void main() {
     // T-260804-062 로 제거돼 getter 자체가 사라졌다.
     expect(han.hasMatch(en.miniLmInstallBody), isFalse);
     expect(han.hasMatch(en.emptyTrashConfirm(3)), isFalse);
+    expect(en.keptInTrashHint, 'Kept until you empty Trash');
+    expect(en.helpDeleteAnswer.contains('30'), isFalse);
+    expect(en.trashEmptyHint.contains('30'), isFalse);
+    expect(en.keptInTrashHint.contains('30'), isFalse);
   });
 }

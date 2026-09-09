@@ -203,8 +203,7 @@ class MemoListScreenState extends State<MemoListScreen>
     );
   }
 
-  // 앱이 다시 활성화될 때 휴지통 30일 만료분 purge + 재로드.
-  // (앱을 켜둔 채 자정/30일 경계를 넘긴 경우 resume 1회로 정리.)
+  // 앱이 다시 활성화될 때 저장소를 다시 읽는다. 시간 경과 자동 영구삭제는 하지 않는다.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -221,8 +220,6 @@ class MemoListScreenState extends State<MemoListScreen>
 
   Future<void> _loadMemos() async {
     try {
-      // 휴지통 30일 만료분 자동 영구삭제(cold start/resume). 활성 메모 무영향.
-      await MemoStorage.purgeExpiredTrash();
       final memos = await MemoStorage.loadMemos();
       // 고아 정리는 프로세스당 1회만 시도한다 — 플래그는 이 첫 패스에서 항상 세팅해
       // 이후 resume 으로 미뤄지지 않게 하고, 그 안에서만 참조 목록이 비어 있으면

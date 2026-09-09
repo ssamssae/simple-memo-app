@@ -1,4 +1,4 @@
-// 메모요 1.0.7 ②④-3 — _loadMemos 진입 시 30일 만료 휴지통 자동 purge 트리거.
+// 휴지통은 시간 경과로 자동 영구삭제되지 않는다. 실제 MemoListScreen._loadMemos 경로.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,7 +12,7 @@ void main() {
         (await SharedPreferences.getInstance()).getString('memos')!,
       );
 
-  testWidgets('cold start(_loadMemos) 시 31일 지난 휴지통은 purge, 29일·활성은 잔존',
+  testWidgets('cold start(_loadMemos) 시 31일 지난 휴지통도 보존, 활성만 리스트 표시',
       (tester) async {
     final base = DateTime(2026, 1, 1);
     final expired = Memo(
@@ -44,11 +44,13 @@ void main() {
     await tester.pumpAndSettle();
 
     final s = await saved();
-    expect(s.map((m) => m.id).toSet(), {'recent', 'active'},
-        reason: '31일 지난 expired 만 purge, 29일 미만·활성은 잔존');
+    expect(s.map((m) => m.id).toSet(), {'expired', 'recent', 'active'},
+        reason: '31일 지난 휴지통도 load 경로에서 보존. 활성도 잔존');
+    expect(s.firstWhere((m) => m.id == 'expired').deletedAt, isNotNull);
 
     // 활성 메모는 리스트에 표시, 휴지통 항목은 비표시.
     expect(find.text('활성 메모'), findsOneWidget);
     expect(find.text('5일 전 삭제'), findsNothing);
+    expect(find.text('31일 전 삭제'), findsNothing);
   });
 }

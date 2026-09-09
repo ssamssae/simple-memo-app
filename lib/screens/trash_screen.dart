@@ -8,7 +8,7 @@ import '../widgets/version_footer.dart';
 import '../l10n/app_strings.dart';
 
 
-// 휴지통 화면 (1.0.7 ②④-3). 삭제된(soft-delete) 메모를 30일간 보관.
+// 휴지통 화면. 삭제된(soft-delete) 메모를 수동 복구·영구삭제·비우기 전까지 보관.
 // 저장소는 기존 단일 'memos' blob 그대로 — 활성/휴지통이 한 리스트, deletedAt 으로 구분.
 class TrashScreen extends StatefulWidget {
   const TrashScreen({super.key});
@@ -65,12 +65,6 @@ class _TrashScreenState extends State<TrashScreen> {
   Future<void> _emptyTrash() async {
     await MemoStorage.emptyTrash();
     await _loadTrash();
-  }
-
-  String _purgeLabel(Memo m) {
-    final days = m.timeUntilPurge.inDays;
-    if (days <= 0) return AppStrings.of(context).purgeSoon;
-    return AppStrings.of(context).purgeAfterDays(days);
   }
 
   Future<void> _showItemActions(Memo memo) async {
@@ -201,7 +195,7 @@ class _TrashScreenState extends State<TrashScreen> {
                           ),
                         ),
                         subtitle: Text(
-                          _purgeLabel(memo),
+                          AppStrings.of(context).keptInTrashHint,
                           style: TextStyle(
                             color: Theme.of(context)
                                 .colorScheme
