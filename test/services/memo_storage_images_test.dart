@@ -64,6 +64,25 @@ void main() {
     expect((await MemoStorage.loadMemos()).map((m) => m.id), ['y']);
   });
 
+  test('deleteForever: 활성 ID 입력은 메모·고유 첨부를 지우지 않는다', () async {
+    final keep = await seedStoreFile('keep.jpg');
+    final trashFile = await seedStoreFile('trash.jpg');
+    SharedPreferences.setMockInitialValues({
+      'memos': Memo.encodeList([
+        memo('active', images: [keep]),
+        memo('trashed', images: [trashFile], deletedAt: now),
+      ]),
+    });
+
+    expect(await MemoStorage.deleteForever({'active'}), 0);
+
+    final remaining = await MemoStorage.loadMemos();
+    expect(remaining.map((m) => m.id).toSet(), {'active', 'trashed'});
+    expect(remaining.firstWhere((m) => m.id == 'active').deletedAt, isNull);
+    expect(await AttachmentStore.instance.exists(keep), isTrue);
+    expect(await AttachmentStore.instance.exists(trashFile), isTrue);
+  });
+
   test('emptyTrash: 휴지통 전부 제거 + 파일 삭제, 활성 메모·파일 무변경', () async {
     final a = await seedStoreFile('a.jpg');
     final keep = await seedStoreFile('keep.jpg');

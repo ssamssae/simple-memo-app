@@ -29,9 +29,10 @@ class MemoStorage {
     }
   }
 
-  /// 즉시 영구삭제 (휴지통 항목 개별). 제거된 메모 수 반환.
+  /// 즉시 영구삭제 (휴지통 항목 개별). 활성 메모(deletedAt == null)는 무변경.
+  /// 제거된 메모 수 반환.
   static Future<int> deleteForever(Set<String> ids) =>
-      _removeWhere((m) => ids.contains(m.id));
+      _removeWhere((m) => ids.contains(m.id) && m.deletedAt != null);
 
   /// 휴지통 비우기. 활성 메모(deletedAt == null)는 무변경. 제거된 메모 수 반환.
   static Future<int> emptyTrash() => _removeWhere((m) => m.deletedAt != null);
