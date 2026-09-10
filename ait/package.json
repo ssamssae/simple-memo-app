@@ -1,19 +1,24 @@
 {
   "name": "ait",
   "version": "1.0.0",
-  "description": "",
+  "description": "메모요 앱인토스 웹뷰 래퍼 (Granite)",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "copy-flutter": "rm -rf dist && cp -r ../build/web dist",
-    "serve-flutter": "npx http-server ../build/web -p 5173"
+    "copy-flutter": "node scripts/prepare-web.mjs",
+    "serve-flutter": "npm run copy-flutter && npx http-server dist -p 5173",
+    "dev": "npm run serve-flutter",
+    "build": "npm run copy-flutter && ait build",
+    "test": "node --test tests/*.test.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@apps-in-toss/web-framework": "^2.10.6"
+    "@apps-in-toss/web-framework": "3.1.1"
   },
   "devDependencies": {
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "http-server": "14.1.1"
   }
 }

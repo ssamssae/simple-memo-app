@@ -51,18 +51,18 @@ class AitMemoStore {
     }
   }
 
-  /// 본편 MemoStorage.purgeExpiredTrash 와 동일 계약 — 보관기간([Memo.trashRetention])
-  /// 지난 soft-deleted 메모만 영구 삭제. 활성 메모는 절대 건드리지 않는다.
-  static Future<int> purgeExpiredTrash() async {
+  /// 즉시 영구삭제 (휴지통 항목 개별). 활성 메모는 무변경. PR140/ec6ac56 대조.
+  static Future<int> deleteForever(Set<String> ids) =>
+      _removeWhere((m) => ids.contains(m.id) && m.deletedAt != null);
+
+  /// 휴지통 비우기. 활성 메모는 무변경. 시간 경과 자동삭제는 없다.
+  static Future<int> emptyTrash() => _removeWhere((m) => m.deletedAt != null);
+
+  static Future<int> _removeWhere(bool Function(Memo) shouldRemove) async {
     final all = await loadMemos();
-    final cutoff = DateTime.now().subtract(Memo.trashRetention);
-    final survivors = all.where((m) {
-      final d = m.deletedAt;
-      if (d == null) return true;
-      return d.isAfter(cutoff);
-    }).toList();
-    final purged = all.length - survivors.length;
-    if (purged > 0) await saveMemos(survivors);
-    return purged;
+    final survivors = all.where((m) => !shouldRemove(m)).toList();
+    final removed = all.length - survivors.length;
+    if (removed > 0) await saveMemos(survivors);
+    return removed;
   }
 }
