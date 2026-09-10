@@ -1,7 +1,7 @@
 // T-260718-058 앱인토스 정식 래퍼 — 메모 목록(홈) 화면.
 //
 // 본편 memo_list_screen 의 핵심 계약 유지: 활성 메모만 표시, 즐겨찾기 섹션 우선,
-// soft-delete(휴지통行) + UNDO 스낵바, cold start 에서 만료 휴지통 purge.
+// soft-delete(휴지통行) + UNDO 스낵바. 시간 경과 자동 영구삭제는 하지 않는다 (T-260909-026).
 // 광고·리뷰 유도·멀티선택·수동 재정렬은 미니앱 스코프 밖 (T-260718-057 문구 정합).
 // 루트 뒤로가기 = 앱인토스 closeView (스파이크 (b) 항 실증 계약 유지).
 import 'package:flutter/material.dart';
@@ -29,11 +29,10 @@ class _AitMemoListScreenState extends State<AitMemoListScreen> {
   @override
   void initState() {
     super.initState();
-    _load(purge: true);
+    _load();
   }
 
-  Future<void> _load({bool purge = false}) async {
-    if (purge) await AitMemoStore.purgeExpiredTrash();
+  Future<void> _load() async {
     final memos = await AitMemoStore.loadMemos();
     if (!mounted) return;
     setState(() {

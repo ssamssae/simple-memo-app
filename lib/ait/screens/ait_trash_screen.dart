@@ -1,8 +1,7 @@
 // T-260718-058 앱인토스 정식 래퍼 — 휴지통 화면.
 //
 // 본편 trash_screen 과 같은 계약: soft-deleted(deletedAt != null) 만 표시,
-// 복구 = deletedAt 해제, 영구 삭제 = 리스트에서 제거. D-day 표기는
-// [Memo.timeUntilPurge] 기준.
+// 복구 = deletedAt 해제, 영구 삭제·비우기는 명시 동작만. 시간 경과 자동삭제 없음.
 import 'package:flutter/material.dart';
 
 import '../../models/memo.dart';
@@ -65,8 +64,8 @@ class _AitTrashScreenState extends State<AitTrashScreen> {
       ),
     );
     if (confirmed != true) return;
-    _all.removeWhere((m) => m.id == memo.id);
-    await _persist();
+    await AitMemoStore.deleteForever({memo.id});
+    await _load();
   }
 
   Future<void> _emptyTrash() async {
@@ -82,14 +81,14 @@ class _AitTrashScreenState extends State<AitTrashScreen> {
       ),
     );
     if (confirmed != true) return;
-    _all.removeWhere((m) => m.isInTrash);
-    await _persist();
+    await AitMemoStore.emptyTrash();
+    await _load();
   }
 
-  String _purgeLabel(Memo memo) {
-    final days = memo.timeUntilPurge.inDays;
-    if (days <= 0) return '곧 자동 삭제';
-    return '$days일 후 자동 삭제';
+  String _deletedLabel(Memo memo) {
+    final d = memo.deletedAt;
+    if (d == null) return '';
+    return '${d.year}.${d.month.toString().padLeft(2, '0')}.${d.day.toString().padLeft(2, '0')} 삭제';
   }
 
   @override
@@ -119,7 +118,7 @@ class _AitTrashScreenState extends State<AitTrashScreen> {
                       final m = trashed[i];
                       return ListTile(
                         title: Text(m.firstLine, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(_purgeLabel(m)),
+                        subtitle: Text(_deletedLabel(m)),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
