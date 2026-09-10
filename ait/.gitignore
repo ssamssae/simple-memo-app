@@ -3,3 +3,4 @@ dist/
 *.ait
 *.log
 .granite/
+.apps-in-toss/
