@@ -33,6 +33,23 @@ class MemoryStorage {
     if (key === this.failKey) throw new Error('fixture write failure');
     this.values.set(key, value);
   }
+  removeItem(key) {
+    this.values.delete(key);
+  }
+}
+
+class FailOnceKeyStorage extends MemoryStorage {
+  constructor(failKey) {
+    super();
+    this.onceKey = failKey;
+  }
+  setItem(key, value) {
+    if (key === this.onceKey) {
+      this.onceKey = null;
+      throw new Error('one-time write failure');
+    }
+    super.setItem(key, value);
+  }
 }
 
 function dumps(previous = {}, current = {}, errors = {}) {
@@ -143,5 +160,55 @@ test('origin API rejection blocks without writing user data', async () => {
   assert.equal(result.status, 'blocked');
   assert.equal(result.reason, 'storage_or_origin_unavailable');
   assert.equal(storage.getItem('memos'), null);
+  assert.equal(storage.getItem(MIGRATION_MARKER_KEY), null);
+});
+
+test('second key one-time failure then retry completes both values and marker', () => {
+  const previous = { memos: memosRaw, 'flutter.memos': flutterMemosRaw };
+  const storage = new FailOnceKeyStorage('flutter.memos');
+  const first = applyOriginStorageMigration(planOriginStorageMigration(dumps(previous), storage), storage);
+  assert.equal(first.status, 'blocked');
+  assert.equal(first.reason, 'write_failed');
+  assert.equal(storage.getItem(MIGRATION_MARKER_KEY), null);
+
+  const retry = applyOriginStorageMigration(planOriginStorageMigration(dumps(previous), storage), storage);
+  assert.equal(retry.status, 'complete');
+  assert.equal(storage.getItem('memos'), memosRaw);
+  assert.equal(storage.getItem('flutter.memos'), flutterMemosRaw);
+  assert.equal(JSON.parse(storage.getItem(MIGRATION_MARKER_KEY)).status, 'complete');
+});
+
+test('marker one-time failure then retry completes', () => {
+  const previous = { memos: memosRaw, 'flutter.memos': flutterMemosRaw };
+  const storage = new FailOnceKeyStorage(MIGRATION_MARKER_KEY);
+  const first = applyOriginStorageMigration(planOriginStorageMigration(dumps(previous), storage), storage);
+  assert.equal(first.status, 'blocked');
+  assert.equal(first.reason, 'write_failed');
+  assert.equal(storage.getItem('memos'), memosRaw);
+  assert.equal(storage.getItem('flutter.memos'), flutterMemosRaw);
+  assert.equal(storage.getItem(MIGRATION_MARKER_KEY), null);
+
+  const retry = applyOriginStorageMigration(planOriginStorageMigration(dumps(previous), storage), storage);
+  assert.equal(retry.status, 'complete');
+  assert.equal(storage.getItem('memos'), memosRaw);
+  assert.equal(storage.getItem('flutter.memos'), flutterMemosRaw);
+  assert.equal(JSON.parse(storage.getItem(MIGRATION_MARKER_KEY)).status, 'complete');
+});
+
+test('actual value different from previous stays blocked and is not overwritten', () => {
+  const currentList = JSON.stringify([{ ...memoList[0], content: '현재값' }]);
+  const storage = new FailOnceKeyStorage('flutter.memos');
+  applyOriginStorageMigration(
+    planOriginStorageMigration(dumps({ memos: memosRaw, 'flutter.memos': flutterMemosRaw }), storage),
+    storage,
+  );
+  storage.setItem('memos', currentList);
+  const retry = planOriginStorageMigration(
+    dumps({ memos: memosRaw, 'flutter.memos': flutterMemosRaw }),
+    storage,
+  );
+  assert.equal(retry.status, 'blocked');
+  assert.equal(retry.conflicts[0].reason, 'current_value_wins');
+  assert.equal(storage.getItem('memos'), currentList);
   assert.equal(storage.getItem(MIGRATION_MARKER_KEY), null);
 });

@@ -92,6 +92,7 @@ export function planOriginStorageMigration(dumps, actualStorage) {
   }
 
   const writes = [];
+  const already = [];
   const conflicts = [];
   const invalid = [];
   for (const key of OWNED_STORAGE_KEYS) {
@@ -104,47 +105,70 @@ export function planOriginStorageMigration(dumps, actualStorage) {
     const dumpRaw = current.localStorage[key];
     const actualRaw = actualStorage.getItem(key);
     const normalizedDump = dumpRaw === undefined ? null : dumpRaw;
-    if (actualRaw !== normalizedDump) {
+    if (actualRaw === previousRaw) {
+      already.push(key);
+      continue;
+    }
+    if (actualRaw !== null && actualRaw !== previousRaw) {
+      if (!validOwnedValue(actualRaw)) invalid.push(key);
+      else conflicts.push({ key, reason: 'current_value_wins' });
+      continue;
+    }
+    if (normalizedDump !== null) {
       conflicts.push({ key, reason: 'current_dump_stale' });
       continue;
     }
-    if (actualRaw === null) {
-      writes.push({ key, value: previousRaw });
-    } else if (!validOwnedValue(actualRaw)) {
-      invalid.push(key);
-    } else if (actualRaw !== previousRaw) {
-      conflicts.push({ key, reason: 'current_value_wins' });
-    }
+    writes.push({ key, value: previousRaw });
   }
   if (invalid.length > 0 || conflicts.length > 0) {
     return { status: 'blocked', reason: 'validation_or_conflict', invalid, conflicts, writes: [] };
   }
-  return { status: 'ready', writes };
+  return { status: 'ready', writes, already };
+}
+
+function rollbackOwnWrites(storage, plan, writtenKeys) {
+  const expected = new Map((plan.writes || []).map((item) => [item.key, item.value]));
+  for (const key of writtenKeys) {
+    const value = expected.get(key);
+    if (value === undefined) continue;
+    if (storage.getItem(key) !== value) continue;
+    if (typeof storage.removeItem === 'function') storage.removeItem(key);
+  }
 }
 
 export function applyOriginStorageMigration(plan, storage, now = () => new Date()) {
   if (plan.status === 'already_complete') return plan;
   if (plan.status !== 'ready') return plan;
   const written = [];
+  let phase = 'data';
   try {
     for (const item of plan.writes) {
-      if (storage.getItem(item.key) !== null) {
-        return { status: 'blocked', reason: 'write_race', written };
+      const existing = storage.getItem(item.key);
+      if (existing === item.value) {
+        written.push(item.key);
+        continue;
+      }
+      if (existing !== null) {
+        rollbackOwnWrites(storage, plan, written);
+        return { status: 'blocked', reason: 'write_race', written: [] };
       }
       storage.setItem(item.key, item.value);
       written.push(item.key);
     }
+    phase = 'marker';
+    const migratedKeys = [...(plan.already || []), ...written];
     storage.setItem(
       MIGRATION_MARKER_KEY,
       JSON.stringify({
         version: 1,
         status: 'complete',
-        migratedKeys: written,
+        migratedKeys,
         completedAt: now().toISOString(),
       }),
     );
-    return { status: 'complete', written };
+    return { status: 'complete', written: migratedKeys };
   } catch (error) {
+    if (phase === 'data') rollbackOwnWrites(storage, plan, written);
     return { status: 'blocked', reason: 'write_failed', written, error: String(error) };
   }
 }
