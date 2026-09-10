@@ -212,3 +212,17 @@ test('actual value different from previous stays blocked and is not overwritten'
   assert.equal(storage.getItem('memos'), currentList);
   assert.equal(storage.getItem(MIGRATION_MARKER_KEY), null);
 });
+
+test('rollback must not delete an exact pre-existing value installed after planning', () => {
+  const previous = { memos: memosRaw, 'flutter.memos': flutterMemosRaw };
+  const storage = new MemoryStorage();
+  const plan = planOriginStorageMigration(dumps(previous), storage);
+  storage.setItem('memos', memosRaw);
+  storage.failKey = 'flutter.memos';
+  const result = applyOriginStorageMigration(plan, storage);
+  assert.equal(result.status, 'blocked');
+  assert.equal(result.reason, 'write_failed');
+  assert.equal(storage.getItem('memos'), memosRaw);
+  assert.equal(storage.getItem('flutter.memos'), null);
+  assert.equal(storage.getItem(MIGRATION_MARKER_KEY), null);
+});

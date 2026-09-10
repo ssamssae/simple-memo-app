@@ -140,12 +140,13 @@ export function applyOriginStorageMigration(plan, storage, now = () => new Date(
   if (plan.status === 'already_complete') return plan;
   if (plan.status !== 'ready') return plan;
   const written = [];
+  const already = [...(plan.already || [])];
   let phase = 'data';
   try {
     for (const item of plan.writes) {
       const existing = storage.getItem(item.key);
       if (existing === item.value) {
-        written.push(item.key);
+        already.push(item.key);
         continue;
       }
       if (existing !== null) {
@@ -156,7 +157,7 @@ export function applyOriginStorageMigration(plan, storage, now = () => new Date(
       written.push(item.key);
     }
     phase = 'marker';
-    const migratedKeys = [...(plan.already || []), ...written];
+    const migratedKeys = [...already, ...written];
     storage.setItem(
       MIGRATION_MARKER_KEY,
       JSON.stringify({
