@@ -27,11 +27,19 @@ Keep outside this domain when:
 - `services/memo_storage.dart` (legacy) now imports `AttachmentStore` so that the single
   permanent-delete funnel (`deleteForever` / `emptyTrash`) also removes
   attachment files. That dependency points legacy → domain on purpose: file cleanup must never
-  be skipped by a new delete path. Known exception (1단계): backup restore
-  (`export_import_service.dart` → `saveMemos(restored)`) replaces the list without the funnel, so
-  pre-restore attachments become orphans and are collected by the cold-start sweep (`minAge` 1 day;
-  skipped while the memo list is empty). Routing restore through the funnel is part of T-260829-024.
+  be skipped by a new delete path. Permanent deletion and the cold-start orphan sweep also
+  retain files referenced by the last import snapshot, so undo can restore its photos.
 - Test seam: `AttachmentThumbnail.decodeImages` (static, test-only by convention) and
   `MemoListScreenState.resetOrphanSweepForTest()` / `markOrphanSweepDoneForTest()`. Widget tests
   must seed files in `setUp` and wrap real-IO interactions in `tester.runAsync` — real `dart:io`
   awaits inside a `testWidgets` body hang under FakeAsync.
+
+## Photo backups (T-260829-024)
+
+- `services/memo_backup_archive.dart` owns the ZIP format (`memos.json` and `attachments/`),
+  legacy JSON decoding, CRC/path/reference validation and bounded decompression.
+- Legacy `export_import_service.dart` shares that codec between the file picker and Drive.
+  Only photos used by winning incoming memos are installed under new UUID names; persistence
+  failure removes newly created files and restores the prior memo list and undo snapshot.
+- `snapshot_store.dart` exposes photo references for permanent deletion and cold-start cleanup.
+  Imported files become eligible for cleanup after undo succeeds or the snapshot is replaced.

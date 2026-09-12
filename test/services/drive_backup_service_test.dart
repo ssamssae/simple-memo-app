@@ -286,7 +286,7 @@ void main() {
   });
 
   group('DriveBackupService.downloadBackupContent', () {
-    test('Media stream → utf8 디코드 문자열', () async {
+    test('Media stream은 JSON·ZIP 공통 바이트로 반환한다', () async {
       final api = _MockDriveApi();
       final files = _MockFilesResource();
       when(() => api.files).thenReturn(files);
@@ -304,7 +304,7 @@ void main() {
 
       final content =
           await DriveBackupService.downloadBackupContentForTest(api, 'file123');
-      expect(content, jsonStr);
+      expect(content, bytes);
     });
   });
 }

@@ -1,18 +1,28 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../features/memos/services/attachment_store.dart';
 import '../models/memo.dart';
+import 'snapshot_store.dart';
 
 class MemoStorage {
   static const _key = 'memos';
 
-  static Future<List<Memo>> loadMemos() async {
+  static Future<List<Memo>> loadMemos({bool throwOnError = false}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final data = prefs.getString(_key);
       if (data == null || data.isEmpty) return [];
+      if (throwOnError) {
+        final decoded = jsonDecode(data);
+        if (decoded is! List || decoded.any((row) => row is! Map<String, dynamic>)) {
+          throw const FormatException('Could not read existing memos');
+        }
+      }
       return Memo.decodeList(data);
     } catch (e) {
+      if (throwOnError) rethrow;
       return [];
     }
   }
@@ -20,8 +30,7 @@ class MemoStorage {
   static Future<bool> saveMemos(List<Memo> memos) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_key, Memo.encodeList(memos));
-      return true;
+      return await prefs.setString(_key, Memo.encodeList(memos));
     } catch (e) {
       // 저장 실패 시 크래시 방지 — 다음 저장 시 재시도됨
       debugPrint('[MemoStorage.saveMemos] $e');
@@ -54,6 +63,12 @@ class MemoStorage {
     final store = AttachmentStore.maybeInstance;
     if (store != null) {
       final stillReferenced = survivors.expand((m) => m.imageFiles).toSet();
+      try {
+        stillReferenced.addAll(await SnapshotStore.referencedImages());
+      } catch (_) {
+        // If undo metadata cannot be read, keep files until references are known.
+        return removed.length;
+      }
       final orphaned = removed
           .expand((m) => m.imageFiles)
           .where((name) => !stillReferenced.contains(name));

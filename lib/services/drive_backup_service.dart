@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io';
 
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
@@ -6,6 +6,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 
 import '../models/memo.dart';
+import '../features/memos/services/memo_backup_archive.dart';
+import 'export_import_service.dart';
 
 sealed class DriveBackupResult {
   const DriveBackupResult();
@@ -26,6 +28,14 @@ class DriveBackupPermissionDenied extends DriveBackupResult {
 
 class DriveBackupQuotaExceeded extends DriveBackupResult {
   const DriveBackupQuotaExceeded();
+}
+
+class DriveBackupPhotoUnavailable extends DriveBackupResult {
+  const DriveBackupPhotoUnavailable();
+}
+
+class DriveBackupTooLarge extends DriveBackupResult {
+  const DriveBackupTooLarge();
 }
 
 class DriveBackupUnknown extends DriveBackupResult {
@@ -97,6 +107,8 @@ class DriveBackupService {
   }
 
   static DriveBackupResult mapErrorForTest(Object e) {
+    if (e is BackupPhotoUnavailableException) return const DriveBackupPhotoUnavailable();
+    if (e is BackupSizeException) return const DriveBackupTooLarge();
     if (e is SocketException) return const DriveBackupNetworkError();
     if (e is DriveBackupDownloadAuthException) {
       return const DriveBackupPermissionDenied();
@@ -144,7 +156,7 @@ class DriveBackupService {
     String folderId,
   ) async {
     final query =
-        "'$folderId' in parents and mimeType = 'application/json' and trashed = false";
+        "'$folderId' in parents and (mimeType = 'application/json' or mimeType = 'application/zip') and trashed = false";
     final list = await api.files.list(
       q: query,
       spaces: 'drive',
@@ -163,7 +175,7 @@ class DriveBackupService {
     ];
   }
 
-  static Future<String> downloadBackup(String fileId) async {
+  static Future<Uint8List> downloadBackup(String fileId) async {
     final authz = await _authorize();
     if (authz == null) {
       throw const DriveBackupDownloadAuthException();
@@ -172,7 +184,7 @@ class DriveBackupService {
     return downloadBackupContentForTest(api, fileId);
   }
 
-  static Future<String> downloadBackupContentForTest(
+  static Future<Uint8List> downloadBackupContentForTest(
     drive.DriveApi api,
     String fileId,
   ) async {
@@ -180,35 +192,28 @@ class DriveBackupService {
       fileId,
       downloadOptions: drive.DownloadOptions.fullMedia,
     ) as drive.Media;
-    final bytes = <int>[];
+    final bytes = BytesBuilder(copy: false);
     await for (final chunk in media.stream) {
-      bytes.addAll(chunk);
+      if (bytes.length + chunk.length > MemoBackupArchive.maxBytes) throw BackupSizeException();
+      bytes.add(chunk);
     }
-    return utf8.decode(bytes);
+    return bytes.takeBytes();
   }
 
   static Future<DriveBackupResult> uploadBackup(List<Memo> memos) async {
     try {
+      final bytes = await ExportImportService.exportBytes(memos);
       final authz = await _authorize();
       if (authz == null) return const DriveBackupPermissionDenied();
 
       final api = drive.DriveApi(authz.authClient(scopes: _scopes));
       final folderId = await ensureMemoyoFolderForTest(api);
 
-      final ts = DateTime.now()
-          .toIso8601String()
-          .replaceAll(':', '-')
-          .split('.')
-          .first;
-      final filename = 'memoyo-export-$ts.json';
-      final jsonStr = Memo.encodeList(memos);
-      final bytes = utf8.encode(jsonStr);
-
-      await uploadJsonFileForTest(
+      await uploadBackupFileForTest(
         api,
         folderId: folderId,
-        filename: filename,
-        jsonBytes: bytes,
+        filename: ExportImportService.backupFileName(),
+        bytes: bytes,
       );
 
       await rotateForTest(api, folderId: folderId, keep: 7);
@@ -226,7 +231,7 @@ class DriveBackupService {
     required int keep,
   }) async {
     final query =
-        "'$folderId' in parents and mimeType = 'application/json' and trashed = false";
+        "'$folderId' in parents and (mimeType = 'application/json' or mimeType = 'application/zip') and trashed = false";
     final list = await api.files.list(
       q: query,
       spaces: 'drive',
@@ -247,16 +252,27 @@ class DriveBackupService {
     required String filename,
     required List<int> jsonBytes,
   }) async {
+    return uploadBackupFileForTest(api, folderId: folderId, filename: filename,
+      bytes: jsonBytes, contentType: 'application/json');
+  }
+
+  static Future<String> uploadBackupFileForTest(
+    drive.DriveApi api, {
+    required String folderId,
+    required String filename,
+    required List<int> bytes,
+    String contentType = 'application/zip',
+  }) async {
     final media = drive.Media(
-      Stream<List<int>>.fromIterable([jsonBytes]),
-      jsonBytes.length,
-      contentType: 'application/json',
+      Stream<List<int>>.fromIterable([bytes]),
+      bytes.length,
+      contentType: contentType,
     );
     final result = await api.files.create(
       drive.File()
         ..name = filename
         ..parents = [folderId]
-        ..mimeType = 'application/json',
+        ..mimeType = contentType,
       uploadMedia: media,
       $fields: 'id',
     );
@@ -266,7 +282,7 @@ class DriveBackupService {
   static Future<List<Memo>?> downloadLatestForTest(drive.DriveApi api) async {
     final folderId = await ensureMemoyoFolderForTest(api);
     final query =
-        "'$folderId' in parents and mimeType = 'application/json' and trashed = false";
+        "'$folderId' in parents and (mimeType = 'application/json' or mimeType = 'application/zip') and trashed = false";
     final list = await api.files.list(
       q: query,
       spaces: 'drive',
@@ -276,16 +292,8 @@ class DriveBackupService {
     final files = list.files ?? [];
     if (files.isEmpty) return null;
     final latest = files.first;
-    final media = await api.files.get(
-      latest.id!,
-      downloadOptions: drive.DownloadOptions.fullMedia,
-    ) as drive.Media;
-    final bytes = <int>[];
-    await for (final chunk in media.stream) {
-      bytes.addAll(chunk);
-    }
-    final jsonStr = utf8.decode(bytes);
-    return Memo.decodeList(jsonStr);
+    final bytes = await downloadBackupContentForTest(api, latest.id!);
+    return MemoBackupArchive.decode(bytes).memos;
   }
 
   static Future<String> ensureMemoyoFolderForTest(drive.DriveApi api) async {

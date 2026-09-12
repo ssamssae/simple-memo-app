@@ -59,11 +59,11 @@ void main() {
 
   // 실제 IO 완료를 조건으로 기다린다 — 고정 sleep 보다 빠르고 느린 CI 에서 안전.
   Future<void> waitUntil(
-    bool Function() done, {
+    FutureOr<bool> Function() done, {
     Duration timeout = const Duration(seconds: 5),
   }) async {
     final deadline = DateTime.now().add(timeout);
-    while (!done()) {
+    while (!await done()) {
       if (DateTime.now().isAfter(deadline)) {
         throw TimeoutException('waitUntil');
       }
@@ -81,15 +81,26 @@ void main() {
   // 사이에 진짜 레이스가 있다. 실측: 이 예측대로 바꾸자 AttachmentThumbnail 위젯 카운트가
   // 1개 모자라거나(편집 취소 테스트) longPress 대상 위젯을 못 찾는(즉시삭제 테스트) 실패가
   // 재현됐다. 이 헬퍼처럼 "디스크 상태 확인 뒤 곧바로 위젯 트리를 확인"하는 호출부는
-  // 고정 지연이 정답이다 — waitUntil 은 이후에 위젯을 보지 않는 순수 디스크 확인
-  // (아래 "저장 시점에 파일 삭제" 테스트)에만 쓴다.
-  Future<void> addViaSheet(WidgetTester tester, String action) async {
+  // 디스크 개수만 기다려서는 안 된다. 완료 안내가 있는 흐름은 프레임을 그리며
+  // 실제 위젯 상태를 기다린다. 복수 추가는 느린 CI에서 300ms를 넘길 수 있다.
+  Future<void> addViaSheet(
+    WidgetTester tester,
+    String action, {
+    Finder? completed,
+  }) async {
     await tester.runAsync(() async {
       await tester.tap(find.byTooltip('사진 추가'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(CupertinoActionSheetAction, action));
       await tester.pumpAndSettle();
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      if (completed == null) {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      } else {
+        await waitUntil(() async {
+          await tester.pump();
+          return completed.evaluate().isNotEmpty;
+        });
+      }
     });
     await tester.pumpAndSettle();
   }
@@ -184,7 +195,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await addViaSheet(tester, '사진첩');
+    await addViaSheet(tester, '사진첩',
+        completed: find.text('사진은 메모당 최대 10장까지예요'));
 
     expect(port.lastGalleryLimit, 2);
     expect(find.byType(AttachmentThumbnail), findsNWidgets(10));

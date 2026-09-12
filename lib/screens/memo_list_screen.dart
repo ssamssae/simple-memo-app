@@ -8,6 +8,7 @@ import '../l10n/app_strings.dart';
 import '../models/memo.dart';
 import '../services/app_review_service.dart';
 import '../services/memo_storage.dart';
+import '../services/snapshot_store.dart';
 import '../services/settings_service.dart';
 import '../utils/app_palette.dart';
 import 'memo_edit_screen.dart';
@@ -230,7 +231,13 @@ class MemoListScreenState extends State<MemoListScreen>
       if (store != null && !_orphanSweepDone) {
         _orphanSweepDone = true;
         if (memos.isNotEmpty) {
-          unawaited(store.sweepOrphans(memos.expand((m) => m.imageFiles)));
+          try {
+            final referenced = memos.expand((m) => m.imageFiles).toSet()
+              ..addAll(await SnapshotStore.referencedImages());
+            unawaited(store.sweepOrphans(referenced));
+          } catch (_) {
+            // Keep photos when undo metadata is unreadable; still display memos.
+          }
         }
       }
       if (!mounted) return;
