@@ -3,11 +3,11 @@
 // window.__AIT__ 표면(dart:js_interop)으로 소비한다.
 import { Storage, closeView, getPlatformOS, getSafeAreaInsets } from '@apps-in-toss/web-framework';
 
-// 토스 러닝타임 감지 — bridge-core 가 쓰는 주입 마커 실측 기준
-// (window.ReactNativeWebView + __GRANITE_NATIVE_EMITTER).
+// SDK3의 WebView 환경 검사와 동일한 조건. 이전 SDK의 private emitter는
+// SDK3 호스트에 없으므로 저장소 사용 여부를 판정하는 데 쓰지 않는다.
 const available =
   typeof window !== 'undefined' &&
-  !!(window.ReactNativeWebView && window.__GRANITE_NATIVE_EMITTER);
+  window.ReactNativeWebView != null;
 
 const AIT = {
   available,
