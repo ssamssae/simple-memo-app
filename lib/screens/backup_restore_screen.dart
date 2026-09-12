@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/memo.dart';
+import '../features/memos/services/memo_backup_archive.dart';
 import '../services/drive_backup_service.dart';
 import '../services/export_import_service.dart';
 import '../services/memo_storage.dart';
@@ -16,7 +17,7 @@ import '../l10n/app_strings.dart';
 // 설정 → "백업 & 복원" 단일 진입점으로 모은 화면.
 //
 // 백업 대상 = 활성 메모만(deletedAt == null) — 휴지통은 로컬 안전망이라 복원본에
-// 섞이면 혼란(본진 결정 #6). DriveBackupService 는 무수정, 호출만 이 화면으로 이동.
+// 섞이면 혼란(본진 결정 #6). 파일·Drive 백업은 같은 ZIP 형식을 사용한다.
 //
 // Drive 함수는 SettingsScreen 의 openReviewListing 패턴처럼 주입 가능 —
 // 위젯 테스트에서 실제 sign-in 없이 mock 주입.
@@ -26,11 +27,15 @@ class BackupRestoreScreen extends StatefulWidget {
     this.uploadBackup,
     this.listBackups,
     this.downloadBackup,
+    this.saveBackupFile,
+    this.pickBackupFile,
   });
 
   final Future<DriveBackupResult> Function(List<Memo> memos)? uploadBackup;
   final Future<DriveBackupListResult> Function()? listBackups;
-  final Future<String> Function(String fileId)? downloadBackup;
+  final Future<List<int>> Function(String fileId)? downloadBackup;
+  final Future<bool> Function(List<Memo> memos)? saveBackupFile;
+  final Future<(int, int)?> Function()? pickBackupFile;
 
   static const _lastBackupKey = 'memoyo_last_backup_at';
 
@@ -43,6 +48,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   bool _isLoading = true;
   bool _isBackupRunning = false;
   bool _isRestoreRunning = false;
+  bool _isFileRunning = false;
+  bool get _busy => _isBackupRunning || _isRestoreRunning || _isFileRunning;
   DateTime? _lastBackupAt;
 
   @override
@@ -64,7 +71,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   }
 
   Future<void> _handleBackup() async {
-    if (_isBackupRunning) return;
+    if (_busy) return;
     if (_activeMemos.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppStrings.of(context).noMemosToExport)),
@@ -134,6 +141,14 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppStrings.of(context).driveQuotaExceeded)),
         );
+      case DriveBackupPhotoUnavailable():
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.of(context).backupPhotoUnavailable)),
+        );
+      case DriveBackupTooLarge():
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.of(context).backupTooLarge)),
+        );
       case DriveBackupUnknown(:final message):
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppStrings.of(context).driveBackupFailed(message))),
@@ -142,7 +157,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   }
 
   Future<void> _handleRestore() async {
-    if (_isRestoreRunning) return;
+    if (_busy) return;
     setState(() => _isRestoreRunning = true);
     final list = widget.listBackups ?? DriveBackupService.listBackups;
     final listResult = await list();
@@ -179,26 +194,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           widget.downloadBackup ?? DriveBackupService.downloadBackup;
       final source = await download(backup.id);
       final (incoming, total) =
-          await ExportImportService.importFromSource(source);
-      if (!mounted) return;
-      if (incoming == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.of(context).noMemosToImport)),
-        );
-        return;
-      }
-      // 가져오기로 활성 메모가 바뀜 → 화면 상단 카운트/대상 갱신.
-      await _load();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppStrings.of(context).importedMemos(incoming, total)),
-          action: SnackBarAction(
-            label: AppStrings.of(context).undo,
-            onPressed: _handleUndoImport,
-          ),
-        ),
-      );
+          await ExportImportService.importBytes(source);
+      await _showImported((incoming, total));
     } on FormatException {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -213,14 +210,90 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     }
   }
 
-  Future<void> _handleUndoImport() async {
-    final restored = await ExportImportService.undoImport();
-    if (restored == null) return;
+  Future<void> _showImported((int, int)? result) async {
+    if (result == null || !mounted) return;
+    final (incoming, total) = result;
+    if (incoming == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.of(context).noMemosToImport)),
+      );
+      return;
+    }
     await _load();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppStrings.of(context).restoredPrevious(restored.length))),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(AppStrings.of(context).importedMemos(incoming, total)),
+      action: SnackBarAction(label: AppStrings.of(context).undo, onPressed: _handleUndoImport),
+    ));
+  }
+
+  Future<void> _handleFileBackup() async {
+    if (_busy) return;
+    if (_activeMemos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.of(context).noMemosToExport)),
+      );
+      return;
+    }
+    setState(() => _isFileRunning = true);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    try {
+      final saved = await (widget.saveBackupFile ?? ExportImportService.saveBackupFile)(_activeMemos);
+      if (saved && mounted) {
+        await _recordBackupTime();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.of(context).backupFileSaved)),
+        );
+      }
+    } catch (error) {
+      _showFileError(error);
+    } finally {
+      if (mounted) setState(() => _isFileRunning = false);
+    }
+  }
+
+  Future<void> _handleFileRestore() async {
+    if (_busy) return;
+    setState(() => _isFileRunning = true);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    try {
+      await _showImported(await (widget.pickBackupFile ?? ExportImportService.pickAndImport)());
+    } catch (error) {
+      _showFileError(error);
+    } finally {
+      if (mounted) setState(() => _isFileRunning = false);
+    }
+  }
+
+  void _showFileError(Object error) {
+    if (!mounted) return;
+    final strings = AppStrings.of(context);
+    final message = switch (error) {
+      BackupPhotoUnavailableException() => strings.backupPhotoUnavailable,
+      BackupSizeException() => strings.backupTooLarge,
+      FormatException() => strings.invalidBackupFile,
+      _ => strings.fileBackupFailed,
+    };
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _handleUndoImport() async {
+    if (_busy) return;
+    setState(() => _isFileRunning = true);
+    try {
+      final restored = await ExportImportService.undoImport();
+      if (restored == null) return;
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.of(context).restoredPrevious(restored.length))),
+      );
+    } catch (error) {
+      _showFileError(error);
+    } finally {
+      if (mounted) setState(() => _isFileRunning = false);
+    }
   }
 
   void _showDriveError(
@@ -232,6 +305,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       DriveBackupNetworkError() => AppStrings.of(context).checkInternet,
       DriveBackupPermissionDenied() => AppStrings.of(context).drivePermissionNeeded,
       DriveBackupQuotaExceeded() => AppStrings.of(context).driveQuotaExceeded,
+      DriveBackupPhotoUnavailable() => AppStrings.of(context).backupPhotoUnavailable,
+      DriveBackupTooLarge() => AppStrings.of(context).backupTooLarge,
       DriveBackupUnknown(:final message) => AppStrings.of(context).actionFailed(label, message),
       DriveBackupSuccess() => AppStrings.of(context).actionDone(label),
     };
@@ -352,9 +427,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  // 1단계(T-260829-022): 백업 JSON 엔 사진 파일명만 실리고 실물은 안 간다.
                   Text(
-                    AppStrings.of(context).photosNotInBackup,
+                    AppStrings.of(context).photosIncludedInBackup,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: palette.textSecondary.withValues(alpha: 0.8),
@@ -363,7 +437,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   ),
                   const SizedBox(height: 28),
                   FilledButton.icon(
-                    onPressed: _isBackupRunning ? null : _handleBackup,
+                    onPressed: _busy ? null : _handleBackup,
                     style: FilledButton.styleFrom(
                       // 바탕과 최대 대비를 내는 반전 버튼 — 두 테마에서 방향만 뒤집힌다.
                       backgroundColor: palette.textPrimary,
@@ -384,7 +458,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
-                    onPressed: _isRestoreRunning ? null : _handleRestore,
+                    onPressed: _busy ? null : _handleRestore,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: palette.textPrimary,
                       side: BorderSide(color: palette.textPrimary),
@@ -401,6 +475,18 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           )
                         : const Icon(Icons.restore_outlined),
                     label: Text(_isRestoreRunning ? AppStrings.of(context).restoring : AppStrings.of(context).restore),
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  TextButton.icon(
+                    onPressed: _busy ? null : _handleFileBackup,
+                    icon: const Icon(Icons.save_alt),
+                    label: Text(AppStrings.of(context).backupToFile),
+                  ),
+                  TextButton.icon(
+                    onPressed: _busy ? null : _handleFileRestore,
+                    icon: const Icon(Icons.folder_open),
+                    label: Text(AppStrings.of(context).restoreFromFile),
                   ),
                 ],
               ),

@@ -391,9 +391,21 @@ class AppStrings {
   String get deletePhotoConfirmTitle => isEnglish ? 'Delete photo' : '사진 삭제';
   String get deletePhotoConfirmBody =>
       isEnglish ? 'Delete this photo?' : '이 사진을 지울까요?';
-  String get photosNotInBackup => isEnglish
-      ? 'Photos are not included in backups'
-      : '사진은 백업에 포함되지 않습니다';
+  String get photosIncludedInBackup => isEnglish
+      ? 'Backups include notes and photos. Older JSON backups can also be restored.'
+      : '메모와 사진을 함께 백업합니다. 이전 JSON 백업도 복원할 수 있어요.';
+  String get backupToFile => isEnglish ? 'Back up to file' : '파일로 백업';
+  String get restoreFromFile => isEnglish ? 'Restore from file' : '파일에서 복원';
+  String get backupFileSaved => isEnglish ? 'Backup file saved' : '백업 파일을 저장했어요';
+  String get backupPhotoUnavailable => isEnglish
+      ? 'Some photos are missing or cannot be read. Check the attached photos and try again.'
+      : '일부 사진을 찾거나 읽을 수 없어요. 첨부 사진을 확인한 뒤 다시 시도해 주세요.';
+  String get backupTooLarge => isEnglish
+      ? 'The backup is too large. Reduce the number or size of photos and try again.'
+      : '백업이 너무 커요. 사진 수나 크기를 줄인 뒤 다시 시도해 주세요.';
+  String get fileBackupFailed => isEnglish
+      ? 'Could not save or restore the backup. Check storage space and file access.'
+      : '백업 저장이나 복원에 실패했어요. 저장 공간과 파일 접근 권한을 확인해 주세요.';
   String get photoMissing => isEnglish ? 'Photo missing' : '사진 없음';
   String get attachedPhoto => isEnglish ? 'Attached photo' : '첨부 사진';
   String get photoViewerClose => isEnglish ? 'Close' : '닫기';

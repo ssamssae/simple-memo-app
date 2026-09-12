@@ -56,7 +56,12 @@ class AttachmentStore {
   Future<String> save(Uint8List jpegBytes) async {
     await _root.create(recursive: true);
     final name = '${_uuid.v4()}.jpg';
-    await fileFor(name).writeAsBytes(jpegBytes, flush: true);
+    try {
+      await fileFor(name).writeAsBytes(jpegBytes, flush: true);
+    } catch (_) {
+      await delete([name]);
+      rethrow;
+    }
     return name;
   }
 

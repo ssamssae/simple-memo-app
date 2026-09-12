@@ -169,7 +169,7 @@ void main() {
       expect(result, isNull);
     });
 
-    test('JSON 파싱 깨진 백업 → 빈 list 반환 (Memo.decodeList 가드)', () async {
+    test('메모 목록이 아닌 JSON 백업은 잘못된 파일로 거부한다', () async {
       final api = _MockDriveApi();
       final files = _MockFilesResource();
       when(() => api.files).thenReturn(files);
@@ -201,9 +201,7 @@ void main() {
         );
       });
 
-      final result = await DriveBackupService.downloadLatestForTest(api);
-      expect(result, isNotNull);
-      expect(result!.isEmpty, isTrue);
+      await expectLater(() => DriveBackupService.downloadLatestForTest(api), throwsFormatException);
     });
   });
 }
