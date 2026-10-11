@@ -1,0 +1,7 @@
+You can now attach photos to notes.
+
+· Attach up to 10 photos per note from your library, camera, or paste
+· Thumbnails under the text; tap to view full screen
+· Long-press a photo to save it to your gallery or delete it
+· Photos are included when you share
+· Photo previews in the list, search, and trash

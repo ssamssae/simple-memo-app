@@ -1,0 +1,24 @@
+Memoyo is a dark notepad for jotting things down instantly and keeping the notes you reread organized. You can record just the body with no title, so it fits short memos, ideas, to-dos, and daily notes like a diary.
+
+■ Core features
+· Title-free quick notes, stored locally on your device
+· Swipe to favorite, drag to reorder
+· Trash that lets you restore deleted notes
+· Optional Google Drive backup and restore
+· Use it right away, no account signup
+
+■ Ads and removing ads
+· The app is free and shows a banner ad at the bottom of the screen.
+· To remove ads, just make a one-time Remove Ads purchase inside the app.
+· It is a single payment, with no recurring charges and no auto-renewal.
+· You can restore the purchase after switching devices or reinstalling.
+
+If you bought Remove Ads before, your entitlement stays intact.
+
+Privacy Policy:
+https://github.com/ssamssae/simple-memo-app/blob/main/docs/legal/privacy-policy.md
+
+Terms of Use (Apple standard EULA):
+https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+
+Contact: minusbetastudio@gmail.com
