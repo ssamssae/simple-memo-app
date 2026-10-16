@@ -197,7 +197,7 @@ class AppStrings {
 
   // 기기 내 뜻 검색 모델 (MiniLM) 행·다이얼로그
   String get miniLmTitle =>
-      isEnglish ? 'On-device semantic search model' : '기기 내 뜻 검색 모델';
+      isEnglish ? 'Semantic search' : '뜻 검색';
   String get miniLmChecking =>
       isEnglish ? 'Checking install status' : '설치 상태 확인 중';
   String get miniLmUnsupported => isEnglish
@@ -220,17 +220,13 @@ class AppStrings {
       : '약 $_downloadSizeLabel · Wi-Fi 권장 · ${MiniLmModelManifest.license}';
   String miniLmDownloading(int percent) =>
       isEnglish ? 'Downloading $percent%' : '다운로드 중 $percent%';
-  // T-260811-015: 설치 후에 모델 정체가 화면에서 사라지던 문제(아니키 지적 2026-08-11).
-  //   설치 전에는 용량·라이선스가 보이는데 설치되면 「설치됨」 한 줄만 남아,
-  //   무엇이 깔렸는지 확인할 방법이 앱 안에 없었다.
+  // 설정은 검색 상태를 요약한다. 모델명·라이선스는 상세에서 확인한다.
   //   ★이 라벨은 표시 전용이다. manifest 의 engineId 주석이 못박은 대로
   //    짧은 표시 라벨을 semanticEmbeddingModel 에 저장해서는 안 된다 — 여기서
   //    만든 문자열은 어떤 저장 경로로도 흘러가지 않는다(표시층 한정).
   String get miniLmReady => isEnglish
-      ? 'MiniLM multilingual model · $_downloadSizeLabel · '
-            '${MiniLmModelManifest.license} · offline search ready'
-      : 'MiniLM 다국어 모델 · $_downloadSizeLabel · '
-            '${MiniLmModelManifest.license} · 오프라인 검색 가능';
+      ? 'Offline search ready · $_downloadSizeLabel'
+      : '오프라인 검색 가능 · $_downloadSizeLabel';
   String get miniLmInsufficientSpace => isEnglish
       ? 'Not enough storage · try again'
       : '저장 공간이 부족합니다 · 다시 시도';
@@ -250,8 +246,10 @@ class AppStrings {
   String get miniLmDeleteTitle =>
       isEnglish ? 'Delete semantic search model' : '뜻 검색 모델 삭제';
   String get miniLmDeleteBody => isEnglish
-      ? 'Deletes the stored model file. Your memos are not deleted.'
-      : '저장된 모델 파일을 삭제합니다. 기존 메모는 삭제되지 않습니다.';
+      ? 'Deletes the model used for offline semantic search. '
+          'Your memos are not deleted. You can reinstall the model anytime.'
+      : '오프라인 뜻 검색에 사용하는 모델을 삭제합니다. '
+          '기존 메모는 삭제되지 않습니다. 모델은 언제든 다시 설치할 수 있습니다.';
 
   // T-260811-015: 설치된 모델 상세. 서브타이틀 한 줄에 해시·revision 까지 넣으면
   //   읽을 수 없으므로 탭했을 때만 편다. 값은 전부 매니페스트 상수에서 온다.
@@ -267,7 +265,9 @@ class AppStrings {
     final modelHash = m.sha256.substring(0, 12);
     final tokenizerHash = t.sha256.substring(0, 12);
     if (isEnglish) {
-      return 'Repository\n${MiniLmModelManifest.repository}\n\n'
+      return 'MiniLM multilingual model · $_downloadSizeLabel\n\n'
+          'Finds memos with similar meanings on this device, even with different wording.\n\n'
+          'Repository\n${MiniLmModelManifest.repository}\n\n'
           'Revision\n$revision\n\n'
           'License\n${MiniLmModelManifest.license}\n\n'
           'Vectors\n${MiniLmModelManifest.dimensions} dimensions · '
@@ -275,7 +275,9 @@ class AppStrings {
           'Files\n${m.name} · ${_fileSizeLabel(m.size)} · sha256 $modelHash\n'
           '${t.name} · ${_fileSizeLabel(t.size)} · sha256 $tokenizerHash';
     }
-    return '저장소\n${MiniLmModelManifest.repository}\n\n'
+    return 'MiniLM 다국어 모델 · $_downloadSizeLabel\n\n'
+        '표현이 달라도 뜻이 비슷한 메모를 기기에서 찾습니다.\n\n'
+        '저장소\n${MiniLmModelManifest.repository}\n\n'
         '리비전\n$revision\n\n'
         '라이선스\n${MiniLmModelManifest.license}\n\n'
         '벡터\n${MiniLmModelManifest.dimensions}차원 · '

@@ -126,8 +126,7 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
               onTap: switch (state) {
                 MiniLmModelState.absent => () => _confirmInstall(context),
                 MiniLmModelState.error => () => _confirmInstall(context),
-                // T-260811-015: 설치 후에는 탭하면 상세(저장소·리비전·해시)를 편다.
-                //   서브타이틀은 모델명·용량·라이선스까지만 담는다.
+                // 모델 정보와 삭제는 상세에서 확인한다.
                 MiniLmModelState.ready => () => _showDetails(context),
                 _ => null,
               },
@@ -179,14 +178,9 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
         height: 20,
         child: CircularProgressIndicator(strokeWidth: 2),
       ),
-      MiniLmModelState.ready => IconButton(
-        key: const Key('minilm-delete-button'),
-        tooltip: AppStrings.of(context).miniLmDeleteTooltip,
-        icon: Icon(
-          Icons.delete_outline,
-          color: AppPalette.of(context).textSecondary,
-        ),
-        onPressed: () => _confirmDelete(context),
+      MiniLmModelState.ready => Icon(
+        Icons.chevron_right,
+        color: AppPalette.of(context).textSecondary,
       ),
       MiniLmModelState.absent || MiniLmModelState.error => const Icon(
         Icons.download_outlined,
@@ -197,9 +191,11 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
   }
 
   Future<void> _confirmInstall(BuildContext context) async {
+    final manager = widget.manager;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: Text(AppStrings.of(context).miniLmInstallTitle),
         content: Text(AppStrings.of(context).miniLmInstallBody),
         actions: [
@@ -215,20 +211,30 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
         ],
       ),
     );
-    if (confirmed == true) unawaited(widget.manager.install());
+    if (confirmed == true && mounted && identical(manager, widget.manager) &&
+        (manager.state == MiniLmModelState.absent ||
+            manager.state == MiniLmModelState.error)) {
+      unawaited(manager.install());
+    }
   }
 
-  // T-260811-015: 읽기 전용 상세. 설치·삭제·검증 어느 로직도 건드리지 않는다.
+  // 상세를 여는 것만으로는 모델을 변경하지 않는다. 삭제는 별도 확인이 필요하다.
   Future<void> _showDetails(BuildContext context) async {
-    await showDialog<void>(
+    final manager = widget.manager;
+    final deleteRequested = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         key: const Key('minilm-details-dialog'),
+        scrollable: true,
         title: Text(AppStrings.of(context).miniLmDetailsTitle),
-        content: SingleChildScrollView(
-          child: SelectableText(AppStrings.of(context).miniLmDetailsBody),
-        ),
+        content: SelectableText(AppStrings.of(context).miniLmDetailsBody),
         actions: [
+          TextButton.icon(
+            key: const Key('minilm-delete-button'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.delete_outline),
+            label: Text(AppStrings.of(context).miniLmDeleteTooltip),
+          ),
           TextButton(
             key: const Key('minilm-details-close'),
             onPressed: () => Navigator.pop(dialogContext),
@@ -237,12 +243,19 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
         ],
       ),
     );
+    if (deleteRequested == true && context.mounted &&
+        identical(manager, widget.manager) &&
+        manager.state == MiniLmModelState.ready) {
+      await _confirmDelete(context);
+    }
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
+    final manager = widget.manager;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: Text(AppStrings.of(context).miniLmDeleteTitle),
         content: Text(AppStrings.of(context).miniLmDeleteBody),
         actions: [
@@ -258,6 +271,9 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
         ],
       ),
     );
-    if (confirmed == true) unawaited(widget.manager.delete());
+    if (confirmed == true && mounted && identical(manager, widget.manager) &&
+        manager.state == MiniLmModelState.ready) {
+      unawaited(manager.delete());
+    }
   }
 }

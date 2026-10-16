@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_memo_app/features/memos/services/mini_lm_model_controller.dart';
 import 'package:simple_memo_app/features/memos/services/mini_lm_model_manifest.dart';
 import 'package:simple_memo_app/features/memos/widgets/mini_lm_model_settings_tile.dart';
+import 'package:simple_memo_app/services/settings_service.dart';
 
 void main() {
   testWidgets('install requires a second explicit confirmation tap', (
@@ -41,7 +42,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('minilm-model-tile')), findsOneWidget);
-    expect(find.text('기기 내 뜻 검색 모델'), findsOneWidget);
+    expect(find.text('뜻 검색'), findsOneWidget);
     expect(find.text('이 기기에서는 Gemini 검색을 사용합니다'), findsOneWidget);
   });
 
@@ -51,8 +52,12 @@ void main() {
     final manager = _FakeModelManager(MiniLmModelState.ready);
     await tester.pumpWidget(_app(manager));
 
+    expect(find.byKey(const Key('minilm-delete-button')), findsNothing);
+    await tester.tap(find.byKey(const Key('minilm-model-tile')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('minilm-delete-button')));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('minilm-details-dialog')), findsNothing);
     expect(manager.deleteCalls, 0);
     expect(find.text('뜻 검색 모델 삭제'), findsOneWidget);
 
@@ -63,17 +68,20 @@ void main() {
     expect(find.textContaining('약 124MB'), findsOneWidget);
   });
 
-  // T-260811-015: 아니키 지적 — 설치 후 「어떤 모델이 설치되어 있는지 확인이 안 됨」.
-  //   설치 전에는 용량·라이선스가 보이는데 설치되면 그마저 사라지던 상태를 고정한다.
-  testWidgets('installed subtitle names the model with size and license', (
+  // 요약은 검색 상태·용량만 표시한다. 모델 정체는 상세에서 계속 확인할 수 있다.
+  testWidgets('installed tile keeps technical details and deletion behind a tap', (
     tester,
   ) async {
     final manager = _FakeModelManager(MiniLmModelState.ready);
     await tester.pumpWidget(_app(manager));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('MiniLM'), findsOneWidget);
-    expect(find.textContaining('Apache-2.0'), findsOneWidget);
+    expect(find.text('뜻 검색'), findsOneWidget);
+    expect(find.textContaining('오프라인 검색 가능'), findsOneWidget);
+    expect(find.textContaining('MiniLM'), findsNothing);
+    expect(find.textContaining('Apache-2.0'), findsNothing);
+    expect(find.byIcon(Icons.delete_outline), findsNothing);
+    expect(find.byIcon(Icons.chevron_right), findsOneWidget);
     // ★용량은 매니페스트 합계에서 도출된다 — 하드코딩이면 상수가 바뀌어도 안 움직인다.
     //   기준 = MB 10^6 · 올림 ⇒ ceil(123481449/1e6) = 124.
     expect(
@@ -94,6 +102,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('minilm-details-dialog')), findsOneWidget);
+    expect(find.textContaining('MiniLM 다국어 모델'), findsOneWidget);
+    expect(find.textContaining('124MB'), findsWidgets);
+    expect(find.textContaining('Apache-2.0'), findsOneWidget);
     expect(find.textContaining(MiniLmModelManifest.repository), findsOneWidget);
     expect(
       find.textContaining(MiniLmModelManifest.revision.substring(0, 8)),
@@ -109,7 +120,97 @@ void main() {
     expect(find.byKey(const Key('minilm-details-dialog')), findsNothing);
   });
 
-  // T-260719-018: 설치 탭 직후(청크 수신 전) 진행 표시 — 준비중 문구 + indeterminate 바.
+  testWidgets('cancelling model deletion keeps offline search available', (tester) async {
+    final manager = _FakeModelManager(MiniLmModelState.ready);
+    await tester.pumpWidget(_app(manager));
+    await tester.tap(find.byKey(const Key('minilm-model-tile')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('minilm-delete-button')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('기존 메모는 삭제되지 않습니다'), findsOneWidget);
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+    expect(manager.deleteCalls, 0);
+    expect(find.textContaining('오프라인 검색 가능'), findsOneWidget);
+  });
+
+  for (final deleting in [false, true]) {
+    testWidgets('confirmation does not act on a replaced manager (delete: $deleting)',
+        (tester) async {
+      final state = deleting ? MiniLmModelState.ready : MiniLmModelState.absent;
+      final original = _FakeModelManager(state);
+      final replacement = _FakeModelManager(state);
+      final current = ValueNotifier<MiniLmModelManager?>(original);
+      addTearDown(current.dispose);
+      await tester.pumpWidget(_replaceableApp(current));
+      await tester.tap(find.byKey(const Key('minilm-model-tile')));
+      await tester.pumpAndSettle();
+      if (deleting) {
+        await tester.tap(find.byKey(const Key('minilm-delete-button')));
+        await tester.pumpAndSettle();
+      }
+      current.value = replacement;
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key(
+        deleting ? 'minilm-delete-confirm' : 'minilm-install-confirm',
+      )));
+      await tester.pumpAndSettle();
+      expect(original.installCalls + original.deleteCalls, 0);
+      expect(replacement.installCalls + replacement.deleteCalls, 0);
+    });
+  }
+
+  testWidgets('confirmation after the settings tile is removed does not install',
+      (tester) async {
+    final manager = _FakeModelManager(MiniLmModelState.absent);
+    final current = ValueNotifier<MiniLmModelManager?>(manager);
+    addTearDown(current.dispose);
+    await tester.pumpWidget(_replaceableApp(current));
+    await tester.tap(find.byKey(const Key('minilm-model-tile')));
+    await tester.pumpAndSettle();
+    current.value = null;
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('minilm-install-confirm')));
+    await tester.pumpAndSettle();
+    expect(manager.installCalls, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final language in ['ko', 'en']) {
+    for (final state in [MiniLmModelState.absent, MiniLmModelState.ready]) {
+      testWidgets('large text on a small phone keeps model actions reachable ($language, $state)',
+          (tester) async {
+        tester.view.physicalSize = const Size(320, 568);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        SettingsService.instance.languageCode.value = language;
+        addTearDown(() => SettingsService.instance.languageCode.value = 'ko');
+        final manager = _FakeModelManager(state);
+        await tester.pumpWidget(_app(manager, textScale: 2));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.byKey(const Key('minilm-model-tile')));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        if (state == MiniLmModelState.ready) {
+          await tester.tap(find.byKey(const Key('minilm-delete-button')));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+        }
+        if (language == 'en') {
+          expect(find.byWidgetPredicate((widget) =>
+            widget is Text && RegExp(r'[가-힣]').hasMatch(widget.data ?? ''),
+          ), findsNothing);
+        }
+        await tester.tap(find.text(language == 'en' ? 'Cancel' : '취소'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(manager.installCalls + manager.deleteCalls, 0);
+      });
+    }
+  }
+
+  // 첫 청크 수신 전에도 진행 상태를 표시한다.
   testWidgets('installing at 0% shows preparing subtitle and indeterminate bar',
       (tester) async {
     final manager = _FakeModelManager(MiniLmModelState.installing);
@@ -230,11 +331,30 @@ void main() {
   });
 }
 
-Widget _app(MiniLmModelManager manager) {
+Widget _app(MiniLmModelManager manager, {double textScale = 1}) {
   return MaterialApp(
     theme: ThemeData.dark(),
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: TextScaler.linear(textScale),
+      ),
+      child: child!,
+    ),
     home: Scaffold(
       body: ListView(children: [MiniLmModelSettingsTile(manager: manager)]),
+    ),
+  );
+}
+
+Widget _replaceableApp(ValueNotifier<MiniLmModelManager?> manager) {
+  return MaterialApp(
+    home: Scaffold(
+      body: ValueListenableBuilder<MiniLmModelManager?>(
+        valueListenable: manager,
+        builder: (_, value, _) => value == null
+            ? const SizedBox.shrink()
+            : MiniLmModelSettingsTile(manager: value),
+      ),
     ),
   );
 }
