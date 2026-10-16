@@ -88,7 +88,8 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _loadMemos() async {
-    final memos = await MemoStorage.loadMemos(); // 활성 메모만
+    // 색인 저장 시 휴지통도 보존하도록 전체 목록을 유지한다.
+    final memos = await MemoStorage.loadMemos();
     if (!mounted) return;
     setState(() {
       _all = memos;
@@ -99,6 +100,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _onChanged(String value) {
     _debounce?.cancel();
+    // Invalidate the old result as soon as the input changes, before debounce.
+    _searchTicket++;
     _debounce = Timer(const Duration(milliseconds: _debounceMs), () {
       if (!mounted) return;
       unawaited(_runSearch(value));
@@ -112,6 +115,7 @@ class _SearchScreenState extends State<SearchScreen> {
     //   그래도 막아 둔다: 나중에 누가 다른 진입점(메뉴·단축키·딥링크)을 붙이면 UI 만 고치고
     //   이 함수는 안 볼 텐데, 그러면 잠금이 조용히 풀린다.
     if (!kSemanticSearchEnabled && next == _SearchMode.semantic) return;
+    _debounce?.cancel();
     // ★구독 폐지 (T-260805-076) — 종전에는 여기서 비구독자를 PaywallScreen 으로 보냈다.
     //   구독 상품 자체가 없어졌으니 「돈 내면 열리는 문」이 아니라 그냥 잠긴 문이다.
     //   잠금은 위 kSemanticSearchEnabled 한 줄이 전담한다(판정 이중화 금지 — 그 파일 주석 참조).
@@ -153,6 +157,7 @@ class _SearchScreenState extends State<SearchScreen> {
         query: query,
         memos: _all,
         persist: (memos) async {
+          if (!mounted || ticket != _searchTicket) return;
           await MemoStorage.saveMemos(memos);
           if (!mounted || ticket != _searchTicket) return;
           setState(() {
@@ -179,6 +184,9 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _openMemo(Memo memo) async {
+    _debounce?.cancel();
+    _searchTicket++;
+    setState(() => _semanticBusy = false);
     await Navigator.push<void>(
       context,
       MaterialPageRoute(
@@ -194,7 +202,7 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     );
     if (!mounted) return;
-    await _runSearch(_query);
+    await _runSearch(_controller.text);
   }
 
   @override

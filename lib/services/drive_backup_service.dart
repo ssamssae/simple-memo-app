@@ -155,15 +155,12 @@ class DriveBackupService {
     drive.DriveApi api,
     String folderId,
   ) async {
-    final query =
-        "'$folderId' in parents and (mimeType = 'application/json' or mimeType = 'application/zip') and trashed = false";
-    final list = await api.files.list(
-      q: query,
-      spaces: 'drive',
+    final files = await _listBackupFiles(
+      api,
+      folderId: folderId,
       orderBy: 'createdTime desc',
-      $fields: 'files(id, name, modifiedTime)',
+      fileFields: 'id, name, modifiedTime',
     );
-    final files = list.files ?? [];
     return [
       for (final f in files)
         if (f.id != null)
@@ -173,6 +170,30 @@ class DriveBackupService {
             modifiedTime: f.modifiedTime,
           ),
     ];
+  }
+
+  static Future<List<drive.File>> _listBackupFiles(
+    drive.DriveApi api, {
+    required String folderId,
+    required String orderBy,
+    required String fileFields,
+  }) async {
+    final query =
+        "'$folderId' in parents and (mimeType = 'application/json' or mimeType = 'application/zip') and trashed = false";
+    final files = <drive.File>[];
+    String? pageToken;
+    do {
+      final page = await api.files.list(
+        q: query,
+        spaces: 'drive',
+        orderBy: orderBy,
+        pageToken: pageToken,
+        $fields: 'nextPageToken,files($fileFields)',
+      );
+      files.addAll(page.files ?? []);
+      pageToken = page.nextPageToken;
+    } while (pageToken != null && pageToken.isNotEmpty);
+    return files;
   }
 
   static Future<Uint8List> downloadBackup(String fileId) async {
@@ -230,15 +251,13 @@ class DriveBackupService {
     required String folderId,
     required int keep,
   }) async {
-    final query =
-        "'$folderId' in parents and (mimeType = 'application/json' or mimeType = 'application/zip') and trashed = false";
-    final list = await api.files.list(
-      q: query,
-      spaces: 'drive',
+    // Read every page before deleting so a later-page failure preserves backups.
+    final files = await _listBackupFiles(
+      api,
+      folderId: folderId,
       orderBy: 'createdTime',
-      $fields: 'files(id, name, createdTime)',
+      fileFields: 'id, name, createdTime',
     );
-    final files = list.files ?? [];
     if (files.length <= keep) return;
     final excess = files.length - keep;
     for (int i = 0; i < excess; i++) {

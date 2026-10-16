@@ -139,6 +139,20 @@ void main() {
   });
 
   group('SearchService.excerpt — 하이라이트 발췌 (spec §3.5)', () {
+    for (final (source, expected) in [
+      ('앞😀key😀뒤', '…😀key😀…'),
+      ('😀key😀', '😀key😀'),
+    ]) {
+      test('발췌 경계의 이모지를 깨뜨리지 않는다: $source', () {
+        final excerpt = SearchService.excerpt(source, 'key', context: 1);
+        expect(excerpt.text, expected);
+        expect(
+          excerpt.text.substring(excerpt.start, excerpt.start + excerpt.length),
+          'key',
+        );
+      });
+    }
+
     test('중간 매치 → 발췌 + 매치 범위 + 양쪽 말줄임', () {
       // 매치 앞뒤로 30자 넘는 문맥이 있어야 양쪽 말줄임(…)이 붙는다.
       final src =
