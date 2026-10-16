@@ -3,13 +3,13 @@ import '../utils/hangul_chosung.dart';
 
 /// 메모요 1.0.8 검색 (T-260615-26, spec docs/specs/1.0.8-search.md).
 ///
-/// pure 함수 — 휴지통/영속 layer 인지 X. 호출 컨텍스트가 `memos` 인자로 대상 결정
-/// (메모 리스트 = 활성 메모, spec §4.2). 인덱싱 = in-memory linear scan (옵션 A).
+/// pure 함수 — 전달된 메모 중 활성 메모만 검색한다 (spec §4.2).
+/// 저장된 목록·휴지통은 변경하지 않는다. 인덱싱 = in-memory linear scan (옵션 A).
 ///
 /// 매칭(§2.3): case-insensitive + 공백 트림/단일화 후 substring.
 ///   - 초성 검색(T-260723-052): 쿼리가 전부 초성 자모면 초성 매칭, 아니면 substring
 ///     (상호배타). spec docs/specs/memoyo-chosung-search.md.
-///   - 빈/공백 쿼리 → 입력 메모 그대로 반환.
+///   - 빈/공백 쿼리 → 활성 메모를 입력 순서대로 반환.
 /// 랭킹(§3.4 옵션 C): 즐겨찾기 > 제목(첫 줄) 매치 > 본문 매치 → updatedAt desc.
 class SearchService {
   static final _whitespaceRun = RegExp(r'\s+');
@@ -18,10 +18,11 @@ class SearchService {
   /// 활성 메모를 query 로 검색·랭킹해 반환.
   static List<Memo> search(List<Memo> memos, String query) {
     final q = _normalize(query);
-    if (q.isEmpty) return memos;
+    final active = memos.where((memo) => !memo.isInTrash);
+    if (q.isEmpty) return active.toList();
 
     final chosung = isChosungQuery(q);
-    final matched = memos
+    final matched = active
         .where((m) => _titleHit(m, q, chosung) || _bodyHit(m, q, chosung))
         .toList();
 
@@ -53,20 +54,32 @@ class SearchService {
     var startCtx = idx - context;
     var prefix = '';
     if (startCtx > 0) {
-      prefix = '…';
+      if (_splitsSurrogatePair(source, startCtx)) startCtx--;
+      if (startCtx > 0) prefix = '…';
     } else {
       startCtx = 0;
     }
     var endCtx = span.end + context;
     var suffix = '';
     if (endCtx < source.length) {
-      suffix = '…';
+      if (_splitsSurrogatePair(source, endCtx)) endCtx++;
+      if (endCtx < source.length) suffix = '…';
     } else {
       endCtx = source.length;
     }
     final text = '$prefix${source.substring(startCtx, endCtx)}$suffix';
     final matchStart = prefix.length + (idx - startCtx);
     return SearchExcerpt(text, matchStart, span.end - span.start);
+  }
+
+  static bool _splitsSurrogatePair(String text, int index) {
+    if (index <= 0 || index >= text.length) return false;
+    final before = text.codeUnitAt(index - 1);
+    final after = text.codeUnitAt(index);
+    return before >= 0xD800 &&
+        before <= 0xDBFF &&
+        after >= 0xDC00 &&
+        after <= 0xDFFF;
   }
 
   static bool _titleHit(Memo m, String normQuery, bool chosung) => chosung

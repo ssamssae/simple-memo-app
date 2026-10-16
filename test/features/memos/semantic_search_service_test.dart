@@ -77,4 +77,15 @@ void main() {
 
     expect(results.map((m) => m.id), ['favorite', 'older']);
   });
+
+  test('이미 색인된 휴지통 메모도 뜻 검색 결과에서 제외한다', () {
+    final active = memo('active', '치과 예약', embedding: const [1, 0]);
+    final trashed = memo('trash', '병원 삭제한 메모', embedding: const [1, 0])
+        .copyWith(deletedAt: DateTime(2026, 10, 16));
+
+    final results = SemanticSearchService.search([active, trashed], const [1, 0]);
+
+    expect(results.map((memo) => memo.id), ['active']);
+    expect(trashed.semanticEmbedding, [1, 0]);
+  });
 }

@@ -6,6 +6,7 @@ import 'package:simple_memo_app/features/memos/services/embedding_engine.dart';
 import 'package:simple_memo_app/features/memos/services/semantic_search_coordinator.dart';
 import 'package:simple_memo_app/models/memo.dart';
 import 'package:simple_memo_app/screens/search_screen.dart';
+import 'package:simple_memo_app/services/memo_storage.dart';
 import 'package:simple_memo_app/services/premium_entitlement.dart';
 import 'package:simple_memo_app/services/premium_service.dart';
 
@@ -77,6 +78,34 @@ void main() {
     },
     skip: _semanticHidden,
   );
+
+  testWidgets('뜻 검색은 휴지통을 제외하고 저장된 휴지통 메모는 보존한다', (tester) async {
+    final trashed = m('trash', '치과 삭제한 메모').copyWith(
+      deletedAt: DateTime(2026, 7, 10),
+    );
+    SharedPreferences.setMockInitialValues({
+      'memos': Memo.encodeList([m('active', '치과 예약'), trashed]),
+    });
+    await tester.pumpWidget(MaterialApp(
+      home: SearchScreen(semanticCoordinator: SemanticSearchCoordinator(
+        policy: SemanticEnginePolicy.ondevicePreferred,
+        onDeviceEngine: _CosineFakeEngine(),
+      )),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('뜻으로 찾기'));
+    await tester.enterText(find.byType(TextField), '병원');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('메모 결과 (1건)'), findsOneWidget);
+    expect(find.textContaining('삭제한 메모', findRichText: true), findsNothing);
+    final stored = await MemoStorage.loadMemos();
+    expect(stored.map((memo) => memo.id), ['active', 'trash']);
+    expect(stored.last.deletedAt, trashed.deletedAt);
+    expect(stored.last.semanticEmbedding, isNull);
+    expect(stored.first.semanticEmbedding, isNotNull);
+  }, skip: _semanticHidden);
 }
 
 /// 2차원 가짜 온디바이스 엔진 — '카레' 계열만 다른 축으로 보낸다.

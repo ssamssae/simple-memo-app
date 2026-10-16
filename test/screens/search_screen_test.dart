@@ -73,6 +73,19 @@ void main() {
     expect(hasAmberHighlight(tester), isTrue);
   });
 
+  testWidgets('휴지통 메모는 키워드 검색 결과에 나타나지 않는다', (tester) async {
+    seed([
+      m('active', '병원 예약', now),
+      m('trash', '병원 삭제한 메모', now).copyWith(deletedAt: now),
+    ]);
+    await tester.pumpWidget(const MaterialApp(home: SearchScreen()));
+    await tester.pumpAndSettle();
+    await type(tester, '병원');
+
+    expect(find.textContaining('메모 결과 (1건)'), findsOneWidget);
+    expect(find.textContaining('삭제한 메모', findRichText: true), findsNothing);
+  });
+
   testWidgets('매치 없는 검색어 → 빈 결과 empty state', (tester) async {
     seed([m('a', 'Karpathy 룰', now)]);
     await tester.pumpWidget(const MaterialApp(home: SearchScreen()));

@@ -20,6 +20,7 @@ class SemanticSearchService {
     int? dimensions,
   }) {
     return memos.where((memo) {
+      if (memo.isInTrash) return false;
       final embedding = memo.semanticEmbedding;
       if (embedding == null || embedding.isEmpty) return true;
       return memo.semanticEmbeddingModel != engineId ||
@@ -40,6 +41,7 @@ class SemanticSearchService {
     if (queryEmbedding.length != expectedDimensions) return const [];
     final scored = <_ScoredMemo>[];
     for (final memo in memos) {
+      if (memo.isInTrash) continue;
       final embedding = memo.semanticEmbedding;
       if (memo.semanticEmbeddingModel != engineId ||
           embedding == null ||
