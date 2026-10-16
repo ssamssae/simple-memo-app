@@ -120,6 +120,11 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(AppStrings.of(context).driveSaved),
+            // Action snackbars persist by default. Keep time to reach the action
+            // for screen readers; otherwise dismiss the success notice normally.
+            persist: MediaQuery.accessibleNavigationOf(context),
+            duration: const Duration(seconds: 4),
+            showCloseIcon: true,
             action: SnackBarAction(
               label: AppStrings.of(context).openMemoyoFolder,
               onPressed: () async {

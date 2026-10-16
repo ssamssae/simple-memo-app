@@ -71,7 +71,7 @@ void main() {
 
   test('영어 AppStrings 대표 키 — 스샷 잔존 지점 문구 확인', () {
     final en = AppStrings.fromCode('en');
-    expect(en.miniLmTitle, 'On-device semantic search model');
+    expect(en.miniLmTitle, 'Semantic search');
     expect(en.theme, 'Theme');
     expect(en.themeSystem, 'System');
     expect(en.themeLight, 'Light');

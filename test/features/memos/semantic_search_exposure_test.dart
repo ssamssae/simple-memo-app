@@ -172,8 +172,14 @@ void main() {
 
     expect(find.byKey(const Key('minilm-model-tile')), findsOneWidget,
         reason: '이미 설치된 모델의 타일까지 감췄다 — 124MB 를 지울 문이 사라진다');
+    await tester.ensureVisible(find.byKey(const Key('minilm-model-tile')));
+    await tester.tap(find.byKey(const Key('minilm-model-tile')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('minilm-delete-button')), findsOneWidget,
         reason: '삭제 버튼이 없다 — 타일만 남고 회수 경로가 없으면 (e) 의 목적이 무너진다');
+    await tester.tap(find.byKey(const Key('minilm-delete-button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('minilm-delete-confirm')), findsOneWidget);
   });
 }
 
