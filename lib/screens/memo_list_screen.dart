@@ -281,6 +281,10 @@ class MemoListScreenState extends State<MemoListScreen>
   // _memos 순서가 보존돼 원위치(즐겨찾기/일반 그룹 내 위치)로 그대로 복귀한다.
   Future<void> _restoreFromTrash(List<String> ids) async {
     if (ids.isEmpty || !mounted) return;
+    // 알림은 다른 탭·화면 위에서도 눌린다. 그사이 바뀐 저장소를 예전 목록으로
+    // 덮어쓰지 않도록 최신 목록을 읽은 뒤 고친다.
+    await _loadMemos();
+    if (!mounted) return;
     setState(() {
       for (int i = 0; i < _memos.length; i++) {
         if (_memos[i].deletedAt != null && ids.contains(_memos[i].id)) {
@@ -343,7 +347,7 @@ class MemoListScreenState extends State<MemoListScreen>
   /// 바텀바 '새메모' 탭 → 새 메모 편집기 열기.
   Future<void> startNewMemo() => _addMemo();
 
-  /// 바텀바 '메모' 탭 복귀 시 재로드 (설정 탭에서 복원·가져오기로 변경됐을 수 있음).
+  /// 바텀바 '메모' 탭 복귀·설정 탭의 새메모 전 재로드 (설정 탭에서 복원·가져오기로 변경됐을 수 있음).
   Future<void> reloadMemos() => _loadMemos();
 
   // --- 메모 CRUD (모두 id 기반) ---
