@@ -228,6 +228,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(AppStrings.of(context).importedMemos(incoming, total)),
+      // Same rule as the Drive success notice: persist only for screen readers.
+      persist: MediaQuery.accessibleNavigationOf(context),
+      duration: const Duration(seconds: 5),
+      showCloseIcon: true,
       action: SnackBarAction(label: AppStrings.of(context).undo, onPressed: _handleUndoImport),
     ));
   }

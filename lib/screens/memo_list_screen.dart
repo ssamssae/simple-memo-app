@@ -302,7 +302,11 @@ class MemoListScreenState extends State<MemoListScreen>
               ? AppStrings.of(context).memoDeleted
               : AppStrings.of(context).memosDeleted(deletedIds.length),
         ),
+        // Action snackbars persist by default. Keep undo reachable for screen
+        // readers; otherwise close it so later notices are not queued behind it.
+        persist: MediaQuery.accessibleNavigationOf(context),
         duration: const Duration(seconds: 5),
+        showCloseIcon: true,
         action: SnackBarAction(
           label: AppStrings.of(context).undoSpaced,
           onPressed: () async {
