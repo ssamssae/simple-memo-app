@@ -80,11 +80,13 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     }
 
     setState(() => _isBackupRunning = true);
-    ScaffoldMessenger.of(context)
+    // The user may leave during the upload; the result is still reported.
+    final notices = _Notices.of(context);
+    notices.messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(AppStrings.of(context).driveBackupStarting),
+          content: Text(notices.strings.driveBackupStarting),
           duration: Duration(seconds: 30),
         ),
       );
@@ -92,14 +94,12 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     final upload = widget.uploadBackup ?? DriveBackupService.uploadBackup;
     // 휴지통 제외 — 활성 메모만 백업(본진 결정 #6).
     final result = await upload(_activeMemos);
-    if (!mounted) return;
-    setState(() => _isBackupRunning = false);
+    if (mounted) setState(() => _isBackupRunning = false);
 
     if (result is DriveBackupSuccess) {
       await _recordBackupTime();
     }
-    if (!mounted) return;
-    _showBackupResult(result);
+    _showBackupResult(result, notices);
   }
 
   Future<void> _recordBackupTime() async {
@@ -113,20 +113,21 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     setState(() => _lastBackupAt = now);
   }
 
-  void _showBackupResult(DriveBackupResult result) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+  void _showBackupResult(DriveBackupResult result, _Notices notices) {
+    final strings = notices.strings;
+    notices.messenger.hideCurrentSnackBar();
     switch (result) {
       case DriveBackupSuccess(:final folderUrl):
-        ScaffoldMessenger.of(context).showSnackBar(
+        notices.messenger.showSnackBar(
           SnackBar(
-            content: Text(AppStrings.of(context).driveSaved),
+            content: Text(strings.driveSaved),
             // Action snackbars persist by default. Keep time to reach the action
             // for screen readers; otherwise dismiss the success notice normally.
-            persist: MediaQuery.accessibleNavigationOf(context),
+            persist: notices.keepActionNotice,
             duration: const Duration(seconds: 4),
             showCloseIcon: true,
             action: SnackBarAction(
-              label: AppStrings.of(context).openMemoyoFolder,
+              label: strings.openMemoyoFolder,
               onPressed: () async {
                 final uri = Uri.parse(folderUrl);
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -135,29 +136,17 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           ),
         );
       case DriveBackupNetworkError():
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.of(context).checkInternet)),
-        );
+        notices.show(strings.checkInternet);
       case DriveBackupPermissionDenied():
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.of(context).drivePermissionNeeded)),
-        );
+        notices.show(strings.drivePermissionNeeded);
       case DriveBackupQuotaExceeded():
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.of(context).driveQuotaExceeded)),
-        );
+        notices.show(strings.driveQuotaExceeded);
       case DriveBackupPhotoUnavailable():
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.of(context).backupPhotoUnavailable)),
-        );
+        notices.show(strings.backupPhotoUnavailable);
       case DriveBackupTooLarge():
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.of(context).backupTooLarge)),
-        );
+        notices.show(strings.backupTooLarge);
       case DriveBackupUnknown(:final message):
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.of(context).driveBackupFailed(message))),
-        );
+        notices.show(strings.driveBackupFailed(message));
     }
   }
 
@@ -172,7 +161,11 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     switch (listResult) {
       case DriveBackupListFailure(:final error):
         setState(() => _isRestoreRunning = false);
-        _showDriveError(error, actionLabel: AppStrings.of(context).driveImportLabel);
+        _showDriveError(
+          error,
+          _Notices.of(context),
+          actionLabel: AppStrings.of(context).driveImportLabel,
+        );
       case DriveBackupListSuccess(:final entries):
         if (entries.isEmpty) {
           setState(() => _isRestoreRunning = false);
@@ -194,41 +187,44 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   }
 
   Future<void> _importBackup(DriveBackupEntry backup) async {
+    // Downloading can take a while; report even if the user leaves meanwhile.
+    final notices = _Notices.of(context);
     try {
       final download =
           widget.downloadBackup ?? DriveBackupService.downloadBackup;
       final source = await download(backup.id);
       final (incoming, total) =
           await ExportImportService.importBytes(source);
-      await _showImported((incoming, total));
+      await _showImported((incoming, total), notices);
     } on FormatException {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.of(context).invalidBackupFile)),
-      );
+      notices.show(notices.strings.invalidBackupFile);
     } catch (e) {
-      if (!mounted) return;
       _showDriveError(
         DriveBackupService.mapErrorForTest(e),
-        actionLabel: AppStrings.of(context).driveImportLabel,
+        notices,
+        actionLabel: notices.strings.driveImportLabel,
       );
     }
   }
 
-  Future<void> _showImported((int, int)? result) async {
-    if (result == null || !mounted) return;
+  Future<void> _showImported((int, int)? result, _Notices notices) async {
+    if (result == null) return;
     final (incoming, total) = result;
     if (incoming == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.of(context).noMemosToImport)),
-      );
+      notices.show(notices.strings.noMemosToImport);
       return;
     }
-    await _load();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(AppStrings.of(context).importedMemos(incoming, total)),
-      action: SnackBarAction(label: AppStrings.of(context).undo, onPressed: _handleUndoImport),
+    if (mounted) await _load();
+    notices.messenger.showSnackBar(SnackBar(
+      content: Text(notices.strings.importedMemos(incoming, total)),
+      // Same rule as the Drive success notice: persist only for screen readers.
+      persist: notices.keepActionNotice,
+      duration: const Duration(seconds: 5),
+      showCloseIcon: true,
+      action: SnackBarAction(
+        label: notices.strings.undo,
+        onPressed: () => _handleUndoImport(notices),
+      ),
     ));
   }
 
@@ -241,18 +237,16 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       return;
     }
     setState(() => _isFileRunning = true);
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    final notices = _Notices.of(context);
+    notices.messenger.hideCurrentSnackBar();
     try {
       final saved = await (widget.saveBackupFile ?? ExportImportService.saveBackupFile)(_activeMemos);
-      if (saved && mounted) {
+      if (saved) {
         await _recordBackupTime();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.of(context).backupFileSaved)),
-        );
+        notices.show(notices.strings.backupFileSaved);
       }
     } catch (error) {
-      _showFileError(error);
+      _showFileError(error, notices);
     } finally {
       if (mounted) setState(() => _isFileRunning = false);
     }
@@ -261,63 +255,66 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   Future<void> _handleFileRestore() async {
     if (_busy) return;
     setState(() => _isFileRunning = true);
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    final notices = _Notices.of(context);
+    notices.messenger.hideCurrentSnackBar();
     try {
-      await _showImported(await (widget.pickBackupFile ?? ExportImportService.pickAndImport)());
+      await _showImported(
+        await (widget.pickBackupFile ?? ExportImportService.pickAndImport)(),
+        notices,
+      );
     } catch (error) {
-      _showFileError(error);
+      _showFileError(error, notices);
     } finally {
       if (mounted) setState(() => _isFileRunning = false);
     }
   }
 
-  void _showFileError(Object error) {
-    if (!mounted) return;
-    final strings = AppStrings.of(context);
+  void _showFileError(Object error, _Notices notices) {
+    final strings = notices.strings;
     final message = switch (error) {
       BackupPhotoUnavailableException() => strings.backupPhotoUnavailable,
       BackupSizeException() => strings.backupTooLarge,
       FormatException() => strings.invalidBackupFile,
       _ => strings.fileBackupFailed,
     };
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    notices.show(message);
   }
 
-  Future<void> _handleUndoImport() async {
-    if (_busy) return;
-    setState(() => _isFileRunning = true);
+  // Runs from the import notice, which can outlive this screen.
+  Future<void> _handleUndoImport(_Notices notices) async {
+    // Busy flags guard this screen's buttons only. After the screen is gone,
+    // ExportImportService's restore lock prevents overlapping restores.
+    if (mounted && _busy) return;
+    if (mounted) setState(() => _isFileRunning = true);
     try {
       final restored = await ExportImportService.undoImport();
       if (restored == null) return;
-      await _load();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.of(context).restoredPrevious(restored.length))),
-      );
+      if (mounted) await _load();
+      notices.show(notices.strings.restoredPrevious(restored.length));
     } catch (error) {
-      _showFileError(error);
+      _showFileError(error, notices);
     } finally {
       if (mounted) setState(() => _isFileRunning = false);
     }
   }
 
   void _showDriveError(
-    DriveBackupResult error, {
+    DriveBackupResult error,
+    _Notices notices, {
     String? actionLabel,
   }) {
-    final label = actionLabel ?? AppStrings.of(context).driveBackupLabel;
+    final strings = notices.strings;
+    final label = actionLabel ?? strings.driveBackupLabel;
     final message = switch (error) {
-      DriveBackupNetworkError() => AppStrings.of(context).checkInternet,
-      DriveBackupPermissionDenied() => AppStrings.of(context).drivePermissionNeeded,
-      DriveBackupQuotaExceeded() => AppStrings.of(context).driveQuotaExceeded,
-      DriveBackupPhotoUnavailable() => AppStrings.of(context).backupPhotoUnavailable,
-      DriveBackupTooLarge() => AppStrings.of(context).backupTooLarge,
-      DriveBackupUnknown(:final message) => AppStrings.of(context).actionFailed(label, message),
-      DriveBackupSuccess() => AppStrings.of(context).actionDone(label),
+      DriveBackupNetworkError() => strings.checkInternet,
+      DriveBackupPermissionDenied() => strings.drivePermissionNeeded,
+      DriveBackupQuotaExceeded() => strings.driveQuotaExceeded,
+      DriveBackupPhotoUnavailable() => strings.backupPhotoUnavailable,
+      DriveBackupTooLarge() => strings.backupTooLarge,
+      DriveBackupUnknown(:final message) => strings.actionFailed(label, message),
+      DriveBackupSuccess() => strings.actionDone(label),
     };
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    notices.show(message);
   }
 
   Future<DriveBackupEntry?> _pickBackup(List<DriveBackupEntry> entries) async {
@@ -498,4 +495,23 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       ),
     );
   }
+}
+
+/// Where backup and restore results are shown. Captured while the screen is
+/// mounted: the app-wide messenger outlives this screen, so an upload, download
+/// or undo that finishes after the user leaves is still reported there.
+class _Notices {
+  _Notices.of(BuildContext context)
+      : messenger = ScaffoldMessenger.of(context),
+        strings = AppStrings.of(context),
+        keepActionNotice = MediaQuery.accessibleNavigationOf(context);
+
+  final ScaffoldMessengerState messenger;
+  final AppStrings strings;
+
+  /// Action notices persist by default; keep them only for screen readers.
+  final bool keepActionNotice;
+
+  void show(String message) =>
+      messenger.showSnackBar(SnackBar(content: Text(message)));
 }

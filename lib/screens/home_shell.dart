@@ -38,12 +38,21 @@ class _HomeShellState extends State<HomeShell> {
         }
         break;
       case 1: // 새메모 (액션 — 탭 전환 X)
-        _memoListKey.currentState?.startNewMemo();
+        _startNewMemo();
         break;
       case 2: // 설정
         if (_bodyIndex != 1) setState(() => _bodyIndex = 1);
         break;
     }
+  }
+
+  // 설정 탭에서 복원·휴지통 복구로 저장소가 바뀌었을 수 있다. 숨은 메모 목록이
+  // 예전 목록에 새 메모를 붙여 저장하면 그 변경이 사라지므로 먼저 다시 읽는다.
+  Future<void> _startNewMemo() async {
+    final list = _memoListKey.currentState;
+    if (list == null) return;
+    if (_bodyIndex != 0) await list.reloadMemos();
+    await list.startNewMemo();
   }
 
   @override
