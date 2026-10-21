@@ -69,6 +69,14 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   static const double _shakeThreshold = 18.0;
   static const Duration _shakeCooldown = Duration(milliseconds: 1500);
 
+  // 「사진 추가」 떠 있는 버튼(small FAB 의 48px 터치 영역)이 본문 오른쪽 아래를 덮는다.
+  // 끝 여백으로 마지막 줄을, 커서 아래 여백(기본 20)으로 커서를 버튼 위로 올린다.
+  // 끝 여백은 커서 여백보다 작아야 문서 끝 커서가 늘 스크롤 끝에 붙는다 — 같으면
+  // 엔터·백스페이스를 번갈아 칠 때 화면이 몇 px 흔들린다 (T-260803-035 프로브).
+  static const double _floatingButtonExtent = 48;
+  static const double _contentEndPadding = _floatingButtonExtent + 8;
+  static const double _caretBottomPadding = _floatingButtonExtent + 20;
+
   @override
   void initState() {
     super.initState();
@@ -872,6 +880,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               child: LayoutBuilder(
                 builder: (context, constraints) => SingleChildScrollView(
                   controller: _contentScrollController,
+                  padding: const EdgeInsets.only(bottom: _contentEndPadding),
                   physics: const AlwaysScrollableScrollPhysics(
                     parent: BouncingScrollPhysics(),
                   ),
@@ -907,6 +916,12 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                                 controller: _contentController,
                                 focusNode: _contentFocusNode,
                                 undoController: _undoController,
+                                scrollPadding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  20,
+                                  20,
+                                  _caretBottomPadding,
+                                ),
                                 cursorColor: palette.textPrimary,
                                 cursorHeight: bodyFontSize,
                                 selectionControls:
