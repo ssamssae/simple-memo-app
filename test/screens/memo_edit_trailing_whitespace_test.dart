@@ -55,8 +55,10 @@ void main() {
     expect(saved!.content, '1233 24 8\n\n7 2 37\n\n부산 0949 서울 1233');
   });
 
+  // T-261022-006 r4: 저장 결과가 같으면(열어 보기만 하면) 저장하지 않는다.
+  // 아래 두 검사는 라인 끝 공백을 하나 둬서 정규화 저장을 실제로 일으킨다.
   testWidgets('문장 중간 연속 공백은 보존된다', (tester) async {
-    final memo = Memo.create(content: '동대구 1043   서울 1233\n행낭 1개(2개입) 14호차');
+    final memo = Memo.create(content: '동대구 1043   서울 1233 \n행낭 1개(2개입) 14호차');
     Memo? saved;
     await pumpEditor(tester, memo: memo, onSave: (m) => saved = m);
 
@@ -78,7 +80,7 @@ void main() {
   });
 
   testWidgets('둘째 줄 이후의 들여쓰기(라인 앞 공백)는 보존된다', (tester) async {
-    final memo = Memo.create(content: '첫줄\n  들여쓴 둘째줄');
+    final memo = Memo.create(content: '첫줄 \n  들여쓴 둘째줄');
     Memo? saved;
     await pumpEditor(tester, memo: memo, onSave: (m) => saved = m);
 

@@ -266,7 +266,19 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     unawaited(_store?.delete(added) ?? Future<void>.value());
   }
 
+  // 열어 보기만 한 기존 메모. 저장 결과가 지금과 같으면 고친 것으로 다루지 않는다 —
+  // 취소 확인창을 생략하고, 수정 시각(검색 순위·백업 병합 기준)을 바꾸지 않는다.
+  // 본문은 저장 때와 같은 정규화로 비교한다: 라인 끝 공백 정리(T-260718-021)는 저장 대상이다.
+  bool get _isUnchangedEdit {
+    final original = widget.memo;
+    return original != null &&
+        _normalizeContent(_contentController.text) == original.content &&
+        _pendingAdded.isEmpty &&
+        _pendingRemoved.isEmpty;
+  }
+
   void _dispatchSave() {
+    if (_isUnchangedEdit) return;
     final memo = _buildMemo();
     if (memo != null) {
       widget.onSave?.call(memo);
@@ -283,6 +295,11 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   }
 
   void _saveMemo() {
+    if (_isUnchangedEdit) {
+      _popHandled = true;
+      Navigator.pop(context);
+      return;
+    }
     final memo = _buildMemo();
     if (memo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -392,6 +409,11 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   }
 
   Future<void> _cancelEdit() async {
+    if (_isUnchangedEdit) {
+      _popHandled = true;
+      Navigator.pop(context);
+      return;
+    }
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
       builder: (ctx) => CupertinoAlertDialog(
