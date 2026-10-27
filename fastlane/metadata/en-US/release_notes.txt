@@ -1,7 +1,8 @@
-You can now attach photos to notes.
+Fixes for everyday annoyances.
 
-· Attach up to 10 photos per note from your library, camera, or paste
-· Thumbnails under the text; tap to view full screen
-· Long-press a photo to save it to your gallery or delete it
-· Photos are included when you share
-· Photo previews in the list, search, and trash
+· Notices after backup, delete, or restore now close on their own
+· Restored notes no longer disappear when you write a new note
+· Just opening a note no longer marks it as edited
+· The "Add photo" button no longer covers the last line of a long note
+· Search no longer reverts your edits or shows notes in the trash
+· The Drive backup list now loads completely
