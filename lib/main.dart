@@ -95,16 +95,17 @@ class MemoApp extends StatelessWidget {
 
   ThemeData _buildLightTheme() {
     return ThemeData(
+      fontFamily: 'Pretendard',
       extensions: const [AppPalette.light],
       colorScheme: ColorScheme.fromSeed(
         seedColor: const Color(0xFF7C5CFF),
         brightness: Brightness.light,
       ),
-      scaffoldBackgroundColor: const Color(0xFFF8F8FA),
+      scaffoldBackgroundColor: const Color(0xFFF2F4F6),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFFF8F8FA),
-        foregroundColor: Color(0xFF1F1F25),
-        iconTheme: IconThemeData(color: Color(0xFF6E6E76)),
+        backgroundColor: Color(0xFFF2F4F6),
+        foregroundColor: Color(0xFF191F28),
+        iconTheme: IconThemeData(color: Color(0xFF4E5968)),
       ),
       cardTheme: const CardThemeData(color: Color(0xFFFFFFFF)),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
@@ -123,6 +124,7 @@ class MemoApp extends StatelessWidget {
 
   ThemeData _buildDarkTheme() {
     return ThemeData(
+      fontFamily: 'Pretendard',
       // Obsidian 톤: 다크 무채색 미니멀 + 퍼플 액센트 (#7C5CFF).
       // 대부분의 chrome 은 무채색 회색/흰색, 퍼플은 강조에만 절제 사용.
       extensions: const [AppPalette.dark],
