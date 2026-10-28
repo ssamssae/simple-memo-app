@@ -8,9 +8,9 @@ import '../services/drive_backup_service.dart';
 import '../services/export_import_service.dart';
 import '../services/memo_storage.dart';
 import '../utils/app_palette.dart';
+import '../widgets/toss_surface_card.dart';
 import '../widgets/version_footer.dart';
 import '../l10n/app_strings.dart';
-
 
 // 백업 & 복원 화면 (1.0.7 ① Drive 백업 1버튼화).
 // 기존에 메모 리스트 overflow 메뉴에 흩어져 있던 Drive 백업/가져오기/되돌리기를
@@ -193,8 +193,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       final download =
           widget.downloadBackup ?? DriveBackupService.downloadBackup;
       final source = await download(backup.id);
-      final (incoming, total) =
-          await ExportImportService.importBytes(source);
+      final (incoming, total) = await ExportImportService.importBytes(source);
       await _showImported((incoming, total), notices);
     } on FormatException {
       notices.show(notices.strings.invalidBackupFile);
@@ -215,17 +214,19 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       return;
     }
     if (mounted) await _load();
-    notices.messenger.showSnackBar(SnackBar(
-      content: Text(notices.strings.importedMemos(incoming, total)),
-      // Same rule as the Drive success notice: persist only for screen readers.
-      persist: notices.keepActionNotice,
-      duration: const Duration(seconds: 5),
-      showCloseIcon: true,
-      action: SnackBarAction(
-        label: notices.strings.undo,
-        onPressed: () => _handleUndoImport(notices),
+    notices.messenger.showSnackBar(
+      SnackBar(
+        content: Text(notices.strings.importedMemos(incoming, total)),
+        // Same rule as the Drive success notice: persist only for screen readers.
+        persist: notices.keepActionNotice,
+        duration: const Duration(seconds: 5),
+        showCloseIcon: true,
+        action: SnackBarAction(
+          label: notices.strings.undo,
+          onPressed: () => _handleUndoImport(notices),
+        ),
       ),
-    ));
+    );
   }
 
   Future<void> _handleFileBackup() async {
@@ -240,7 +241,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     final notices = _Notices.of(context);
     notices.messenger.hideCurrentSnackBar();
     try {
-      final saved = await (widget.saveBackupFile ?? ExportImportService.saveBackupFile)(_activeMemos);
+      final saved =
+          await (widget.saveBackupFile ?? ExportImportService.saveBackupFile)(
+            _activeMemos,
+          );
       if (saved) {
         await _recordBackupTime();
         notices.show(notices.strings.backupFileSaved);
@@ -311,7 +315,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       DriveBackupQuotaExceeded() => strings.driveQuotaExceeded,
       DriveBackupPhotoUnavailable() => strings.backupPhotoUnavailable,
       DriveBackupTooLarge() => strings.backupTooLarge,
-      DriveBackupUnknown(:final message) => strings.actionFailed(label, message),
+      DriveBackupUnknown(:final message) => strings.actionFailed(
+        label,
+        message,
+      ),
       DriveBackupSuccess() => strings.actionDone(label),
     };
     notices.show(message);
@@ -378,117 +385,169 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     if (at == null) return AppStrings.of(context).neverBackedUp;
     String two(int n) => n.toString().padLeft(2, '0');
     return AppStrings.of(context).lastBackupAt(
-        '${at.year}.${two(at.month)}.${two(at.day)} ${two(at.hour)}:${two(at.minute)}');
+      '${at.year}.${two(at.month)}.${two(at.day)} ${two(at.hour)}:${two(at.minute)}',
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final buttonShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(TossSurfaceCard.radius),
+    );
     return Scaffold(
+      backgroundColor: palette.background,
       bottomNavigationBar: const SafeArea(child: VersionFooter()),
       appBar: AppBar(
+        backgroundColor: palette.background,
+        foregroundColor: palette.textPrimary,
         centerTitle: true,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: Text(AppStrings.of(context).backupRestore, style: const TextStyle(fontSize: 17)),
+        title: Text(
+          AppStrings.of(context).backupRestore,
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: palette.textPrimary,
+          ),
+        ),
       ),
       body: SafeArea(
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(child: CircularProgressIndicator(color: palette.accent))
             : ListView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 children: [
-                  Icon(
-                    Icons.cloud_upload_outlined,
-                    size: 56,
-                    color: palette.textPrimary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    AppStrings.of(context).backupIntro,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: palette.textSecondary, fontSize: 14),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    AppStrings.of(context).backupTarget(_activeMemos.length),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: palette.textSecondary,
-                      fontSize: 13,
+                  TossSurfaceCard(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.cloud_upload_outlined,
+                          size: 56,
+                          color: palette.accent,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          AppStrings.of(context).backupIntro,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontSize: 14,
+                            height: 1.45,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          AppStrings.of(
+                            context,
+                          ).backupTarget(_activeMemos.length),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: palette.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _lastBackupLabel(),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          AppStrings.of(context).photosIncludedInBackup,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _lastBackupLabel(),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: palette.textSecondary.withValues(alpha: 0.8),
-                      fontSize: 12,
+                  TossSurfaceCard(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        FilledButton.icon(
+                          onPressed: _busy ? null : _handleBackup,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: palette.accent,
+                            foregroundColor: palette.onAccent,
+                            minimumSize: const Size.fromHeight(52),
+                            shape: buttonShape,
+                          ),
+                          icon: _isBackupRunning
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: palette.onAccent,
+                                  ),
+                                )
+                              : const Icon(Icons.backup_outlined),
+                          label: Text(
+                            _isBackupRunning
+                                ? AppStrings.of(context).backingUp
+                                : AppStrings.of(context).backupNow,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: _busy ? null : _handleRestore,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: palette.accent,
+                            side: BorderSide(color: palette.accent),
+                            minimumSize: const Size.fromHeight(52),
+                            shape: buttonShape,
+                          ),
+                          icon: _isRestoreRunning
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: palette.accent,
+                                  ),
+                                )
+                              : const Icon(Icons.restore_outlined),
+                          label: Text(
+                            _isRestoreRunning
+                                ? AppStrings.of(context).restoring
+                                : AppStrings.of(context).restore,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    AppStrings.of(context).photosIncludedInBackup,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: palette.textSecondary.withValues(alpha: 0.8),
-                      fontSize: 12,
+                  TossSurfaceCard(
+                    child: Column(
+                      children: [
+                        TextButton.icon(
+                          onPressed: _busy ? null : _handleFileBackup,
+                          style: TextButton.styleFrom(
+                            foregroundColor: palette.textPrimary,
+                          ),
+                          icon: const Icon(Icons.save_alt),
+                          label: Text(AppStrings.of(context).backupToFile),
+                        ),
+                        TextButton.icon(
+                          onPressed: _busy ? null : _handleFileRestore,
+                          style: TextButton.styleFrom(
+                            foregroundColor: palette.textPrimary,
+                          ),
+                          icon: const Icon(Icons.folder_open),
+                          label: Text(AppStrings.of(context).restoreFromFile),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 28),
-                  FilledButton.icon(
-                    onPressed: _busy ? null : _handleBackup,
-                    style: FilledButton.styleFrom(
-                      // 바탕과 최대 대비를 내는 반전 버튼 — 두 테마에서 방향만 뒤집힌다.
-                      backgroundColor: palette.textPrimary,
-                      foregroundColor: palette.background,
-                      minimumSize: const Size.fromHeight(52),
-                    ),
-                    icon: _isBackupRunning
-                        ? SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: palette.background,
-                            ),
-                          )
-                        : const Icon(Icons.backup_outlined),
-                    label: Text(_isBackupRunning ? AppStrings.of(context).backingUp : AppStrings.of(context).backupNow),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : _handleRestore,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: palette.textPrimary,
-                      side: BorderSide(color: palette.textPrimary),
-                      minimumSize: const Size.fromHeight(52),
-                    ),
-                    icon: _isRestoreRunning
-                        ? SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: palette.textPrimary,
-                            ),
-                          )
-                        : const Icon(Icons.restore_outlined),
-                    label: Text(_isRestoreRunning ? AppStrings.of(context).restoring : AppStrings.of(context).restore),
-                  ),
-                  const SizedBox(height: 24),
-                  const Divider(),
-                  TextButton.icon(
-                    onPressed: _busy ? null : _handleFileBackup,
-                    icon: const Icon(Icons.save_alt),
-                    label: Text(AppStrings.of(context).backupToFile),
-                  ),
-                  TextButton.icon(
-                    onPressed: _busy ? null : _handleFileRestore,
-                    icon: const Icon(Icons.folder_open),
-                    label: Text(AppStrings.of(context).restoreFromFile),
                   ),
                 ],
               ),
@@ -502,9 +561,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 /// or undo that finishes after the user leaves is still reported there.
 class _Notices {
   _Notices.of(BuildContext context)
-      : messenger = ScaffoldMessenger.of(context),
-        strings = AppStrings.of(context),
-        keepActionNotice = MediaQuery.accessibleNavigationOf(context);
+    : messenger = ScaffoldMessenger.of(context),
+      strings = AppStrings.of(context),
+      keepActionNotice = MediaQuery.accessibleNavigationOf(context);
 
   final ScaffoldMessengerState messenger;
   final AppStrings strings;

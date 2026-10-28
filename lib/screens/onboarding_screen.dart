@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_strings.dart';
 import '../services/settings_service.dart';
+import '../utils/app_palette.dart';
+import '../widgets/toss_surface_card.dart';
 import 'home_shell.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -71,18 +73,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             body: strings.onboardingBackupBody,
           ),
         ];
+        final palette = AppPalette.of(context);
         return Scaffold(
+          backgroundColor: palette.background,
           appBar: AppBar(
+            backgroundColor: palette.background,
+            foregroundColor: palette.textPrimary,
             automaticallyImplyLeading: false,
             centerTitle: true,
             scrolledUnderElevation: 0,
             surfaceTintColor: Colors.transparent,
             title: Text(
               strings.onboardingStartTitle,
-              style: const TextStyle(fontSize: 17),
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: palette.textPrimary,
+              ),
             ),
             actions: [
-              TextButton(onPressed: _finish, child: Text(strings.skip)),
+              TextButton(
+                onPressed: _finish,
+                style: TextButton.styleFrom(
+                  foregroundColor: palette.textSecondary,
+                ),
+                child: Text(strings.skip),
+              ),
             ],
           ),
           body: SafeArea(
@@ -91,6 +107,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: SegmentedButton<String>(
+                    style: ButtonStyle(
+                      foregroundColor: WidgetStateProperty.resolveWith((
+                        states,
+                      ) {
+                        if (states.contains(WidgetState.selected)) {
+                          return palette.onAccent;
+                        }
+                        return palette.textPrimary;
+                      }),
+                      backgroundColor: WidgetStateProperty.resolveWith((
+                        states,
+                      ) {
+                        if (states.contains(WidgetState.selected)) {
+                          return palette.accent;
+                        }
+                        return palette.surface;
+                      }),
+                    ),
                     segments: [
                       ButtonSegment(value: 'ko', label: Text(strings.korean)),
                       ButtonSegment(value: 'en', label: Text(strings.english)),
@@ -122,8 +156,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             margin: const EdgeInsets.only(right: 6),
                             decoration: BoxDecoration(
                               color: index == _page
-                                  ? const Color(0xFF7C5CFF)
-                                  : const Color(0xFF6E6E76),
+                                  ? palette.accent
+                                  : palette.textSecondary,
                               borderRadius: BorderRadius.circular(99),
                             ),
                           ),
@@ -132,6 +166,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       const Spacer(),
                       FilledButton(
                         onPressed: _next,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: palette.accent,
+                          foregroundColor: palette.onAccent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              TossSurfaceCard.radius,
+                            ),
+                          ),
+                        ),
                         child: Text(
                           _page == pages.length - 1
                               ? strings.getStarted
@@ -163,30 +206,39 @@ class _OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 32, 28, 16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 72, color: const Color(0xFF7C5CFF)),
-          const SizedBox(height: 28),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+    final palette = AppPalette.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+        child: TossSurfaceCard(
+          margin: EdgeInsets.zero,
+          padding: const EdgeInsets.fromLTRB(24, 36, 24, 36),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 72, color: palette.accent),
+              const SizedBox(height: 28),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: palette.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                body,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: palette.textSecondary,
+                  height: 1.45,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            body,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              height: 1.45,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

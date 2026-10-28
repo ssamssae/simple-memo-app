@@ -115,7 +115,7 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
               title: Text(
                 AppStrings.of(context).miniLmTitle,
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: AppPalette.of(context).textPrimary,
                 ),
               ),
               subtitle: Text(

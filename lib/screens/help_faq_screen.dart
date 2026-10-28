@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_strings.dart';
+import '../utils/app_palette.dart';
+import '../widgets/toss_surface_card.dart';
 
 class HelpFaqScreen extends StatelessWidget {
   const HelpFaqScreen({super.key});
@@ -15,31 +17,53 @@ class HelpFaqScreen extends StatelessWidget {
       (strings.helpFeedbackQuestion, strings.helpFeedbackAnswer),
     ];
 
+    final palette = AppPalette.of(context);
     return Scaffold(
+      backgroundColor: palette.background,
       appBar: AppBar(
+        backgroundColor: palette.background,
+        foregroundColor: palette.textPrimary,
         centerTitle: true,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: Text(strings.helpFaq, style: const TextStyle(fontSize: 17)),
+        title: Text(
+          strings.helpFaq,
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: palette.textPrimary,
+          ),
+        ),
       ),
       body: SafeArea(
-        child: ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        child: ListView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           itemBuilder: (context, index) {
             final item = items[index];
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                item.$1,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(item.$2),
+            return TossSurfaceCard(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.$1,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: palette.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    item.$2,
+                    style: TextStyle(
+                      color: palette.textSecondary,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
               ),
             );
           },
-          separatorBuilder: (_, _) => const Divider(height: 24, thickness: 0.5),
           itemCount: items.length,
         ),
       ),

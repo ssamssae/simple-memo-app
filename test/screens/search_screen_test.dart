@@ -6,17 +6,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/models/memo.dart';
 import 'package:simple_memo_app/screens/search_screen.dart';
+import 'package:simple_memo_app/utils/app_palette.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   Memo m(String id, String content, DateTime t, {bool fav = false}) => Memo(
-        id: id,
-        content: content,
-        createdAt: t,
-        updatedAt: t,
-        isFavorite: fav,
-      );
+    id: id,
+    content: content,
+    createdAt: t,
+    updatedAt: t,
+    isFavorite: fav,
+  );
 
   final now = DateTime(2026, 6, 16, 10);
 
@@ -31,13 +32,13 @@ void main() {
     await tester.pump();
   }
 
-  // RichText 안에 amber 배경 스팬이 있는지 검사 (하이라이트 검증).
-  bool hasAmberHighlight(WidgetTester tester) {
+  // RichText 안에 보라 액센트 배경 스팬이 있는지 검사 (하이라이트 검증).
+  bool hasAccentHighlight(WidgetTester tester) {
+    final expected = AppPalette.light.accent.withValues(alpha: 0.22);
     var found = false;
     for (final rt in tester.widgetList<RichText>(find.byType(RichText))) {
       rt.text.visitChildren((span) {
-        if (span is TextSpan &&
-            span.style?.backgroundColor == Colors.amber.shade300) {
+        if (span is TextSpan && span.style?.backgroundColor == expected) {
           found = true;
         }
         return true;
@@ -55,7 +56,7 @@ void main() {
     expect(find.textContaining('검색해 보세요'), findsOneWidget);
   });
 
-  testWidgets('검색어 입력 → 결과 카운트 + 매치 메모 + amber 하이라이트', (tester) async {
+  testWidgets('검색어 입력 → 결과 카운트 + 매치 메모 + 보라 하이라이트', (tester) async {
     seed([
       m('a', 'Karpathy 룰 4가지\nthink before coding', now),
       m('b', '딴 메모\n관계 없는 내용', now),
@@ -66,11 +67,8 @@ void main() {
     await type(tester, 'Karpathy');
 
     expect(find.textContaining('메모 결과 (1건)'), findsOneWidget);
-    expect(
-      find.textContaining('Karpathy', findRichText: true),
-      findsWidgets,
-    );
-    expect(hasAmberHighlight(tester), isTrue);
+    expect(find.textContaining('Karpathy', findRichText: true), findsWidgets);
+    expect(hasAccentHighlight(tester), isTrue);
   });
 
   testWidgets('휴지통 메모는 키워드 검색 결과에 나타나지 않는다', (tester) async {

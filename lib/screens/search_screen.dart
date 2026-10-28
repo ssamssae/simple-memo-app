@@ -13,14 +13,14 @@ import '../models/memo.dart';
 import '../services/memo_storage.dart';
 import '../services/search_service.dart';
 import '../utils/app_palette.dart';
+import '../widgets/toss_surface_card.dart';
 import 'memo_edit_screen.dart';
 import '../l10n/app_strings.dart';
-
 
 /// 메모요 1.0.8 검색 화면 (T-260615-26, spec docs/specs/1.0.8-search.md §3).
 ///
 /// AppBar morph 대신 별 화면 push — 뒤로가기 = 검색 이탈(§6.1 step 6). 활성 메모만 대상(§4.1 A).
-/// 입력 디바운스 300ms(§2.4), 결과 카드 RichText amber 하이라이트(§3.3/§3.5), 빈 결과 empty state(§3.7).
+/// 입력 디바운스 300ms(§2.4), 결과 카드는 보라 하이라이트(§3.3/§3.5), 빈 결과 empty state(§3.7).
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key, this.semanticCoordinator});
 
@@ -207,8 +207,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Scaffold(
+      backgroundColor: palette.background,
       appBar: AppBar(
+        backgroundColor: palette.background,
+        foregroundColor: palette.textPrimary,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         title: TextField(
@@ -217,12 +221,30 @@ class _SearchScreenState extends State<SearchScreen> {
           autofocus: true,
           textInputAction: TextInputAction.search,
           onChanged: _onChanged,
+          style: TextStyle(fontSize: 17, color: palette.textPrimary),
           decoration: InputDecoration(
             hintText: AppStrings.of(context).searchHint,
-            border: InputBorder.none,
+            filled: true,
+            fillColor: palette.surface,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(TossSurfaceCard.radius),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(TossSurfaceCard.radius),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(TossSurfaceCard.radius),
+              borderSide: BorderSide(color: palette.accent, width: 1.5),
+            ),
             hintStyle: TextStyle(color: _sub),
           ),
-          style: const TextStyle(fontSize: 17),
         ),
         actions: [
           if (_query.isNotEmpty)
@@ -268,6 +290,22 @@ class _SearchScreenState extends State<SearchScreen> {
           Expanded(
             child: SegmentedButton<_SearchMode>(
               showSelectedIcon: false,
+              style: ButtonStyle(
+                foregroundColor: WidgetStateProperty.resolveWith((states) {
+                  final palette = AppPalette.of(context);
+                  if (states.contains(WidgetState.selected)) {
+                    return palette.onAccent;
+                  }
+                  return palette.textPrimary;
+                }),
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  final palette = AppPalette.of(context);
+                  if (states.contains(WidgetState.selected)) {
+                    return palette.accent;
+                  }
+                  return palette.surface;
+                }),
+              ),
               selected: {_mode},
               onSelectionChanged: (selection) =>
                   unawaited(_selectMode(selection)),
@@ -292,7 +330,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildResultsBody() {
     if (_query.trim().isEmpty) {
-      return _CenterHint(icon: Icons.search, text: AppStrings.of(context).searchPrompt);
+      return _CenterHint(
+        icon: Icons.search,
+        text: AppStrings.of(context).searchPrompt,
+      );
     }
     if (_results.isEmpty) {
       return _CenterHint(
@@ -312,17 +353,20 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          padding: const EdgeInsets.fromLTRB(22, 12, 16, 8),
           child: Text(
             AppStrings.of(context).memoResults(_results.length),
-            style: TextStyle(color: _sub, fontSize: 13),
+            style: TextStyle(
+              color: _sub,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         Expanded(
-          child: ListView.separated(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             itemCount: _results.length,
-            separatorBuilder: (_, _) =>
-                const Divider(height: 1, indent: 16, endIndent: 16),
             itemBuilder: (_, i) => _SearchResultCard(
               memo: _results[i],
               query: _query,
@@ -346,7 +390,7 @@ class _CenterHint extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 52, color: AppPalette.of(context).textSecondary),
+          Icon(icon, size: 52, color: AppPalette.of(context).accent),
           const SizedBox(height: 12),
           Text(
             text,
@@ -387,51 +431,56 @@ class _SearchResultCard extends StatelessWidget {
         ? bodyExc
         : SearchExcerpt(_plainPreview(memo.content), -1, 0);
 
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            if (memo.isFavorite)
-              const Padding(
-                padding: EdgeInsets.only(right: 8),
-                child: Icon(Icons.star, size: 16, color: Color(0xFF7C5CFF)),
-              ),
-            if (memo.hasImages)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: AttachmentThumbnail(
-                  fileName: memo.imageFiles.first,
-                  size: 32,
+    final palette = AppPalette.of(context);
+    return TossSurfaceCard(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              if (memo.isFavorite)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Icon(Icons.star, size: 16, color: palette.accent),
                 ),
-              ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _highlight(
-                    titleExc,
-                    TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppPalette.of(context).textPrimary,
-                    ),
+              if (memo.hasImages)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: AttachmentThumbnail(
+                    fileName: memo.imageFiles.first,
+                    size: 32,
                   ),
-                  if (bodyPreview.text.isNotEmpty) ...[
-                    const SizedBox(height: 3),
+                ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     _highlight(
-                      bodyPreview,
+                      context,
+                      titleExc,
                       TextStyle(
-                        fontSize: 13,
-                        color: AppPalette.of(context).textSecondary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppPalette.of(context).textPrimary,
                       ),
                     ),
+                    if (bodyPreview.text.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      _highlight(
+                        context,
+                        bodyPreview,
+                        TextStyle(
+                          fontSize: 13,
+                          color: AppPalette.of(context).textSecondary,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -447,7 +496,7 @@ class _SearchResultCard extends StatelessWidget {
     return rest.length > 60 ? '${rest.substring(0, 60)}…' : rest;
   }
 
-  Widget _highlight(SearchExcerpt exc, TextStyle base) {
+  Widget _highlight(BuildContext context, SearchExcerpt exc, TextStyle base) {
     if (exc.start < 0) {
       return Text(
         exc.text,
@@ -467,9 +516,11 @@ class _SearchResultCard extends StatelessWidget {
           TextSpan(
             text: exc.text.substring(exc.start, end),
             style: base.copyWith(
-              backgroundColor: Colors.amber.shade300,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF222228),
+              backgroundColor: AppPalette.of(
+                context,
+              ).accent.withValues(alpha: 0.22),
+              fontWeight: FontWeight.w700,
+              color: AppPalette.of(context).textPrimary,
             ),
           ),
           TextSpan(text: exc.text.substring(end)),

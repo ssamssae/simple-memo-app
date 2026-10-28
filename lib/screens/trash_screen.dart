@@ -2,11 +2,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../features/memos/widgets/attachment_thumbnail.dart';
+import '../l10n/app_strings.dart';
 import '../models/memo.dart';
 import '../services/memo_storage.dart';
+import '../utils/app_palette.dart';
+import '../widgets/toss_surface_card.dart';
 import '../widgets/version_footer.dart';
-import '../l10n/app_strings.dart';
-
 
 // 휴지통 화면. 삭제된(soft-delete) 메모를 수동 복구·영구삭제·비우기 전까지 보관.
 // 저장소는 기존 단일 'memos' blob 그대로 — 활성/휴지통이 한 리스트, deletedAt 으로 구분.
@@ -97,19 +98,31 @@ class _TrashScreenState extends State<TrashScreen> {
   }
 
   Future<void> _confirmEmptyTrash() async {
+    final palette = AppPalette.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(AppStrings.of(context).emptyTrashTitle),
-        content: Text(AppStrings.of(context).emptyTrashConfirm(_trash.length)),
+        backgroundColor: palette.elevatedSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(TossSurfaceCard.radius),
+        ),
+        title: Text(
+          AppStrings.of(context).emptyTrashTitle,
+          style: TextStyle(color: palette.textPrimary),
+        ),
+        content: Text(
+          AppStrings.of(context).emptyTrashConfirm(_trash.length),
+          style: TextStyle(color: palette.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
+            style: TextButton.styleFrom(foregroundColor: palette.textSecondary),
             child: Text(AppStrings.of(context).cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            style: TextButton.styleFrom(foregroundColor: palette.danger),
             child: Text(AppStrings.of(context).emptyTrashAction),
           ),
         ],
@@ -120,13 +133,24 @@ class _TrashScreenState extends State<TrashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
     return Scaffold(
+      backgroundColor: palette.background,
       bottomNavigationBar: const SafeArea(child: VersionFooter()),
       appBar: AppBar(
+        backgroundColor: palette.background,
+        foregroundColor: palette.textPrimary,
         centerTitle: true,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: Text(AppStrings.of(context).trash, style: const TextStyle(fontSize: 17)),
+        title: Text(
+          AppStrings.of(context).trash,
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: palette.textPrimary,
+          ),
+        ),
         actions: [
           if (_trash.isNotEmpty)
             Padding(
@@ -134,83 +158,79 @@ class _TrashScreenState extends State<TrashScreen> {
               child: TextButton(
                 onPressed: _confirmEmptyTrash,
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.orange,
+                  foregroundColor: palette.danger,
                   padding: EdgeInsets.zero,
                   minimumSize: const Size(0, 0),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(AppStrings.of(context).emptyTrashAction, style: const TextStyle(fontSize: 16)),
+                child: Text(
+                  AppStrings.of(context).emptyTrashAction,
+                  style: const TextStyle(fontSize: 16),
+                ),
               ),
             ),
         ],
       ),
       body: SafeArea(
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(child: CircularProgressIndicator(color: palette.accent))
             : _trash.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.delete_outline,
-                          size: 56,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          AppStrings.of(context).trashEmptyHint,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.delete_outline, size: 56, color: palette.accent),
+                    const SizedBox(height: 12),
+                    Text(
+                      AppStrings.of(context).trashEmptyHint,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: palette.textSecondary,
+                      ),
                     ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    itemCount: _trash.length,
-                    separatorBuilder: (_, _) =>
-                        const Divider(height: 0.5, thickness: 0.5),
-                    itemBuilder: (context, index) {
-                      final memo = _trash[index];
-                      return ListTile(
-                        leading: memo.hasImages
-                            ? AttachmentThumbnail(
-                                fileName: memo.imageFiles.first,
-                              )
-                            : null,
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 12),
-                        title: Text(
-                          memo.firstLine,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 17,
-                          ),
+                  ],
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                itemCount: _trash.length,
+                itemBuilder: (context, index) {
+                  final memo = _trash[index];
+                  return TossSurfaceCard(
+                    child: ListTile(
+                      leading: memo.hasImages
+                          ? AttachmentThumbnail(fileName: memo.imageFiles.first)
+                          : null,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                      title: Text(
+                        memo.firstLine,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: palette.textPrimary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
                         ),
-                        subtitle: Text(
-                          AppStrings.of(context).keptInTrashHint,
-                          style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                            fontSize: 12,
-                          ),
+                      ),
+                      subtitle: Text(
+                        AppStrings.of(context).keptInTrashHint,
+                        style: TextStyle(
+                          color: palette.textSecondary,
+                          fontSize: 12,
                         ),
-                        trailing: Icon(
-                          Icons.more_horiz,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        onTap: () => _showItemActions(memo),
-                      );
-                    },
-                  ),
+                      ),
+                      trailing: Icon(
+                        Icons.more_horiz,
+                        color: palette.textSecondary,
+                      ),
+                      onTap: () => _showItemActions(memo),
+                    ),
+                  );
+                },
+              ),
       ),
     );
   }
