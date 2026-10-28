@@ -15,6 +15,7 @@ import '../services/ads_service.dart';
 import '../services/app_review_service.dart';
 import '../services/remove_ads_purchase.dart';
 import '../services/settings_service.dart';
+import '../widgets/toss_surface_card.dart';
 import '../widgets/version_footer.dart';
 import '../utils/app_palette.dart';
 import 'backup_restore_screen.dart';
@@ -173,6 +174,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: palette.elevatedSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(TossSurfaceCard.radius),
+        ),
+      ),
       builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -246,178 +252,231 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final strings = AppStrings.of(context);
-    final colorScheme = Theme.of(context).colorScheme;
-    final primaryColor = colorScheme.onSurface;
-    final secondaryColor = colorScheme.onSurfaceVariant;
+    final palette = AppPalette.of(context);
+    final primaryColor = palette.textPrimary;
+    final secondaryColor = palette.textSecondary;
     return Scaffold(
+      backgroundColor: palette.background,
       appBar: AppBar(
+        backgroundColor: palette.background,
+        foregroundColor: palette.textPrimary,
         centerTitle: true,
         automaticallyImplyLeading: !widget.embedded,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: Text(strings.settings, style: const TextStyle(fontSize: 17)),
+        title: Text(
+          strings.settings,
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: palette.textPrimary,
+          ),
+        ),
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           children: [
-            const Divider(height: 0.5, thickness: 0.5),
-            ValueListenableBuilder<double>(
-              valueListenable: SettingsService.instance.bodyFontSize,
-              builder: (context, fontSize, _) {
-                final fontSizeLabel = '${fontSize.round()}sp';
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.format_size, color: primaryColor),
-                          const SizedBox(width: 32),
-                          Expanded(
-                            child: Text(
-                              strings.fontSize,
-                              style: TextStyle(color: primaryColor),
+            TossSurfaceCard(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ValueListenableBuilder<double>(
+                    valueListenable: SettingsService.instance.bodyFontSize,
+                    builder: (context, fontSize, _) {
+                      final fontSizeLabel = '${fontSize.round()}sp';
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.format_size, color: primaryColor),
+                                const SizedBox(width: 32),
+                                Expanded(
+                                  child: Text(
+                                    strings.fontSize,
+                                    style: TextStyle(color: primaryColor),
+                                  ),
+                                ),
+                                Text(
+                                  fontSizeLabel,
+                                  style: TextStyle(color: secondaryColor),
+                                ),
+                              ],
                             ),
-                          ),
-                          Text(
-                            fontSizeLabel,
-                            style: TextStyle(color: secondaryColor),
-                          ),
-                        ],
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 48,
-                          top: 2,
-                          bottom: 2,
-                        ),
-                        child: Text(
-                          strings.memoBodySize,
-                          style: TextStyle(
-                            color: primaryColor,
-                            fontSize: fontSize,
-                          ),
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Text(
-                            AppStrings.of(context).fontSample,
-                            style: TextStyle(
-                              color: secondaryColor,
-                              fontSize: 13,
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                left: 48,
+                                top: 2,
+                                bottom: 2,
+                              ),
+                              child: Text(
+                                strings.memoBodySize,
+                                style: TextStyle(
+                                  color: primaryColor,
+                                  fontSize: fontSize,
+                                ),
+                              ),
                             ),
-                          ),
-                          Expanded(
-                            child: Slider(
-                              value: fontSize,
-                              min: SettingsService.minBodyFontSize,
-                              max: SettingsService.maxBodyFontSize,
-                              divisions:
-                                  (SettingsService.maxBodyFontSize -
-                                          SettingsService.minBodyFontSize)
-                                      .round(),
-                              activeColor: const Color(0xFF7C5CFF),
-                              label: fontSizeLabel,
-                              onChanged:
-                                  SettingsService.instance.previewBodyFontSize,
-                              onChangeEnd: (v) {
-                                SettingsService.instance.setBodyFontSize(v);
-                              },
-                            ),
-                          ),
-                          Text(
-                            AppStrings.of(context).fontSample,
-                            style: TextStyle(
-                              color: secondaryColor,
-                              fontSize: 22,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            const Divider(height: 0.5, thickness: 0.5),
-            ValueListenableBuilder<ThemeMode>(
-              valueListenable: SettingsService.instance.themeMode,
-              builder: (context, themeMode, _) {
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                  child: Row(
-                    children: [
-                      Icon(Icons.contrast, color: primaryColor),
-                      const SizedBox(width: 32),
-                      Text(AppStrings.of(context).theme, style: TextStyle(color: primaryColor)),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: SegmentedButton<ThemeMode>(
-                          showSelectedIcon: false,
-                          selected: {themeMode},
-                          style: const ButtonStyle(
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          segments: [
-                            ButtonSegment<ThemeMode>(
-                              value: ThemeMode.system,
-                              label: Text(AppStrings.of(context).themeSystem),
-                            ),
-                            ButtonSegment<ThemeMode>(
-                              value: ThemeMode.light,
-                              label: Text(AppStrings.of(context).themeLight),
-                            ),
-                            ButtonSegment<ThemeMode>(
-                              value: ThemeMode.dark,
-                              label: Text(AppStrings.of(context).themeDark),
+                            Row(
+                              children: [
+                                Text(
+                                  AppStrings.of(context).fontSample,
+                                  style: TextStyle(
+                                    color: secondaryColor,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Slider(
+                                    value: fontSize,
+                                    min: SettingsService.minBodyFontSize,
+                                    max: SettingsService.maxBodyFontSize,
+                                    divisions:
+                                        (SettingsService.maxBodyFontSize -
+                                                SettingsService.minBodyFontSize)
+                                            .round(),
+                                    activeColor: palette.accent,
+                                    label: fontSizeLabel,
+                                    onChanged: SettingsService
+                                        .instance
+                                        .previewBodyFontSize,
+                                    onChangeEnd: (v) {
+                                      SettingsService.instance.setBodyFontSize(
+                                        v,
+                                      );
+                                    },
+                                  ),
+                                ),
+                                Text(
+                                  AppStrings.of(context).fontSample,
+                                  style: TextStyle(
+                                    color: secondaryColor,
+                                    fontSize: 22,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
-                          onSelectionChanged: (selection) {
-                            if (selection.isEmpty) return;
-                            SettingsService.instance.setThemeMode(
-                              selection.first,
-                            );
-                          },
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
-            const Divider(height: 0.5, thickness: 0.5),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: Icon(Icons.star_rate_outlined, color: primaryColor),
-              title: Text(
-                strings.rateApp,
-                style: TextStyle(color: primaryColor),
+                  ValueListenableBuilder<ThemeMode>(
+                    valueListenable: SettingsService.instance.themeMode,
+                    builder: (context, themeMode, _) {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.contrast, color: primaryColor),
+                            const SizedBox(width: 32),
+                            Text(
+                              AppStrings.of(context).theme,
+                              style: TextStyle(color: primaryColor),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: SegmentedButton<ThemeMode>(
+                                showSelectedIcon: false,
+                                selected: {themeMode},
+                                style: ButtonStyle(
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  foregroundColor:
+                                      WidgetStateProperty.resolveWith((states) {
+                                        if (states.contains(
+                                          WidgetState.selected,
+                                        )) {
+                                          return palette.onAccent;
+                                        }
+                                        return palette.textPrimary;
+                                      }),
+                                  backgroundColor:
+                                      WidgetStateProperty.resolveWith((states) {
+                                        if (states.contains(
+                                          WidgetState.selected,
+                                        )) {
+                                          return palette.accent;
+                                        }
+                                        return palette.surface;
+                                      }),
+                                ),
+                                segments: [
+                                  ButtonSegment<ThemeMode>(
+                                    value: ThemeMode.system,
+                                    label: Text(
+                                      AppStrings.of(context).themeSystem,
+                                    ),
+                                  ),
+                                  ButtonSegment<ThemeMode>(
+                                    value: ThemeMode.light,
+                                    label: Text(
+                                      AppStrings.of(context).themeLight,
+                                    ),
+                                  ),
+                                  ButtonSegment<ThemeMode>(
+                                    value: ThemeMode.dark,
+                                    label: Text(
+                                      AppStrings.of(context).themeDark,
+                                    ),
+                                  ),
+                                ],
+                                onSelectionChanged: (selection) {
+                                  if (selection.isEmpty) return;
+                                  SettingsService.instance.setThemeMode(
+                                    selection.first,
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
-              trailing: _isOpeningReviewListing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(Icons.chevron_right, color: primaryColor),
-              onTap: _isOpeningReviewListing ? null : _openReviewListing,
             ),
-            const Divider(height: 0.5, thickness: 0.5),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: Icon(Icons.feedback_outlined, color: primaryColor),
-              title: Text(
-                strings.sendFeedback,
-                style: TextStyle(color: primaryColor),
+            TossSurfaceCard(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    leading: Icon(
+                      Icons.star_rate_outlined,
+                      color: primaryColor,
+                    ),
+                    title: Text(
+                      strings.rateApp,
+                      style: TextStyle(color: primaryColor),
+                    ),
+                    trailing: _isOpeningReviewListing
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(Icons.chevron_right, color: secondaryColor),
+                    onTap: _isOpeningReviewListing ? null : _openReviewListing,
+                  ),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    leading: Icon(Icons.feedback_outlined, color: primaryColor),
+                    title: Text(
+                      strings.sendFeedback,
+                      style: TextStyle(color: primaryColor),
+                    ),
+                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                    onTap: _sendFeedback,
+                  ),
+                ],
               ),
-              trailing: Icon(Icons.chevron_right, color: primaryColor),
-              onTap: _sendFeedback,
             ),
-            const Divider(height: 0.5, thickness: 0.5),
             // ★「프리미엄」 엔티틀먼트 카드 제거 — T-260805-076. 사유는 이 화면 상단 주석.
             // ★T-260805-145 — 말로찾기가 잠긴 동안에는 이 타일이 124MB 설치를 권하지 않는다.
             //   판정은 miniLmTileVisible 하나뿐이다(리터럴 복제 금지 — availability 파일 주석).
@@ -431,12 +490,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     installed: manager.state == MiniLmModelState.ready,
                   );
                   if (!visible) return const SizedBox.shrink();
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      MiniLmModelSettingsTile(manager: manager),
-                      const Divider(height: 0.5, thickness: 0.5),
-                    ],
+                  return TossSurfaceCard(
+                    child: MiniLmModelSettingsTile(manager: manager),
                   );
                 },
               ),
@@ -444,140 +499,168 @@ class _SettingsScreenState extends State<SettingsScreen> {
               valueListenable: AdsService.instance.removeAds,
               builder: (context, removed, _) {
                 if (removed) {
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    leading: const Icon(
-                      Icons.check_circle_outline,
-                      color: Color(0xFF7C5CFF),
-                    ),
-                    title: Text(
-                      strings.removeAdsDone,
-                      style: TextStyle(color: primaryColor),
-                    ),
-                    subtitle: Text(
-                      strings.thanksForUsing,
-                      style: TextStyle(color: secondaryColor),
+                  return TossSurfaceCard(
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                      leading: Icon(
+                        Icons.check_circle_outline,
+                        color: palette.accent,
+                      ),
+                      title: Text(
+                        strings.removeAdsDone,
+                        style: TextStyle(color: primaryColor),
+                      ),
+                      subtitle: Text(
+                        strings.thanksForUsing,
+                        style: TextStyle(color: secondaryColor),
+                      ),
                     ),
                   );
                 }
                 final available = RemoveAdsPurchase.instance.available;
                 final price = RemoveAdsPurchase.instance.price;
-                return Column(
-                  children: [
-                    ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
+                return TossSurfaceCard(
+                  child: Column(
+                    children: [
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                        ),
+                        leading: Icon(
+                          Icons.block_outlined,
+                          color: palette.accent,
+                        ),
+                        title: Text(
+                          strings.removeAds,
+                          style: TextStyle(color: primaryColor),
+                        ),
+                        subtitle: Text(
+                          available
+                              ? (price ?? strings.removeAdsOneTime)
+                              : strings.removeAdsPrepared,
+                          style: TextStyle(color: secondaryColor),
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: palette.accent,
+                        ),
+                        onTap: _buyRemoveAds,
                       ),
-                      leading: const Icon(
-                        Icons.block_outlined,
-                        color: Color(0xFF7C5CFF),
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                        ),
+                        leading: Icon(Icons.restore, color: secondaryColor),
+                        title: Text(
+                          strings.restorePurchases,
+                          style: TextStyle(color: primaryColor),
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: secondaryColor,
+                        ),
+                        onTap: _restorePurchases,
                       ),
-                      title: Text(
-                        strings.removeAds,
-                        style: TextStyle(color: primaryColor),
-                      ),
-                      subtitle: Text(
-                        available
-                            ? (price ?? strings.removeAdsOneTime)
-                            : strings.removeAdsPrepared,
-                        style: TextStyle(color: secondaryColor),
-                      ),
-                      trailing: const Icon(
-                        Icons.chevron_right,
-                        color: Color(0xFF7C5CFF),
-                      ),
-                      onTap: _buyRemoveAds,
-                    ),
-                    const Divider(height: 0.5, thickness: 0.5),
-                    ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                      ),
-                      leading: Icon(Icons.restore, color: secondaryColor),
-                      title: Text(
-                        strings.restorePurchases,
-                        style: TextStyle(color: primaryColor),
-                      ),
-                      trailing: Icon(
-                        Icons.chevron_right,
-                        color: secondaryColor,
-                      ),
-                      onTap: _restorePurchases,
-                    ),
-                  ],
+                    ],
+                  ),
                 );
               },
             ),
-            const Divider(height: 0.5, thickness: 0.5),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: Icon(Icons.backup_outlined, color: primaryColor),
-              title: Text(
-                strings.backupRestore,
-                style: TextStyle(color: primaryColor),
+            TossSurfaceCard(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    leading: Icon(Icons.backup_outlined, color: primaryColor),
+                    title: Text(
+                      strings.backupRestore,
+                      style: TextStyle(color: primaryColor),
+                    ),
+                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                    onTap: _openBackupRestore,
+                  ),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    leading: Icon(Icons.delete_outline, color: primaryColor),
+                    title: Text(
+                      strings.trash,
+                      style: TextStyle(color: primaryColor),
+                    ),
+                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                    onTap: _openTrash,
+                  ),
+                ],
               ),
-              trailing: Icon(Icons.chevron_right, color: primaryColor),
-              onTap: _openBackupRestore,
             ),
-            const Divider(height: 0.5, thickness: 0.5),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: Icon(Icons.delete_outline, color: primaryColor),
-              title: Text(strings.trash, style: TextStyle(color: primaryColor)),
-              trailing: Icon(Icons.chevron_right, color: primaryColor),
-              onTap: _openTrash,
-            ),
-            const Divider(height: 0.5, thickness: 0.5),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: Icon(Icons.translate, color: primaryColor),
-              title: Text(
-                strings.language,
-                style: TextStyle(color: primaryColor),
+            TossSurfaceCard(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    leading: Icon(Icons.translate, color: primaryColor),
+                    title: Text(
+                      strings.language,
+                      style: TextStyle(color: primaryColor),
+                    ),
+                    subtitle: Text(
+                      SettingsService.instance.languageCode.value == 'en'
+                          ? strings.english
+                          : strings.korean,
+                      style: TextStyle(color: secondaryColor),
+                    ),
+                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                    onTap: _openLanguageMenu,
+                  ),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    leading: Icon(Icons.help_outline, color: primaryColor),
+                    title: Text(
+                      strings.helpFaq,
+                      style: TextStyle(color: primaryColor),
+                    ),
+                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                    onTap: _openHelp,
+                  ),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    leading: Icon(
+                      Icons.description_outlined,
+                      color: secondaryColor,
+                    ),
+                    title: Text(
+                      strings.terms,
+                      style: TextStyle(color: primaryColor),
+                    ),
+                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                    onTap: () => _openPolicy(
+                      strings.terms,
+                      'docs/legal/terms-of-service.md',
+                    ),
+                  ),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    leading: Icon(
+                      Icons.privacy_tip_outlined,
+                      color: secondaryColor,
+                    ),
+                    title: Text(
+                      strings.privacy,
+                      style: TextStyle(color: primaryColor),
+                    ),
+                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                    onTap: () => _openPolicy(
+                      strings.privacy,
+                      'docs/legal/privacy-policy.md',
+                    ),
+                  ),
+                ],
               ),
-              subtitle: Text(
-                SettingsService.instance.languageCode.value == 'en'
-                    ? strings.english
-                    : strings.korean,
-                style: TextStyle(color: secondaryColor),
-              ),
-              trailing: Icon(Icons.chevron_right, color: primaryColor),
-              onTap: _openLanguageMenu,
             ),
-            const Divider(height: 0.5, thickness: 0.5),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: Icon(Icons.help_outline, color: primaryColor),
-              title: Text(
-                strings.helpFaq,
-                style: TextStyle(color: primaryColor),
-              ),
-              trailing: Icon(Icons.chevron_right, color: primaryColor),
-              onTap: _openHelp,
-            ),
-            const Divider(height: 0.5, thickness: 0.5),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: Icon(Icons.description_outlined, color: secondaryColor),
-              title: Text(strings.terms, style: TextStyle(color: primaryColor)),
-              trailing: Icon(Icons.chevron_right, color: secondaryColor),
-              onTap: () =>
-                  _openPolicy(strings.terms, 'docs/legal/terms-of-service.md'),
-            ),
-            const Divider(height: 0.5, thickness: 0.5),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: Icon(Icons.privacy_tip_outlined, color: secondaryColor),
-              title: Text(
-                strings.privacy,
-                style: TextStyle(color: primaryColor),
-              ),
-              trailing: Icon(Icons.chevron_right, color: secondaryColor),
-              onTap: () =>
-                  _openPolicy(strings.privacy, 'docs/legal/privacy-policy.md'),
-            ),
-            const Divider(height: 0.5, thickness: 0.5),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             const SafeArea(top: false, child: VersionFooter()),
           ],
         ),

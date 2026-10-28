@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/memo.dart';
 import '../services/settings_service.dart';
 import '../utils/app_palette.dart';
+import '../widgets/toss_surface_card.dart';
 import '../l10n/app_strings.dart';
 import '../features/memos/services/attachment_service.dart';
 import '../features/memos/services/attachment_store.dart';
@@ -845,7 +846,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               padding: const EdgeInsets.only(right: 12, left: 0),
               child: _pillButton(
                 label: AppStrings.of(context).save,
-                color: palette.textPrimary,
+                color: palette.accent,
                 onTap: _saveMemo,
               ),
             ),
@@ -892,7 +893,10 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                       onPointerDown: (e) => _lastTouchPosition = e.position,
                       onPointerUp: (e) => _lastTouchPosition = e.position,
                       onPointerSignal: _handleContentPointerSignal,
-                      child: ValueListenableBuilder<double>(
+                      child: TossSurfaceCard(
+                        margin: EdgeInsets.zero,
+                        clip: false,
+                        child: ValueListenableBuilder<double>(
                         valueListenable: SettingsService.instance.bodyFontSize,
                         builder: (context, bodyFontSize, _) => Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -902,6 +906,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                             // 높이까지 늘려 「본문 아래 빈 곳 탭 → 캐럿」이 됐다. Column 은 자식에
                             // min 0 을 주므로 그 동작이 죽는다 → TextField 에 직접
                             // (뷰포트 − 스트립 높이) minHeight 를 준다. constraints = LayoutBuilder 인자.
+                            // 토스 카드는 이 높이 뒤에만 깐다. 본문 줄 위치는 바꾸지 않는다.
                             ConstrainedBox(
                               constraints: BoxConstraints(
                                 minHeight: math.max(
@@ -1049,6 +1054,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                               ),
                           ],
                         ), // end Column
+                        ),
                       ),
                     ),
                   ),
