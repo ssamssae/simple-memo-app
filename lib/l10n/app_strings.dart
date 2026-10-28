@@ -21,6 +21,7 @@ class AppStrings {
   String get appName => isEnglish ? 'Memoyo' : '메모요';
   String get settings => isEnglish ? 'Settings' : '설정';
   String get memoTab => isEnglish ? 'Memo' : '메모';
+  String get favoritesSection => isEnglish ? 'Favorites' : '즐겨찾기';
   String get newMemoTab => isEnglish ? 'New' : '새메모';
   String get fontSize => isEnglish ? 'Text size' : '글자 크기';
   String get memoBodySize => isEnglish ? 'Memo body size' : '메모 본문 크기';
