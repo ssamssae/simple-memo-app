@@ -25,7 +25,7 @@ class _HomeShellState extends State<HomeShell> {
       GlobalKey<MemoListScreenState>();
 
   static const Color _accent = Color(0xFF7C5CFF);
-  static const Color _inactive = Color(0xFF6E6E76);
+  static const Color _inactive = Color(0xFF8B95A1);
 
   void _onBarTapped(int barIndex) {
     switch (barIndex) {
@@ -76,6 +76,7 @@ class _HomeShellState extends State<HomeShell> {
             currentIndex: barCurrent,
             onTap: _onBarTapped,
             type: BottomNavigationBarType.fixed,
+            elevation: 0,
             backgroundColor: AppPalette.of(context).navigationBar,
             selectedItemColor: _accent,
             unselectedItemColor: _inactive,
@@ -88,7 +89,22 @@ class _HomeShellState extends State<HomeShell> {
                 label: strings.memoTab,
               ),
               BottomNavigationBarItem(
-                icon: const Icon(Icons.add_box_outlined),
+                // 토스톤: 가운데 '새메모'를 보라 상자 버튼으로 강조. 아이콘은
+                // 테스트가 탭하는 add_box_outlined 를 그대로 둔다 (T-261028-009).
+                icon: Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _accent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.add_box_outlined,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
                 label: strings.newMemoTab,
               ),
               BottomNavigationBarItem(

@@ -46,13 +46,14 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// 삭제 등 파괴적 동작.
   final Color danger;
 
+  // 토스톤 라이트: 중립 회색(#191F28/#4E5968) + 메모요 보라 액센트 유지.
   static const AppPalette light = AppPalette(
-    background: Color(0xFFF8F8FA),
+    background: Color(0xFFF2F4F6),
     surface: Color(0xFFFFFFFF),
     elevatedSurface: Color(0xFFFFFFFF),
     navigationBar: Color(0xFFFFFFFF),
-    textPrimary: Color(0xFF1F1F25),
-    textSecondary: Color(0xFF6E6E76),
+    textPrimary: Color(0xFF191F28),
+    textSecondary: Color(0xFF4E5968),
     accent: Color(0xFF7C5CFF),
     onAccent: Color(0xFFFFFFFF),
     danger: Color(0xFFE5534B),

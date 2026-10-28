@@ -200,7 +200,14 @@ class MemoListScreenState extends State<MemoListScreen>
     return Listener(
       onPointerSignal: _handleListPointerSignal,
       onPointerMove: _onPointerMoveForDragTracking,
-      child: Material(elevation: 2, child: child),
+      // elevation 2 는 이동 모드 판정 신호(테스트가 찾음). 둥근 카드가 그대로
+      // 떠 보이도록 바탕은 투명·그림자는 둥글게 (T-261028-009).
+      child: Material(
+        elevation: 2,
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: child,
+      ),
     );
   }
 
@@ -633,7 +640,7 @@ class MemoListScreenState extends State<MemoListScreen>
                   ),
                 )
               : null,
-          title: Text(strings.appName, style: const TextStyle(fontSize: 17)),
+          // 앱 이름은 본문 상단에 크게 띄운다 (토스톤, T-261028-009).
           actions: [
             if (!_isEditMode)
               Padding(
@@ -642,6 +649,10 @@ class MemoListScreenState extends State<MemoListScreen>
                   icon: Icon(Icons.search, color: palette.textSecondary),
                   tooltip: AppStrings.of(context).search,
                   onPressed: _openSearch,
+                  style: IconButton.styleFrom(
+                    backgroundColor: palette.surface,
+                    shape: const CircleBorder(),
+                  ),
                 ),
               ),
             if (_isEditMode) ...[
@@ -695,31 +706,42 @@ class MemoListScreenState extends State<MemoListScreen>
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : active.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.sticky_note_2_outlined,
-                      size: 56,
-                      color: Color(0xFF7C5CFF),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      AppStrings.of(context).emptyMemoHint,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: palette.textSecondary,
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _ScreenTitle(strings.appName),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.sticky_note_2_outlined,
+                            size: 56,
+                            color: Color(0xFF7C5CFF),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            AppStrings.of(context).emptyMemoHint,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: palette.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               )
             : Padding(
-                padding: const EdgeInsets.only(left: 12, right: 12, bottom: 16),
-                // 모서리는 각지게 — 위·아래 둥근 모서리(14) 는 아니키 지시로 제거
-                // (2026-08-29 21:05 실기기 검증 중 직접 지시).
+                padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+                // 둥근 카드(16) — 2026-10-28 대종님이 토스톤 목업을 승인하며
+                // 2026-08-29 「각지게」 지시를 명시적으로 뒤집음 (T-261028-009).
                 child: ClipRect(
                   // 드래그 핸들로 reorder 시 화면 끝에서 자동 스크롤이 먹도록
                   // CustomScrollView + SliverReorderableList 로 구성한다.
@@ -737,14 +759,11 @@ class MemoListScreenState extends State<MemoListScreen>
                         parent: BouncingScrollPhysics(),
                       ),
                       slivers: [
-                        const SliverToBoxAdapter(
-                          child: Divider(
-                            height: 0.5,
-                            thickness: 0.5,
-                            indent: 0,
-                            endIndent: 0,
+                        SliverToBoxAdapter(child: _ScreenTitle(strings.appName)),
+                        if (favorites.isNotEmpty)
+                          SliverToBoxAdapter(
+                            child: _SectionLabel(strings.favoritesSection),
                           ),
-                        ),
                         if (favorites.isNotEmpty)
                           SliverReorderableList(
                             itemCount: favorites.length,
@@ -774,6 +793,10 @@ class MemoListScreenState extends State<MemoListScreen>
                                 onToggleSelect: () => _toggleSelected(memo.id),
                               );
                             },
+                          ),
+                        if (normals.isNotEmpty)
+                          SliverToBoxAdapter(
+                            child: _SectionLabel(strings.memoTab),
                           ),
                         if (normals.isNotEmpty)
                           SliverReorderableList(
@@ -932,10 +955,12 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Stack(
+    // 둥근 카드(T-261028-009): 카드 간격 8, 모서리 16. 스와이프 배경도 같은 모서리로 잘라낸다.
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
           children: [
             if (_dragOffset > 0)
               Positioned.fill(
@@ -1018,9 +1043,12 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                     ? Duration.zero
                     : const Duration(milliseconds: 200),
                 transform: Matrix4.translationValues(_dragOffset, 0, 0),
-                color: palette.surface,
+                decoration: BoxDecoration(
+                  color: palette.surface,
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 28, right: 20),
+                  padding: const EdgeInsets.only(left: 16, right: 12),
                   child: SizedBox(
                     height: 48,
                     child: Row(
@@ -1109,8 +1137,54 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
             ),
           ],
         ),
-        const Divider(height: 0.5, thickness: 0.5, indent: 0, endIndent: 0),
-      ],
+      ),
+    );
+  }
+}
+
+/// 본문 상단의 큰 화면 제목 (토스톤).
+class _ScreenTitle extends StatelessWidget {
+  const _ScreenTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 14),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.4,
+          color: palette.textPrimary,
+        ),
+      ),
+    );
+  }
+}
+
+/// 「즐겨찾기」「메모」 묶음 라벨.
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: palette.textSecondary,
+        ),
+      ),
     );
   }
 }
