@@ -43,3 +43,13 @@ Keep outside this domain when:
   failure removes newly created files and restores the prior memo list and undo snapshot.
 - `snapshot_store.dart` exposes photo references for permanent deletion and cold-start cleanup.
   Imported files become eligible for cleanup after undo succeeds or the snapshot is replaced.
+
+## Favorite order (T-261101-034)
+
+- `services/favorite_order.dart` owns favorite toggle ordering. The list has no sort key: the stored
+  array order is the manual order (new memos go to the top of the normal group), favorites first.
+- Favoriting records the id of the active normal memo directly below it in `Memo.favoriteAnchorId`
+  (JSON key `favoriteAnchorId`, written only when set). Unfavoriting puts the memo back right above
+  that memo, following the chain when the anchor was favorited later. Missing or purged anchors
+  (including memos favorited before this key existed) fall back to the newest-first `createdAt` slot.
+- The toggle never changes `updatedAt` — it is the search ranking and backup merge key.
