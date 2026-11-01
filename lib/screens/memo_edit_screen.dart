@@ -1069,6 +1069,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                                 horizontalPadding: _cardPadding,
                                 onTap: _openViewer,
                                 onLongPress: _showPhotoActions,
+                                // 빼기 버튼 = 길게 누르기 → 「사진 삭제」 와 같은 확인창 (T-261101-034).
+                                onRemove: _confirmRemovePhoto,
                               ),
                           ],
                         ), // end Column
