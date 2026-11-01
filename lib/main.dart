@@ -76,7 +76,7 @@ class MemoApp extends StatelessWidget {
         return ValueListenableBuilder<ThemeMode>(
           valueListenable: SettingsService.instance.themeMode,
           builder: (context, themeMode, _) {
-            // 시스템만 보라 톤. 명시 라이트·다크는 기존 ThemeData 를 그대로 쓴다.
+            // 시스템 + 기기 라이트만 보라 톤. 다크는 명시·시스템 공통 검정·회색(T-261102-001).
             final bool useSystemPurple = themeMode == ThemeMode.system;
             return MaterialApp(
               title: strings.appName,
@@ -88,9 +88,7 @@ class MemoApp extends StatelessWidget {
               theme: useSystemPurple
                   ? _buildPurpleLightTheme()
                   : _buildLightTheme(),
-              darkTheme: useSystemPurple
-                  ? _buildPurpleDarkTheme()
-                  : _buildDarkTheme(),
+              darkTheme: _buildDarkTheme(),
               home: const SplashScreen(),
             );
           },
@@ -128,34 +126,46 @@ class MemoApp extends StatelessWidget {
     );
   }
 
+  /// 다크 — 명시 「다크」와 「시스템」+기기 다크 공통. 순검정 바탕 + 밝은 회색 카드,
+  /// 본문 흰 글자 SemiBold (대종님 2026-11-02 후보 2번, T-261102-001).
   ThemeData _buildDarkTheme() {
-    return ThemeData(
+    const p = AppPalette.dark;
+    const divider = Color(0xFF48484A);
+    final base = ThemeData(
       fontFamily: 'Pretendard',
-      // Obsidian 톤: 다크 무채색 미니멀 + 퍼플 액센트 (#7C5CFF).
-      // 대부분의 chrome 은 무채색 회색/흰색, 퍼플은 강조에만 절제 사용.
-      extensions: const [AppPalette.dark],
+      extensions: const [p],
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF7C5CFF),
+        seedColor: p.accent,
         brightness: Brightness.dark,
+      ).copyWith(outline: divider, outlineVariant: divider),
+      dividerColor: divider,
+      dividerTheme: const DividerThemeData(color: divider),
+      scaffoldBackgroundColor: p.background,
+      appBarTheme: AppBarTheme(
+        backgroundColor: p.background,
+        foregroundColor: p.textPrimary,
+        iconTheme: IconThemeData(color: p.textSecondary),
       ),
-      scaffoldBackgroundColor: const Color(0xFF0F0F12),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF0F0F12),
-        foregroundColor: Color(0xFFECECEC),
-        iconTheme: IconThemeData(color: Color(0xFF9A9AA2)),
+      cardTheme: CardThemeData(color: p.surface),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: p.accent,
+        foregroundColor: p.onAccent,
       ),
-      cardTheme: const CardThemeData(color: Color(0xFF1A1A1E)),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: Color(0xFF7C5CFF),
-        foregroundColor: Color(0xFFECECEC),
-      ),
-      textSelectionTheme: const TextSelectionThemeData(
-        cursorColor: Color(0xFF7C5CFF),
-        selectionColor: Color(0x597C5CFF),
-        selectionHandleColor: Color(0xFF7C5CFF),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: p.accent,
+        selectionColor: p.accent.withAlpha(0x59),
+        selectionHandleColor: p.accent,
       ),
       useMaterial3: true,
       brightness: Brightness.dark,
+    );
+    // 메모 본문 TextField 기본 글자 = M3 bodyLarge. 다크에서만 한 단계 굵게
+    // (대종님 「흰색이 좀 얇은느낌」).
+    final tt = base.textTheme;
+    return base.copyWith(
+      textTheme: tt.copyWith(
+        bodyLarge: tt.bodyLarge!.copyWith(fontWeight: FontWeight.w600),
+      ),
     );
   }
 
@@ -189,39 +199,6 @@ class MemoApp extends StatelessWidget {
       ),
       useMaterial3: true,
       brightness: Brightness.light,
-    );
-  }
-
-  /// 시스템 + 기기 다크. 구분선은 기존 회색 대신 보라 계열.
-  ThemeData _buildPurpleDarkTheme() {
-    const divider = Color(0xFF4A4168);
-    return ThemeData(
-      fontFamily: 'Pretendard',
-      extensions: const [AppPalette.purpleDark],
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF9D86FF),
-        brightness: Brightness.dark,
-      ).copyWith(outline: divider, outlineVariant: divider),
-      dividerColor: divider,
-      dividerTheme: const DividerThemeData(color: divider),
-      scaffoldBackgroundColor: const Color(0xFF15111F),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF15111F),
-        foregroundColor: Color(0xFFF3F0FA),
-        iconTheme: IconThemeData(color: Color(0xFFADA6C2)),
-      ),
-      cardTheme: const CardThemeData(color: Color(0xFF211A33)),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: Color(0xFF9D86FF),
-        foregroundColor: Color(0xFF15111F),
-      ),
-      textSelectionTheme: const TextSelectionThemeData(
-        cursorColor: Color(0xFF9D86FF),
-        selectionColor: Color(0x599D86FF),
-        selectionHandleColor: Color(0xFF9D86FF),
-      ),
-      useMaterial3: true,
-      brightness: Brightness.dark,
     );
   }
 }

@@ -59,15 +59,17 @@ class AppPalette extends ThemeExtension<AppPalette> {
     danger: Color(0xFFE5534B),
   );
 
+  /// 다크 — 명시 「다크」와 「시스템」+기기 다크가 같이 쓴다. 순검정 바탕 + 밝은 회색 카드
+  /// (대종님 2026-11-02 「보라를 빼고 검은색과 회색어때」 → 후보 2번, T-261102-001).
   static const AppPalette dark = AppPalette(
-    background: Color(0xFF0F0F12),
-    surface: Color(0xFF1A1A1E),
-    elevatedSurface: Color(0xFF2C2C2E),
-    navigationBar: Color(0xFF141417),
-    textPrimary: Color(0xFFECECEC),
-    textSecondary: Color(0xFF9A9AA2),
-    accent: Color(0xFF7C5CFF),
-    onAccent: Color(0xFFECECEC),
+    background: Color(0xFF000000),
+    surface: Color(0xFF2C2C2E),
+    elevatedSurface: Color(0xFF3A3A3C),
+    navigationBar: Color(0xFF1C1C1E),
+    textPrimary: Color(0xFFFFFFFF),
+    textSecondary: Color(0xFFB4B4BC),
+    accent: Color(0xFF9D86FF),
+    onAccent: Color(0xFF15111F),
     danger: Color(0xFFE5534B),
   );
 
@@ -82,20 +84,6 @@ class AppPalette extends ThemeExtension<AppPalette> {
     accent: Color(0xFF7C5CFF),
     onAccent: Color(0xFFFFFFFF),
     // 삭제색은 기존 라이트와 같다.
-    danger: Color(0xFFE5534B),
-  );
-
-  /// 시스템 테마이고 기기가 다크일 때.
-  static const AppPalette purpleDark = AppPalette(
-    background: Color(0xFF15111F),
-    surface: Color(0xFF211A33),
-    elevatedSurface: Color(0xFF2A2240),
-    navigationBar: Color(0xFF1B1529),
-    textPrimary: Color(0xFFF3F0FA),
-    textSecondary: Color(0xFFADA6C2),
-    accent: Color(0xFF9D86FF),
-    onAccent: Color(0xFF15111F),
-    // 삭제색은 기존 다크와 같다. 회색 크롬은 ThemeData 구분선을 보라로 옮긴다.
     danger: Color(0xFFE5534B),
   );
 
