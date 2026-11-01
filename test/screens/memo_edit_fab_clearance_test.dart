@@ -9,10 +9,12 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   // 줄마다 오른쪽 끝까지 차는 긴 메모. 마지막 줄도 화면 폭을 거의 채운다.
+  // 꼬리 글자 수는 본문 폭에 맞춘 값이다. T-261101-034 에서 카드 안쪽 여백(좌우 16)으로
+  // 본문 폭이 32 줄어 '가나다라마바사아'(8자) → '가나다'(3자)로 다시 맞췄다.
   final line = '가나다라마바사아자차카타파하 ' * 3;
   final content = [
     for (var i = 0; i < 40; i++) '$i $line',
-    '끝 $line가나다라마바사아',
+    '끝 $line가나다',
   ].join('\n');
   final t = DateTime(2026, 10, 22, 9);
 

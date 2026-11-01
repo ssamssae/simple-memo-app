@@ -78,6 +78,11 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   static const double _contentEndPadding = _floatingButtonExtent + 8;
   static const double _caretBottomPadding = _floatingButtonExtent + 20;
 
+  // 토스 카드 안쪽 여백 — 홈 목록·검색·도움말 카드와 같은 16 (T-261101-034, 대종님
+  // 「본문 글자가 카드 모서리에 붙어 있다」). 카드 아래쪽 몫은 끝 여백에 포함된다:
+  // 스크롤 끝 여백을 이만큼 줄여 마지막 줄 ~ 스크롤 끝 거리를 _contentEndPadding 그대로 둔다.
+  static const double _cardPadding = 16;
+
   @override
   void initState() {
     super.initState();
@@ -881,7 +886,11 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
               child: LayoutBuilder(
                 builder: (context, constraints) => SingleChildScrollView(
                   controller: _contentScrollController,
-                  padding: const EdgeInsets.only(bottom: _contentEndPadding),
+                  // 카드 아래 안쪽 여백(본문 contentPadding 또는 사진 줄 bottomPadding)과 합쳐
+                  // _contentEndPadding — 커서 여백보다 작게 유지한다 (T-260803-035).
+                  padding: const EdgeInsets.only(
+                    bottom: _contentEndPadding - _cardPadding,
+                  ),
                   physics: const AlwaysScrollableScrollPhysics(
                     parent: BouncingScrollPhysics(),
                   ),
@@ -906,7 +915,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                             // 높이까지 늘려 「본문 아래 빈 곳 탭 → 캐럿」이 됐다. Column 은 자식에
                             // min 0 을 주므로 그 동작이 죽는다 → TextField 에 직접
                             // (뷰포트 − 스트립 높이) minHeight 를 준다. constraints = LayoutBuilder 인자.
-                            // 토스 카드는 이 높이 뒤에만 깐다. 본문 줄 위치는 바꾸지 않는다.
+                            // 카드 안쪽 여백은 TextField 의 contentPadding 으로 준다 (T-261101-034).
+                            // 여백도 입력 칸이라 눌러도 캐럿이 가고, 이 minHeight 계산은 그대로다.
                             ConstrainedBox(
                               constraints: BoxConstraints(
                                 minHeight: math.max(
@@ -948,6 +958,13 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                                   ),
                                   border: InputBorder.none,
                                   isCollapsed: true,
+                                  // 사진이 있으면 아래 여백은 사진 줄이 맡는다(본문 ~ 사진 16 그대로).
+                                  contentPadding: EdgeInsets.fromLTRB(
+                                    _cardPadding,
+                                    _cardPadding,
+                                    _cardPadding,
+                                    _imageFiles.isEmpty ? _cardPadding : 0,
+                                  ),
                                 ),
                                 style: TextStyle(
                                   color: palette.textPrimary,
@@ -1049,6 +1066,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                             if (_imageFiles.isNotEmpty)
                               AttachmentStrip(
                                 fileNames: _imageFiles,
+                                horizontalPadding: _cardPadding,
                                 onTap: _openViewer,
                                 onLongPress: _showPhotoActions,
                               ),
