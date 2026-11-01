@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// 라이트/다크 두 벌의 의미색을 한 곳에 모은다.
+/// 라이트/다크와, 시스템 테마 전용 보라 라이트/보라 다크를 한 곳에 모은다.
 ///
 /// 화면 코드가 `Color(0xFF1A1A1E)` 같은 다크 전용 리터럴을 직접 들고 있으면
 /// 라이트 모드로 바꿔도 그 위젯만 다크로 남는다 (T-260806-011: 메모 목록 타일이
@@ -68,6 +68,34 @@ class AppPalette extends ThemeExtension<AppPalette> {
     textSecondary: Color(0xFF9A9AA2),
     accent: Color(0xFF7C5CFF),
     onAccent: Color(0xFFECECEC),
+    danger: Color(0xFFE5534B),
+  );
+
+  /// 시스템 테마이고 기기가 라이트일 때. 명시 「라이트」와 다른 보라 톤.
+  static const AppPalette purpleLight = AppPalette(
+    background: Color(0xFFF5F2FF),
+    surface: Color(0xFFFFFFFF),
+    elevatedSurface: Color(0xFFFFFFFF),
+    navigationBar: Color(0xFFFFFFFF),
+    textPrimary: Color(0xFF191F28),
+    textSecondary: Color(0xFF5B5670),
+    accent: Color(0xFF7C5CFF),
+    onAccent: Color(0xFFFFFFFF),
+    // 삭제색은 기존 라이트와 같다.
+    danger: Color(0xFFE5534B),
+  );
+
+  /// 시스템 테마이고 기기가 다크일 때.
+  static const AppPalette purpleDark = AppPalette(
+    background: Color(0xFF15111F),
+    surface: Color(0xFF211A33),
+    elevatedSurface: Color(0xFF2A2240),
+    navigationBar: Color(0xFF1B1529),
+    textPrimary: Color(0xFFF3F0FA),
+    textSecondary: Color(0xFFADA6C2),
+    accent: Color(0xFF9D86FF),
+    onAccent: Color(0xFF15111F),
+    // 삭제색은 기존 다크와 같다. 회색 크롬은 ThemeData 구분선을 보라로 옮긴다.
     danger: Color(0xFFE5534B),
   );
 
