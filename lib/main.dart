@@ -76,6 +76,8 @@ class MemoApp extends StatelessWidget {
         return ValueListenableBuilder<ThemeMode>(
           valueListenable: SettingsService.instance.themeMode,
           builder: (context, themeMode, _) {
+            // 시스템만 보라 톤. 명시 라이트·다크는 기존 ThemeData 를 그대로 쓴다.
+            final bool useSystemPurple = themeMode == ThemeMode.system;
             return MaterialApp(
               title: strings.appName,
               locale: Locale(languageCode),
@@ -83,8 +85,12 @@ class MemoApp extends StatelessWidget {
               supportedLocales: const [Locale('ko'), Locale('en')],
               debugShowCheckedModeBanner: false,
               themeMode: themeMode,
-              theme: _buildLightTheme(),
-              darkTheme: _buildDarkTheme(),
+              theme: useSystemPurple
+                  ? _buildPurpleLightTheme()
+                  : _buildLightTheme(),
+              darkTheme: useSystemPurple
+                  ? _buildPurpleDarkTheme()
+                  : _buildDarkTheme(),
               home: const SplashScreen(),
             );
           },
@@ -147,6 +153,72 @@ class MemoApp extends StatelessWidget {
         cursorColor: Color(0xFF7C5CFF),
         selectionColor: Color(0x597C5CFF),
         selectionHandleColor: Color(0xFF7C5CFF),
+      ),
+      useMaterial3: true,
+      brightness: Brightness.dark,
+    );
+  }
+
+  /// 시스템 + 기기 라이트. 구분선·테두리는 연보라.
+  ThemeData _buildPurpleLightTheme() {
+    const divider = Color(0xFFE6DFFF);
+    return ThemeData(
+      fontFamily: 'Pretendard',
+      extensions: const [AppPalette.purpleLight],
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF7C5CFF),
+        brightness: Brightness.light,
+      ).copyWith(outline: divider, outlineVariant: divider),
+      dividerColor: divider,
+      dividerTheme: const DividerThemeData(color: divider),
+      scaffoldBackgroundColor: const Color(0xFFF5F2FF),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFFF5F2FF),
+        foregroundColor: Color(0xFF191F28),
+        iconTheme: IconThemeData(color: Color(0xFF5B5670)),
+      ),
+      cardTheme: const CardThemeData(color: Color(0xFFFFFFFF)),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: Color(0xFF7C5CFF),
+        foregroundColor: Color(0xFFFFFFFF),
+      ),
+      textSelectionTheme: const TextSelectionThemeData(
+        cursorColor: Color(0xFF7C5CFF),
+        selectionColor: Color(0x337C5CFF),
+        selectionHandleColor: Color(0xFF7C5CFF),
+      ),
+      useMaterial3: true,
+      brightness: Brightness.light,
+    );
+  }
+
+  /// 시스템 + 기기 다크. 구분선은 기존 회색 대신 보라 계열.
+  ThemeData _buildPurpleDarkTheme() {
+    const divider = Color(0xFF4A4168);
+    return ThemeData(
+      fontFamily: 'Pretendard',
+      extensions: const [AppPalette.purpleDark],
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF9D86FF),
+        brightness: Brightness.dark,
+      ).copyWith(outline: divider, outlineVariant: divider),
+      dividerColor: divider,
+      dividerTheme: const DividerThemeData(color: divider),
+      scaffoldBackgroundColor: const Color(0xFF15111F),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFF15111F),
+        foregroundColor: Color(0xFFF3F0FA),
+        iconTheme: IconThemeData(color: Color(0xFFADA6C2)),
+      ),
+      cardTheme: const CardThemeData(color: Color(0xFF211A33)),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: Color(0xFF9D86FF),
+        foregroundColor: Color(0xFF15111F),
+      ),
+      textSelectionTheme: const TextSelectionThemeData(
+        cursorColor: Color(0xFF9D86FF),
+        selectionColor: Color(0x599D86FF),
+        selectionHandleColor: Color(0xFF9D86FF),
       ),
       useMaterial3: true,
       brightness: Brightness.dark,
