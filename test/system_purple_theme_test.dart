@@ -6,7 +6,8 @@ import 'package:simple_memo_app/screens/splash_screen.dart';
 import 'package:simple_memo_app/services/settings_service.dart';
 import 'package:simple_memo_app/utils/app_palette.dart';
 
-/// 설정 3 × 기기 밝기 2. 시스템만 보라 팔레트, 명시 라이트·다크는 기존 팔레트.
+/// 설정 3 × 기기 밝기 2. 시스템 + 기기 라이트만 보라 라이트, 다크는 명시·시스템 공통
+/// 검정·회색(T-261102-001), 명시 라이트는 기존 라이트.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -24,11 +25,11 @@ void main() {
       Color(0xFFE6DFFF),
     ),
     _ThemeCase(
-      '시스템 + 기기 다크 → 보라 다크',
+      '시스템 + 기기 다크 → 다크(검정·회색)',
       ThemeMode.system,
       Brightness.dark,
-      AppPalette.purpleDark,
-      Color(0xFF4A4168),
+      AppPalette.dark,
+      Color(0xFF48484A),
     ),
     _ThemeCase(
       '라이트 + 기기 라이트 → 기존 라이트',
@@ -45,18 +46,18 @@ void main() {
       null,
     ),
     _ThemeCase(
-      '다크 + 기기 라이트 → 기존 다크',
+      '다크 + 기기 라이트 → 다크(검정·회색)',
       ThemeMode.dark,
       Brightness.light,
       AppPalette.dark,
-      null,
+      Color(0xFF48484A),
     ),
     _ThemeCase(
-      '다크 + 기기 다크 → 기존 다크',
+      '다크 + 기기 다크 → 다크(검정·회색)',
       ThemeMode.dark,
       Brightness.dark,
       AppPalette.dark,
-      null,
+      Color(0xFF48484A),
     ),
   ];
 
@@ -80,7 +81,7 @@ void main() {
         );
         _expectPalette(
           app.darkTheme?.extension<AppPalette>(),
-          AppPalette.purpleDark,
+          AppPalette.dark,
         );
       } else {
         _expectPalette(app.theme?.extension<AppPalette>(), AppPalette.light);
