@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../features/memos/services/attachment_store.dart';
+import '../features/memos/services/favorite_order.dart';
 import '../features/memos/widgets/attachment_thumbnail.dart';
 import '../l10n/app_strings.dart';
 import '../models/memo.dart';
@@ -45,10 +46,6 @@ class MemoListScreenState extends State<MemoListScreen>
   bool _buttonTapped = false;
   Offset? _pointerDownPos;
   static const _tapTolerance = 15.0;
-
-  // 즐겨찾기 해제 시 원래 자리로 복귀하기 위한 앵커.
-  // 값은 "즐겨찾기 직전에 일반 그룹에서 이 메모 바로 앞에 있던 메모의 id"(맨 앞이었으면 null).
-  final Map<String, String?> _unfavoriteAnchors = {};
 
   bool _isEditMode = false;
   final Set<String> _selectedIds = {};
@@ -129,7 +126,6 @@ class MemoListScreenState extends State<MemoListScreen>
         for (int i = 0; i < _memos.length; i++) {
           if (deletedIds.contains(_memos[i].id)) {
             _memos[i] = _memos[i].copyWith(deletedAt: now);
-            _unfavoriteAnchors.remove(_memos[i].id);
           }
         }
         _selectedIds.clear();
@@ -450,7 +446,6 @@ class MemoListScreenState extends State<MemoListScreen>
         if (i != -1) {
           _memos[i] = _memos[i].copyWith(deletedAt: DateTime.now());
         }
-        _unfavoriteAnchors.remove(memoId);
       });
       await _saveMemos();
       if (!mounted) return;
@@ -458,44 +453,14 @@ class MemoListScreenState extends State<MemoListScreen>
     }
   }
 
-  // 즐겨찾기 토글. 해제 시 원래 일반 그룹에서의 위치로 복귀.
+  // 즐겨찾기 토글. 해제하면 즐겨찾기 전 일반 목록 자리로 돌아간다 (T-261101-034).
+  // 예전 해제 분기는 적어 둔 자리(메모리에만 있던 앵커)를 버리고 일반 묶음 맨 위에 넣었다.
+  // 자리는 이제 메모에 저장된다 — 규칙은 FavoriteOrder.
   void _toggleFavorite(String memoId) {
-    final index = _memos.indexWhere((m) => m.id == memoId);
-    if (index == -1) return;
-    final memo = _memos[index];
-
-    if (!memo.isFavorite) {
-      // 즐겨찾기 설정: 일반 그룹에서 직전 메모 id를 앵커로 저장
-      final normals = _memos.where((m) => !m.isFavorite).toList();
-      final posInNormals = normals.indexWhere((m) => m.id == memoId);
-      _unfavoriteAnchors[memoId] = posInNormals > 0
-          ? normals[posInNormals - 1].id
-          : null;
-
-      setState(() {
-        _memos[index] = memo.copyWith(isFavorite: true);
-        _ensureGroupOrder();
-      });
-    } else {
-      // 즐겨찾기 해제: 일반 그룹 최상단으로 이동
-      _unfavoriteAnchors.remove(memoId);
-      final updated = memo.copyWith(isFavorite: false);
-
-      setState(() {
-        _memos.removeAt(index);
-
-        // 마지막 즐겨찾기 다음(= 일반 그룹 최상단)에 삽입
-        int insertAtMemos = _memos.length;
-        for (int i = 0; i < _memos.length; i++) {
-          if (!_memos[i].isFavorite) {
-            insertAtMemos = i;
-            break;
-          }
-        }
-        _memos.insert(insertAtMemos, updated);
-        _ensureGroupOrder();
-      });
-    }
+    if (_memos.every((m) => m.id != memoId)) return;
+    setState(() {
+      _memos = FavoriteOrder.toggle(_memos, memoId);
+    });
     _saveMemos();
   }
 

@@ -19,6 +19,10 @@ class Memo {
   // 1.0.18 이하 JSON 엔 키가 없고 → 빈 목록. 상한(10장)은 모델이 아니라
   // AttachmentService 가 강제한다 — 백업 복원 등 외부 유입 값은 자르지 않는다.
   final List<String> imageFiles;
+  // 즐겨찾기로 올리기 직전 일반 목록에서 바로 아래에 있던 메모 id (T-261101-034).
+  // 즐겨찾기를 풀면 그 메모 바로 위로 돌아간다 — FavoriteOrder 참조.
+  // null = 기록 없음(일반 메모·맨 아래였음·이 키 이전에 즐겨찾기한 옛 데이터).
+  final String? favoriteAnchorId;
 
   Memo({
     required this.id,
@@ -31,6 +35,7 @@ class Memo {
     this.semanticEmbeddingModel,
     this.semanticEmbeddingSource,
     List<String>? imageFiles,
+    this.favoriteAnchorId,
   }) : semanticEmbedding = semanticEmbedding == null
            ? null
            : List<double>.unmodifiable(semanticEmbedding),
@@ -63,6 +68,7 @@ class Memo {
   static const _undefinedSemanticEmbedding = Object();
   static const _undefinedSemanticEmbeddingModel = Object();
   static const _undefinedSemanticEmbeddingSource = Object();
+  static const _undefinedFavoriteAnchorId = Object();
 
   // copyWith: 불변 방식으로 필드 변경
   Memo copyWith({
@@ -74,6 +80,7 @@ class Memo {
     Object? semanticEmbeddingModel = _undefinedSemanticEmbeddingModel,
     Object? semanticEmbeddingSource = _undefinedSemanticEmbeddingSource,
     List<String>? imageFiles,
+    Object? favoriteAnchorId = _undefinedFavoriteAnchorId,
   }) {
     return Memo(
       id: id,
@@ -97,6 +104,10 @@ class Memo {
           ? this.semanticEmbeddingSource
           : semanticEmbeddingSource as String?,
       imageFiles: imageFiles ?? this.imageFiles,
+      favoriteAnchorId:
+          identical(favoriteAnchorId, _undefinedFavoriteAnchorId)
+          ? this.favoriteAnchorId
+          : favoriteAnchorId as String?,
     );
   }
 
@@ -128,6 +139,8 @@ class Memo {
       'semanticEmbeddingSource': semanticEmbeddingSource,
     // 사진 없는 메모는 키 자체를 안 박음 — 1.0.18 이하 JSON 과 동일(백워드 호환).
     if (imageFiles.isNotEmpty) 'images': imageFiles,
+    // 기록이 있을 때만 박음 — 일반 메모·옛 즐겨찾기 JSON 은 이전과 같다. 옛 앱은 모르는 키를 무시한다.
+    if (favoriteAnchorId != null) 'favoriteAnchorId': favoriteAnchorId,
   };
 
   factory Memo.fromJson(Map<String, dynamic> json) {
@@ -144,6 +157,10 @@ class Memo {
       semanticEmbeddingModel: json['semanticEmbeddingModel'] as String?,
       semanticEmbeddingSource: json['semanticEmbeddingSource'] as String?,
       imageFiles: _parseImageFiles(json['images']),
+      // 키 없음(옛 데이터)·문자열 아님 → null. 이 키 하나로 메모 읽기 전체가 실패하지 않게 한다.
+      favoriteAnchorId: json['favoriteAnchorId'] is String
+          ? json['favoriteAnchorId'] as String
+          : null,
     );
   }
 
