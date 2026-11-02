@@ -7,6 +7,7 @@ import 'package:simple_memo_app/services/app_review_service.dart';
 import 'package:simple_memo_app/services/premium_entitlement.dart';
 import 'package:simple_memo_app/services/premium_service.dart';
 import 'package:simple_memo_app/services/settings_service.dart';
+import 'package:simple_memo_app/widgets/toss_segmented_control.dart';
 import 'package:simple_memo_app/widgets/toss_surface_card.dart';
 
 void main() {
@@ -170,6 +171,14 @@ void main() {
       findsNothing,
       reason: '뺀 기능을 위해 124MB 모델을 받으라고 권한다',
     );
+  });
+
+  // T-261103-005: 대종님 「시스템 라이트 다크 버튼 모양 토스톤 아닌거같아」.
+  testWidgets('테마 선택은 토스 분절 버튼이다 — 머티리얼 테두리 버튼이 아니다', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+    await tester.pumpAndSettle();
+    expect(find.byType(SegmentedButton<ThemeMode>), findsNothing);
+    expect(find.byType(TossSegmentedControl<ThemeMode>), findsOneWidget);
   });
 
   testWidgets('설정 화면 테마 선택이 표시값과 저장값을 갱신한다', (tester) async {
