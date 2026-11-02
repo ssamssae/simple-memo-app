@@ -326,25 +326,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  fontSizeLabel,
-                                  style: TextStyle(color: secondaryColor),
-                                ),
                               ],
                             ),
+                            // T-261102-030: 현재 크기는 기본값 버튼 아래 줄 — 「기본값 22sp」 로 붙어 읽히지 않게.
                             Padding(
                               padding: const EdgeInsets.only(
                                 left: 48,
                                 top: 2,
                                 bottom: 2,
                               ),
-                              child: Text(
-                                strings.memoBodySize,
-                                style: TextStyle(
-                                  color: primaryColor,
-                                  fontSize: fontSize,
-                                ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      strings.memoBodySize,
+                                      style: TextStyle(
+                                        color: primaryColor,
+                                        fontSize: fontSize,
+                                      ),
+                                    ),
+                                  ),
+                                  // 오른쪽 끝을 기본값 버튼 글자(안쪽 여백 10)와 맞춘다.
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 10),
+                                    child: Text(
+                                      fontSizeLabel,
+                                      style: TextStyle(color: secondaryColor),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             Row(
