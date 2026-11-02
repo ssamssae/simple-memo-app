@@ -73,6 +73,31 @@ void main() {
     expect(prefs.getDouble('memo_body_font_size'), 20);
   });
 
+  // T-261102-029: 대종님 「기본값 버튼 하나로 처음 값으로 돌아갈 수 있도록」.
+  testWidgets('글자 크기 기본값 버튼이 처음 값 18sp 로 되돌리고 저장한다', (tester) async {
+    await SettingsService.instance.setBodyFontSize(22);
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+    expect(find.text('22sp'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, '기본값'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('18sp'), findsOneWidget);
+    expect(tester.widget<Slider>(find.byType(Slider)).value, 18);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getDouble('memo_body_font_size'), 18);
+  });
+
+  testWidgets('이미 기본값이면 글자 크기 기본값 버튼은 눌리지 않는다', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+    expect(find.text('18sp'), findsOneWidget);
+
+    final button = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, '기본값'),
+    );
+    expect(button.onPressed, isNull);
+  });
+
   // ★계약이 두 번 뒤집힌 자리다. 이력을 남겨 둔다 — 다음 사람이 방향을 헷갈리지 않게.
   //   ① 원래: 「미지원 기기는 Gemini 폴백을 표시한다」 = 타일 ★보인다.
   //      말로찾기가 잠겨 검색 UI 가 없는데 설정만 124MB 다운로드를 권하던 버그를

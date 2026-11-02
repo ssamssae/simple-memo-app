@@ -300,6 +300,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     style: TextStyle(color: primaryColor),
                                   ),
                                 ),
+                                // T-261102-029: 한 번 누르면 처음 기본값으로. 이미 기본값이면 비활성.
+                                TextButton(
+                                  onPressed:
+                                      fontSize ==
+                                          SettingsService.defaultBodyFontSize
+                                      ? null
+                                      : () => SettingsService.instance
+                                            .setBodyFontSize(
+                                              SettingsService
+                                                  .defaultBodyFontSize,
+                                            ),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: palette.accent,
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    strings.fontSizeDefault,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
                                 Text(
                                   fontSizeLabel,
                                   style: TextStyle(color: secondaryColor),
