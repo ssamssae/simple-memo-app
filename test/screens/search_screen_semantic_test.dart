@@ -72,7 +72,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('메모 결과 (1건)'), findsOneWidget);
+      expect(find.textContaining('메모 1개'), findsOneWidget);
       expect(find.textContaining('치과 예약', findRichText: true), findsWidgets);
       expect(find.textContaining('카레 레시피', findRichText: true), findsNothing);
     },
@@ -98,7 +98,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('메모 결과 (1건)'), findsOneWidget);
+    expect(find.textContaining('메모 1개'), findsOneWidget);
     expect(find.textContaining('삭제한 메모', findRichText: true), findsNothing);
     final stored = await MemoStorage.loadMemos();
     expect(stored.map((memo) => memo.id), ['active', 'trash']);

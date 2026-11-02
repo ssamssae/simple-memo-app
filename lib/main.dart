@@ -13,6 +13,7 @@ import 'services/premium_service.dart';
 import 'services/remove_ads_purchase.dart';
 import 'services/settings_service.dart';
 import 'utils/app_palette.dart';
+import 'features/memos/semantic_search_availability.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +53,8 @@ Future<void> main() async {
       // 첨부 사진 디렉토리 (T-260829-022). 실패해도 던지지 않는다 — 사진 기능만 비활성.
       await AttachmentStore.init();
       runApp(const MemoApp());
+      // 뜻으로 찾기 오프보딩(T-261103-001): 받아 둔 모델 124MB 를 돌려준다. 시작을 막지 않는다.
+      unawaited(offboardSemanticSearchModel());
     },
     (Object error, StackTrace stack) {
       // Zone 에러 핸들링 (runZonedGuarded 내 미처리 비동기 에러)

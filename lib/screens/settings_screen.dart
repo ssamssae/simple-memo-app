@@ -277,245 +277,226 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           children: [
+            // T-261103-001: 항목마다 따로 떨어진 카드 — 메모 목록처럼 칸 사이 간격 8.
             TossSurfaceCard(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ValueListenableBuilder<double>(
-                    valueListenable: SettingsService.instance.bodyFontSize,
-                    builder: (context, fontSize, _) {
-                      final fontSizeLabel = '${fontSize.round()}sp';
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+              child: ValueListenableBuilder<double>(
+                valueListenable: SettingsService.instance.bodyFontSize,
+                builder: (context, fontSize, _) {
+                  final fontSizeLabel = '${fontSize.round()}sp';
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Row(
-                              children: [
-                                Icon(Icons.format_size, color: primaryColor),
-                                const SizedBox(width: 32),
-                                Expanded(
-                                  child: Text(
-                                    strings.fontSize,
-                                    style: TextStyle(color: primaryColor),
-                                  ),
-                                ),
-                                // T-261102-029: 한 번 누르면 처음 기본값으로. 이미 기본값이면 비활성.
-                                TextButton(
-                                  onPressed:
-                                      fontSize ==
-                                          SettingsService.defaultBodyFontSize
-                                      ? null
-                                      : () => SettingsService.instance
-                                            .setBodyFontSize(
-                                              SettingsService
-                                                  .defaultBodyFontSize,
-                                            ),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: palette.accent,
-                                    visualDensity: VisualDensity.compact,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    strings.fontSizeDefault,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            // T-261102-030: 현재 크기는 기본값 버튼 아래 줄 — 「기본값 22sp」 로 붙어 읽히지 않게.
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                left: 48,
-                                top: 2,
-                                bottom: 2,
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      strings.memoBodySize,
-                                      style: TextStyle(
-                                        color: primaryColor,
-                                        fontSize: fontSize,
-                                      ),
-                                    ),
-                                  ),
-                                  // 오른쪽 끝을 기본값 버튼 글자(안쪽 여백 10)와 맞춘다.
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 10),
-                                    child: Text(
-                                      fontSizeLabel,
-                                      style: TextStyle(color: secondaryColor),
-                                    ),
-                                  ),
-                                ],
+                            Icon(Icons.format_size, color: primaryColor),
+                            const SizedBox(width: 32),
+                            Expanded(
+                              child: Text(
+                                strings.fontSize,
+                                style: TextStyle(color: primaryColor),
                               ),
                             ),
-                            Row(
-                              children: [
-                                Text(
-                                  AppStrings.of(context).fontSample,
-                                  style: TextStyle(
-                                    color: secondaryColor,
-                                    fontSize: 13,
-                                  ),
+                            // T-261102-029: 한 번 누르면 처음 기본값으로. 이미 기본값이면 비활성.
+                            TextButton(
+                              onPressed:
+                                  fontSize ==
+                                      SettingsService.defaultBodyFontSize
+                                  ? null
+                                  : () => SettingsService.instance
+                                        .setBodyFontSize(
+                                          SettingsService.defaultBodyFontSize,
+                                        ),
+                              style: TextButton.styleFrom(
+                                foregroundColor: palette.accent,
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
                                 ),
-                                Expanded(
-                                  child: Slider(
-                                    value: fontSize,
-                                    min: SettingsService.minBodyFontSize,
-                                    max: SettingsService.maxBodyFontSize,
-                                    divisions:
-                                        (SettingsService.maxBodyFontSize -
-                                                SettingsService.minBodyFontSize)
-                                            .round(),
-                                    activeColor: palette.accent,
-                                    label: fontSizeLabel,
-                                    onChanged: SettingsService
-                                        .instance
-                                        .previewBodyFontSize,
-                                    onChangeEnd: (v) {
-                                      SettingsService.instance.setBodyFontSize(
-                                        v,
-                                      );
-                                    },
-                                  ),
+                              ),
+                              child: Text(
+                                strings.fontSizeDefault,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                                Text(
-                                  AppStrings.of(context).fontSample,
-                                  style: TextStyle(
-                                    color: secondaryColor,
-                                    fontSize: 22,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                  ValueListenableBuilder<ThemeMode>(
-                    valueListenable: SettingsService.instance.themeMode,
-                    builder: (context, themeMode, _) {
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                        child: Row(
-                          children: [
-                            Icon(Icons.contrast, color: primaryColor),
-                            const SizedBox(width: 32),
-                            Text(
-                              AppStrings.of(context).theme,
-                              style: TextStyle(color: primaryColor),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: SegmentedButton<ThemeMode>(
-                                showSelectedIcon: false,
-                                selected: {themeMode},
-                                style: ButtonStyle(
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                  visualDensity: VisualDensity.compact,
-                                  foregroundColor:
-                                      WidgetStateProperty.resolveWith((states) {
-                                        if (states.contains(
-                                          WidgetState.selected,
-                                        )) {
-                                          return palette.onAccent;
-                                        }
-                                        return palette.textPrimary;
-                                      }),
-                                  backgroundColor:
-                                      WidgetStateProperty.resolveWith((states) {
-                                        if (states.contains(
-                                          WidgetState.selected,
-                                        )) {
-                                          return palette.accent;
-                                        }
-                                        return palette.surface;
-                                      }),
+                        // T-261102-030: 현재 크기는 기본값 버튼 아래 줄 — 「기본값 22sp」 로 붙어 읽히지 않게.
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            left: 48,
+                            top: 2,
+                            bottom: 2,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  strings.memoBodySize,
+                                  style: TextStyle(
+                                    color: primaryColor,
+                                    fontSize: fontSize,
+                                  ),
                                 ),
-                                segments: [
-                                  ButtonSegment<ThemeMode>(
-                                    value: ThemeMode.system,
-                                    label: Text(
-                                      AppStrings.of(context).themeSystem,
-                                    ),
-                                  ),
-                                  ButtonSegment<ThemeMode>(
-                                    value: ThemeMode.light,
-                                    label: Text(
-                                      AppStrings.of(context).themeLight,
-                                    ),
-                                  ),
-                                  ButtonSegment<ThemeMode>(
-                                    value: ThemeMode.dark,
-                                    label: Text(
-                                      AppStrings.of(context).themeDark,
-                                    ),
-                                  ),
-                                ],
-                                onSelectionChanged: (selection) {
-                                  if (selection.isEmpty) return;
-                                  SettingsService.instance.setThemeMode(
-                                    selection.first,
-                                  );
+                              ),
+                              // 오른쪽 끝을 기본값 버튼 글자(안쪽 여백 10)와 맞춘다.
+                              Padding(
+                                padding: const EdgeInsets.only(right: 10),
+                                child: Text(
+                                  fontSizeLabel,
+                                  style: TextStyle(color: secondaryColor),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              AppStrings.of(context).fontSample,
+                              style: TextStyle(
+                                color: secondaryColor,
+                                fontSize: 13,
+                              ),
+                            ),
+                            Expanded(
+                              child: Slider(
+                                value: fontSize,
+                                min: SettingsService.minBodyFontSize,
+                                max: SettingsService.maxBodyFontSize,
+                                divisions:
+                                    (SettingsService.maxBodyFontSize -
+                                            SettingsService.minBodyFontSize)
+                                        .round(),
+                                activeColor: palette.accent,
+                                label: fontSizeLabel,
+                                onChanged: SettingsService
+                                    .instance
+                                    .previewBodyFontSize,
+                                onChangeEnd: (v) {
+                                  SettingsService.instance.setBodyFontSize(v);
                                 },
                               ),
                             ),
+                            Text(
+                              AppStrings.of(context).fontSample,
+                              style: TextStyle(
+                                color: secondaryColor,
+                                fontSize: 22,
+                              ),
+                            ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                ],
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
             TossSurfaceCard(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    leading: Icon(
-                      Icons.star_rate_outlined,
-                      color: primaryColor,
+              child: ValueListenableBuilder<ThemeMode>(
+                valueListenable: SettingsService.instance.themeMode,
+                builder: (context, themeMode, _) {
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.contrast, color: primaryColor),
+                        const SizedBox(width: 32),
+                        Text(
+                          AppStrings.of(context).theme,
+                          style: TextStyle(color: primaryColor),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: SegmentedButton<ThemeMode>(
+                            showSelectedIcon: false,
+                            selected: {themeMode},
+                            style: ButtonStyle(
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                              foregroundColor: WidgetStateProperty.resolveWith((
+                                states,
+                              ) {
+                                if (states.contains(WidgetState.selected)) {
+                                  return palette.onAccent;
+                                }
+                                return palette.textPrimary;
+                              }),
+                              backgroundColor: WidgetStateProperty.resolveWith((
+                                states,
+                              ) {
+                                if (states.contains(WidgetState.selected)) {
+                                  return palette.accent;
+                                }
+                                return palette.surface;
+                              }),
+                            ),
+                            segments: [
+                              ButtonSegment<ThemeMode>(
+                                value: ThemeMode.system,
+                                label: Text(AppStrings.of(context).themeSystem),
+                              ),
+                              ButtonSegment<ThemeMode>(
+                                value: ThemeMode.light,
+                                label: Text(AppStrings.of(context).themeLight),
+                              ),
+                              ButtonSegment<ThemeMode>(
+                                value: ThemeMode.dark,
+                                label: Text(AppStrings.of(context).themeDark),
+                              ),
+                            ],
+                            onSelectionChanged: (selection) {
+                              if (selection.isEmpty) return;
+                              SettingsService.instance.setThemeMode(
+                                selection.first,
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                    title: Text(
-                      strings.rateApp,
-                      style: TextStyle(color: primaryColor),
-                    ),
-                    trailing: _isOpeningReviewListing
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(Icons.chevron_right, color: secondaryColor),
-                    onTap: _isOpeningReviewListing ? null : _openReviewListing,
-                  ),
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    leading: Icon(Icons.feedback_outlined, color: primaryColor),
-                    title: Text(
-                      strings.sendFeedback,
-                      style: TextStyle(color: primaryColor),
-                    ),
-                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
-                    onTap: _sendFeedback,
-                  ),
-                ],
+                  );
+                },
+              ),
+            ),
+            TossSurfaceCard(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: Icon(Icons.star_rate_outlined, color: primaryColor),
+                title: Text(
+                  strings.rateApp,
+                  style: TextStyle(color: primaryColor),
+                ),
+                trailing: _isOpeningReviewListing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(Icons.chevron_right, color: secondaryColor),
+                onTap: _isOpeningReviewListing ? null : _openReviewListing,
+              ),
+            ),
+            TossSurfaceCard(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: Icon(Icons.feedback_outlined, color: primaryColor),
+                title: Text(
+                  strings.sendFeedback,
+                  style: TextStyle(color: primaryColor),
+                ),
+                trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                onTap: _sendFeedback,
               ),
             ),
             // ★「프리미엄」 엔티틀먼트 카드 제거 — T-260805-076. 사유는 이 화면 상단 주석.
-            // ★T-260805-145 — 말로찾기가 잠긴 동안에는 이 타일이 124MB 설치를 권하지 않는다.
+            // ★T-260805-145·T-261103-001 — 뜻으로 찾기를 닫은 동안에는 이 타일이 124MB 설치를
+            //   권하지 않는다. 아직 지워지지 않은 모델이 있을 때만 삭제 문으로 남는다.
             //   판정은 miniLmTileVisible 하나뿐이다(리터럴 복제 금지 — availability 파일 주석).
             //   AnimatedBuilder 로 감싸는 이유 = 설치가 끝나 ready 로 바뀌는 순간 타일이
             //   나타나야 하고, 삭제로 absent 가 되면 다시 사라져야 하기 때문이다.
@@ -558,10 +539,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 }
                 final available = RemoveAdsPurchase.instance.available;
                 final price = RemoveAdsPurchase.instance.price;
-                return TossSurfaceCard(
-                  child: Column(
-                    children: [
-                      ListTile(
+                return Column(
+                  children: [
+                    TossSurfaceCard(
+                      child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12,
                         ),
@@ -585,7 +566,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         onTap: _buyRemoveAds,
                       ),
-                      ListTile(
+                    ),
+                    TossSurfaceCard(
+                      child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12,
                         ),
@@ -600,101 +583,99 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         onTap: _restorePurchases,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 );
               },
             ),
             TossSurfaceCard(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    leading: Icon(Icons.backup_outlined, color: primaryColor),
-                    title: Text(
-                      strings.backupRestore,
-                      style: TextStyle(color: primaryColor),
-                    ),
-                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
-                    onTap: _openBackupRestore,
-                  ),
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    leading: Icon(Icons.delete_outline, color: primaryColor),
-                    title: Text(
-                      strings.trash,
-                      style: TextStyle(color: primaryColor),
-                    ),
-                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
-                    onTap: _openTrash,
-                  ),
-                ],
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: Icon(Icons.backup_outlined, color: primaryColor),
+                title: Text(
+                  strings.backupRestore,
+                  style: TextStyle(color: primaryColor),
+                ),
+                trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                onTap: _openBackupRestore,
               ),
             ),
             TossSurfaceCard(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    leading: Icon(Icons.translate, color: primaryColor),
-                    title: Text(
-                      strings.language,
-                      style: TextStyle(color: primaryColor),
-                    ),
-                    subtitle: Text(
-                      SettingsService.instance.languageCode.value == 'en'
-                          ? strings.english
-                          : strings.korean,
-                      style: TextStyle(color: secondaryColor),
-                    ),
-                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
-                    onTap: _openLanguageMenu,
-                  ),
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    leading: Icon(Icons.help_outline, color: primaryColor),
-                    title: Text(
-                      strings.helpFaq,
-                      style: TextStyle(color: primaryColor),
-                    ),
-                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
-                    onTap: _openHelp,
-                  ),
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    leading: Icon(
-                      Icons.description_outlined,
-                      color: secondaryColor,
-                    ),
-                    title: Text(
-                      strings.terms,
-                      style: TextStyle(color: primaryColor),
-                    ),
-                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
-                    onTap: () => _openPolicy(
-                      strings.terms,
-                      'docs/legal/terms-of-service.md',
-                    ),
-                  ),
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    leading: Icon(
-                      Icons.privacy_tip_outlined,
-                      color: secondaryColor,
-                    ),
-                    title: Text(
-                      strings.privacy,
-                      style: TextStyle(color: primaryColor),
-                    ),
-                    trailing: Icon(Icons.chevron_right, color: secondaryColor),
-                    onTap: () => _openPolicy(
-                      strings.privacy,
-                      'docs/legal/privacy-policy.md',
-                    ),
-                  ),
-                ],
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: Icon(Icons.delete_outline, color: primaryColor),
+                title: Text(
+                  strings.trash,
+                  style: TextStyle(color: primaryColor),
+                ),
+                trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                onTap: _openTrash,
+              ),
+            ),
+            TossSurfaceCard(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: Icon(Icons.translate, color: primaryColor),
+                title: Text(
+                  strings.language,
+                  style: TextStyle(color: primaryColor),
+                ),
+                subtitle: Text(
+                  SettingsService.instance.languageCode.value == 'en'
+                      ? strings.english
+                      : strings.korean,
+                  style: TextStyle(color: secondaryColor),
+                ),
+                trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                onTap: _openLanguageMenu,
+              ),
+            ),
+            TossSurfaceCard(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: Icon(Icons.help_outline, color: primaryColor),
+                title: Text(
+                  strings.helpFaq,
+                  style: TextStyle(color: primaryColor),
+                ),
+                trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                onTap: _openHelp,
+              ),
+            ),
+            TossSurfaceCard(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: Icon(
+                  Icons.description_outlined,
+                  color: secondaryColor,
+                ),
+                title: Text(
+                  strings.terms,
+                  style: TextStyle(color: primaryColor),
+                ),
+                trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                onTap: () => _openPolicy(
+                  strings.terms,
+                  'docs/legal/terms-of-service.md',
+                ),
+              ),
+            ),
+            TossSurfaceCard(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                leading: Icon(
+                  Icons.privacy_tip_outlined,
+                  color: secondaryColor,
+                ),
+                title: Text(
+                  strings.privacy,
+                  style: TextStyle(color: primaryColor),
+                ),
+                trailing: Icon(Icons.chevron_right, color: secondaryColor),
+                onTap: () => _openPolicy(
+                  strings.privacy,
+                  'docs/legal/privacy-policy.md',
+                ),
               ),
             ),
             const SizedBox(height: 16),
