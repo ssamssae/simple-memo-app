@@ -26,12 +26,23 @@
 ///   두 벌이 되면 한쪽만 켜져서 「세그먼트는 없는데 경로는 살아 있는」 상태가 만들어진다 —
 ///   그게 정확히 비용이 조용히 되살아나는 모습이다. 판정은 여기 하나뿐이어야 한다.
 ///   회귀축 = test/features/memos/semantic_search_hidden_test.dart 가 이 계약을 지킨다.
+///
+/// ■2026-11-03 오프보딩 (T-261103-001) — 기본 OFF
+///   대종님 「메모요 뜻으로 찾기 오프보딩해줘」. 이번에는 돈이 아니라 기능 정리다.
+///   코드는 그대로 두고 이 스위치 하나로 닫는다. 받아 둔 모델(약 124MB)은
+///   offboardSemanticSearchModel() 이 앱 시작 때 지운다.
+///   다시 열려면: --dart-define=MEMOYO_SEMANTIC_SEARCH=true
+///   회귀축 = test/features/memos/semantic_search_exposure_test.dart (a)~(f)
 library;
 
-/// 말로찾기 노출 여부. 기본 ON — 유료 폴백 제거로 잠금 사유가 해소됐다(T-260806-022).
+import 'package:flutter/foundation.dart';
+
+import 'services/mini_lm_model_installer.dart';
+
+/// 말로찾기 노출 여부. 기본 OFF — 대종님 오프보딩 결정(T-261103-001, 2026-11-03).
 const bool kSemanticSearchEnabled = bool.fromEnvironment(
   'MEMOYO_SEMANTIC_SEARCH',
-  defaultValue: true,
+  defaultValue: false,
 );
 
 /// 설정 화면의 「기기 내 뜻 검색 모델」 타일을 보일지 — T-260805-145.
@@ -43,9 +54,26 @@ const bool kSemanticSearchEnabled = bool.fromEnvironment(
 /// 회수할 문이 닫힌다 — 잠금이 사용자 손해로 바뀌는 지점이다. 줄이는 방향이 아니라
 /// 「없는 기능을 안 판다」 방향이어야 한다.
 ///
-/// 노출(T-260806-022) 이후에는 `kSemanticSearchEnabled` 가 참이라 이 식이 항상 참이다.
+/// 오프보딩(T-261103-001) 뒤에는 아직 지워지지 않은 모델이 있을 때만 삭제 문으로 보인다.
 /// 식을 단순화하지 마라 — 스위치를 다시 끄는 날 (d)(e) 구분이 되살아나야 한다.
 ///
 /// 회귀축 = test/features/memos/semantic_search_exposure_test.dart (d)(e).
 bool miniLmTileVisible({required bool installed}) =>
     kSemanticSearchEnabled || installed;
+
+/// T-261103-001 — 뜻으로 찾기를 닫은 판에서는 받아 둔 모델 파일(약 124MB, 조각 파일 포함)을 지운다.
+///
+/// 앱 시작 때 한 번 부른다. 스위치가 켜진 판에서는 아무것도 안 한다.
+/// 해시 검사 없이 모델 이름의 파일만 지우므로 빠르고, 다른 파일은 건드리지 않는다.
+/// 실패해도 던지지 않는다 — 설정의 삭제 문(miniLmTileVisible)이 남아 있다.
+Future<void> offboardSemanticSearchModel({
+  MiniLmModelInstaller? installer,
+}) async {
+  if (kSemanticSearchEnabled) return;
+  try {
+    await (installer ?? MiniLmModelInstaller(freeSpaceProvider: (_) async => 0))
+        .delete();
+  } catch (error) {
+    debugPrint('[semantic-offboard] $error');
+  }
+}

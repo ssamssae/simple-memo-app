@@ -7,6 +7,7 @@ import 'package:simple_memo_app/services/app_review_service.dart';
 import 'package:simple_memo_app/services/premium_entitlement.dart';
 import 'package:simple_memo_app/services/premium_service.dart';
 import 'package:simple_memo_app/services/settings_service.dart';
+import 'package:simple_memo_app/widgets/toss_surface_card.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -88,6 +89,37 @@ void main() {
     expect(prefs.getDouble('memo_body_font_size'), 18);
   });
 
+  // T-261103-001: 대종님 「설정페이지도 토스톤이긴 한데 메모 나열된것처럼 간격이 있으면 좋겠어」.
+  testWidgets('설정 항목은 메모 목록처럼 칸마다 따로 떨어져 있다', (tester) async {
+    tester.view.physicalSize = const Size(420, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+    await tester.pumpAndSettle();
+
+    Element cardOf(String label) => tester.element(
+      find.ancestor(
+        of: find.text(label),
+        matching: find.byType(TossSurfaceCard),
+      ),
+    );
+    for (final pair in const [
+      ['글자 크기', '테마'],
+      ['앱 평가하기', '피드백 보내기'],
+      ['광고 제거', '구매 복원'],
+      ['백업 & 복원', '휴지통'],
+      ['언어', '이용약관'],
+      ['이용약관', '개인정보처리방침'],
+    ]) {
+      expect(
+        cardOf(pair[0]),
+        isNot(same(cardOf(pair[1]))),
+        reason: '${pair[0]} 와 ${pair[1]} 가 한 카드에 붙어 있다',
+      );
+    }
+  });
+
   testWidgets('이미 기본값이면 글자 크기 기본값 버튼은 눌리지 않는다', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
     expect(find.text('18sp'), findsOneWidget);
@@ -115,24 +147,29 @@ void main() {
   //      말로찾기가 잠겨 검색 UI 가 없는데 설정만 124MB 다운로드를 권하던 버그를
   //      계약으로 굳혀둔 자리였다.
   //   ② T-260805-145: 잠금과 맞춰 타일 ★없다 로 반전.
-  //   ③ T-260806-022(지금): 유료 폴백을 걷어내 말로찾기를 열었다. 기능을 쓸 수 있으니
+  //   ③ T-260806-022: 유료 폴백을 걷어내 말로찾기를 열었다. 기능을 쓸 수 있으니
   //      모델 설치를 권하는 게 맞다 ⇒ 다시 ★보인다.
-  //   ①과 ③은 단언이 같지만 이유가 다르다. ①은 「잠긴 걸 판다」(버그),
-  //   ③은 「열린 걸 판다」(정상). 되돌릴 때 이유부터 보라.
+  //   ④ T-261103-001(지금): 대종님 「뜻으로 찾기 오프보딩해줘」로 기능을 닫았다 ⇒ 받지 않은
+  //      기기에는 ★없다. 받아 둔 기기에서는 앱이 시작할 때 모델을 지우고, 지우기 전에는
+  //      삭제 문으로만 남는다(semantic_search_exposure_test (e)(f)).
   //   폴백 소제목 자체를 재는 축은 타일 단위 테스트에 있다
   //   (test/widgets/mini_lm_model_settings_tile_test.dart).
-  testWidgets('말로찾기가 열린 기본 플래그에서는 설정에 모델 타일이 있다', (
-    tester,
-  ) async {
+  testWidgets('뜻으로 찾기를 닫은 기본 플래그에서는 받지 않은 기기 설정에 모델 타일이 없다', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
     await tester.pumpAndSettle();
 
     // ★대조군 — 화면이 실제로 떴는지 먼저 증명한다.
-    expect(find.text('글자 크기'), findsOneWidget,
-        reason: '설정 화면이 안 떴다 — 아래 판정이 무의미해진다');
+    expect(
+      find.text('글자 크기'),
+      findsOneWidget,
+      reason: '설정 화면이 안 떴다 — 아래 판정이 무의미해진다',
+    );
 
-    expect(find.byKey(const Key('minilm-model-tile')), findsOneWidget,
-        reason: '말로찾기를 열었는데 온디바이스 모델을 받을 문이 설정에 없다');
+    expect(
+      find.byKey(const Key('minilm-model-tile')),
+      findsNothing,
+      reason: '뺀 기능을 위해 124MB 모델을 받으라고 권한다',
+    );
   });
 
   testWidgets('설정 화면 테마 선택이 표시값과 저장값을 갱신한다', (tester) async {
@@ -313,13 +350,23 @@ void main() {
     // ★양성 대조군 — 리스트 맨 아래(VersionFooter)가 잡히는지 먼저 본다. 이게 안 잡히면
     //   아래 findsNothing 두 줄은 「없다」가 아니라 「아직 안 그렸다」를 재고 있는 것이고,
     //   그때 이 테스트는 초록인 채로 아무것도 안 지킨다.
-    expect(find.textContaining('마이너스베타스튜디오'), findsWidgets,
-        reason: '스크롤이 리스트 끝에 도달하지 못했다 — 아래 부재 단언을 믿을 수 없다');
+    expect(
+      find.textContaining('마이너스베타스튜디오'),
+      findsWidgets,
+      reason: '스크롤이 리스트 끝에 도달하지 못했다 — 아래 부재 단언을 믿을 수 없다',
+    );
 
-    expect(find.text('메모요 프리미엄'), findsNothing,
-        reason: '구독 폐지(T-260805-076) 후에도 프리미엄 칸이 남아 있다 — '
-            '광고제거 구매자가 구독자로 오표시된다');
-    expect(find.textContaining('월 ₩1,900'), findsNothing,
-        reason: '구독 판매 가격이 되살아났다 (T-260805-076 으로 상품 폐지)');
+    expect(
+      find.text('메모요 프리미엄'),
+      findsNothing,
+      reason:
+          '구독 폐지(T-260805-076) 후에도 프리미엄 칸이 남아 있다 — '
+          '광고제거 구매자가 구독자로 오표시된다',
+    );
+    expect(
+      find.textContaining('월 ₩1,900'),
+      findsNothing,
+      reason: '구독 판매 가격이 되살아났다 (T-260805-076 으로 상품 폐지)',
+    );
   });
 }

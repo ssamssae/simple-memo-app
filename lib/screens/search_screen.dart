@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../features/memos/semantic_search_availability.dart';
 import '../features/memos/services/embedding_engine.dart';
@@ -12,6 +13,7 @@ import '../features/memos/widgets/attachment_thumbnail.dart';
 import '../models/memo.dart';
 import '../services/memo_storage.dart';
 import '../services/search_service.dart';
+import '../services/settings_service.dart';
 import '../utils/app_palette.dart';
 import '../widgets/toss_surface_card.dart';
 import 'memo_edit_screen.dart';
@@ -84,6 +86,10 @@ class _SearchScreenState extends State<SearchScreen> {
     _debounce?.cancel();
     _controller.dispose();
     _focus.dispose();
+    // T-261103-001: 들어오자마자 뒤로 가면 아이폰에서 키보드 내림이 올림과 엇갈려 묻히고
+    // 메모 목록 위에 키보드가 남은 적이 있다. 화면이 완전히 사라진 지금 한 번 더 내린다.
+    // 이 화면은 입력칸 없는 메모 목록으로만 돌아간다.
+    unawaited(SystemChannels.textInput.invokeMethod<void>('TextInput.hide'));
     super.dispose();
   }
 
@@ -205,6 +211,11 @@ class _SearchScreenState extends State<SearchScreen> {
     await _runSearch(_controller.text);
   }
 
+  static final _fieldBorder = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide.none,
+  );
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
@@ -215,48 +226,50 @@ class _SearchScreenState extends State<SearchScreen> {
         foregroundColor: palette.textPrimary,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: TextField(
-          controller: _controller,
-          focusNode: _focus,
-          autofocus: true,
-          textInputAction: TextInputAction.search,
-          onChanged: _onChanged,
-          style: TextStyle(fontSize: 17, color: palette.textPrimary),
-          decoration: InputDecoration(
-            hintText: AppStrings.of(context).searchHint,
-            filled: true,
-            fillColor: palette.surface,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
+        // 뒤로 버튼이 있으면 바로 옆에 붙이고, 없으면 화면 여백 16.
+        titleSpacing: (ModalRoute.of(context)?.canPop ?? false) ? 0 : 16,
+        // T-261103-001 토스톤: 회색 둥근 칸 하나 — 돋보기는 칸 안 왼쪽, 지우기는 칸 안 오른쪽.
+        title: Padding(
+          padding: const EdgeInsets.only(right: 16),
+          child: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _controller,
+            builder: (context, value, _) => TextField(
+              controller: _controller,
+              focusNode: _focus,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              onChanged: _onChanged,
+              cursorColor: palette.accent,
+              style: TextStyle(fontSize: 16, color: palette.textPrimary),
+              decoration: InputDecoration(
+                hintText: AppStrings.of(context).searchHint,
+                hintStyle: TextStyle(color: _sub),
+                filled: true,
+                fillColor: palette.surface,
+                isDense: true,
+                prefixIcon: Icon(Icons.search_rounded, size: 20, color: _sub),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 40,
+                  minHeight: 40,
+                ),
+                suffixIcon: value.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: Icon(Icons.cancel, size: 18, color: _sub),
+                        tooltip: AppStrings.of(context).clearTooltip,
+                        onPressed: () {
+                          _controller.clear();
+                          _onChanged('');
+                        },
+                      ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 11),
+                border: _fieldBorder,
+                enabledBorder: _fieldBorder,
+                focusedBorder: _fieldBorder,
+              ),
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(TossSurfaceCard.radius),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(TossSurfaceCard.radius),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(TossSurfaceCard.radius),
-              borderSide: BorderSide(color: palette.accent, width: 1.5),
-            ),
-            hintStyle: TextStyle(color: _sub),
           ),
         ),
-        actions: [
-          if (_query.isNotEmpty)
-            IconButton(
-              icon: Icon(Icons.clear, color: _sub),
-              tooltip: AppStrings.of(context).clearTooltip,
-              onPressed: () {
-                _controller.clear();
-                _onChanged('');
-              },
-            ),
-        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -331,29 +344,30 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildResultsBody() {
     if (_query.trim().isEmpty) {
       return _CenterHint(
-        icon: Icons.search,
+        icon: Icons.search_rounded,
         text: AppStrings.of(context).searchPrompt,
       );
     }
     if (_results.isEmpty) {
       return _CenterHint(
-        icon: Icons.search_off,
+        icon: Icons.search_off_rounded,
         text: AppStrings.of(context).noSearchResults(_query.trim()),
       );
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return ListView(
+      // 메모 목록과 같은 여백·묶음 라벨(T-261103-001).
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       children: [
         if (_semanticFallbackCode != null)
           Padding(
-            padding: EdgeInsets.fromLTRB(16, 6, 16, 0),
+            padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
             child: Text(
               AppStrings.of(context).semanticFallbackNotice,
               style: TextStyle(color: _sub, fontSize: 12),
             ),
           ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 12, 16, 8),
+          padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
           child: Text(
             AppStrings.of(context).memoResults(_results.length),
             style: TextStyle(
@@ -363,17 +377,12 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
         ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            itemCount: _results.length,
-            itemBuilder: (_, i) => _SearchResultCard(
-              memo: _results[i],
-              query: _query,
-              onTap: () => _openMemo(_results[i]),
-            ),
+        for (final memo in _results)
+          _SearchResultCard(
+            memo: memo,
+            query: _query,
+            onTap: () => _openMemo(memo),
           ),
-        ),
       ],
     );
   }
@@ -390,13 +399,18 @@ class _CenterHint extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 52, color: AppPalette.of(context).accent),
+          Icon(
+            icon,
+            size: 40,
+            color: AppPalette.of(context).textSecondary.withValues(alpha: 0.5),
+          ),
           const SizedBox(height: 12),
           Text(
             text,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 15,
+              height: 1.5,
               color: AppPalette.of(context).textSecondary,
             ),
           ),
@@ -426,7 +440,8 @@ class _SearchResultCard extends StatelessWidget {
       context: 1000,
     );
     // 본문 발췌 하이라이트 (첫 매치 ±30자). 본문 미매치면 plain 미리보기.
-    final bodyExc = SearchService.excerpt(memo.content, query);
+    // T-261103-001: 제목 줄은 빼고 찾는다 — 한 줄 메모가 제목·미리보기에 두 번 나오던 것.
+    final bodyExc = SearchService.excerpt(_restLines(memo.content), query);
     final bodyPreview = bodyExc.start >= 0
         ? bodyExc
         : SearchExcerpt(_plainPreview(memo.content), -1, 0);
@@ -436,47 +451,56 @@ class _SearchResultCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
           child: Row(
             children: [
               if (memo.isFavorite)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Icon(Icons.star, size: 16, color: palette.accent),
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Icon(Icons.star, size: 18, color: palette.accent),
                 ),
               if (memo.hasImages)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.only(right: 10),
                   child: AttachmentThumbnail(
                     fileName: memo.imageFiles.first,
-                    size: 32,
+                    size: 36,
                   ),
                 ),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _highlight(
-                      context,
-                      titleExc,
-                      TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppPalette.of(context).textPrimary,
-                      ),
-                    ),
-                    if (bodyPreview.text.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      _highlight(
-                        context,
-                        bodyPreview,
-                        TextStyle(
-                          fontSize: 13,
-                          color: AppPalette.of(context).textSecondary,
+                // 메모 목록처럼 글자 크기 설정을 따른다(기본 17).
+                child: ValueListenableBuilder<double>(
+                  valueListenable: SettingsService.instance.bodyFontSize,
+                  builder: (context, bodyFontSize, _) {
+                    final scale =
+                        bodyFontSize / SettingsService.defaultBodyFontSize;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _highlight(
+                          context,
+                          titleExc,
+                          TextStyle(
+                            fontSize: 17 * scale,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.2,
+                            color: palette.textPrimary,
+                          ),
                         ),
-                      ),
-                    ],
-                  ],
+                        if (bodyPreview.text.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          _highlight(
+                            context,
+                            bodyPreview,
+                            TextStyle(
+                              fontSize: 14 * scale,
+                              color: palette.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
@@ -486,16 +510,23 @@ class _SearchResultCard extends StatelessWidget {
     );
   }
 
-  String _plainPreview(String content) {
+  /// 첫 줄(제목)을 뺀 나머지 줄을 한 줄로 잇는다.
+  String _restLines(String content) {
     final lines = content
         .split('\n')
         .where((l) => l.trim().isNotEmpty)
         .toList();
     if (lines.length <= 1) return '';
-    final rest = lines.skip(1).join(' ').trim();
+    return lines.skip(1).join(' ').trim();
+  }
+
+  String _plainPreview(String content) {
+    final rest = _restLines(content);
     return rest.length > 60 ? '${rest.substring(0, 60)}…' : rest;
   }
 
+  // Text.rich — RichText 와 달리 앱 기본 글꼴(Pretendard)을 물려받는다(T-261103-001).
+  // 강조는 바탕 칠 대신 보라 굵은 글자(토스톤).
   Widget _highlight(BuildContext context, SearchExcerpt exc, TextStyle base) {
     if (exc.start < 0) {
       return Text(
@@ -506,26 +537,23 @@ class _SearchResultCard extends StatelessWidget {
       );
     }
     final end = exc.start + exc.length;
-    return RichText(
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      text: TextSpan(
-        style: base,
+    return Text.rich(
+      TextSpan(
         children: [
           TextSpan(text: exc.text.substring(0, exc.start)),
           TextSpan(
             text: exc.text.substring(exc.start, end),
-            style: base.copyWith(
-              backgroundColor: AppPalette.of(
-                context,
-              ).accent.withValues(alpha: 0.22),
+            style: TextStyle(
               fontWeight: FontWeight.w700,
-              color: AppPalette.of(context).textPrimary,
+              color: AppPalette.of(context).accent,
             ),
           ),
           TextSpan(text: exc.text.substring(end)),
         ],
       ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: base,
     );
   }
 }

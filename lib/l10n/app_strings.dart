@@ -332,12 +332,12 @@ class AppStrings {
       isEnglish ? 'Search your memo content.' : '메모 내용을 검색해 보세요.';
   String noSearchResults(String query) => isEnglish
       ? 'No results for "$query".\nTry a different search term.'
-      : '"$query" 검색 결과가 없습니다.\n다른 검색어로 시도해 보세요.';
+      : '"$query" 검색 결과가 없어요\n다른 검색어로 찾아보세요';
   String get semanticFallbackNotice => isEnglish
       ? 'Semantic search is unavailable — showing keyword results.'
       : '뜻 검색을 사용할 수 없어 일반 검색으로 표시 중입니다.';
   String memoResults(int count) =>
-      isEnglish ? 'Memo results ($count)' : '메모 결과 ($count건)';
+      isEnglish ? 'Memos ($count)' : '메모 $count개';
 
   // 설정 화면 (테마·폰트 미리보기)
   String get fontSample => isEnglish ? 'A' : '가';
