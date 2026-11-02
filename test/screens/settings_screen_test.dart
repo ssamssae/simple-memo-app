@@ -98,6 +98,18 @@ void main() {
     expect(button.onPressed, isNull);
   });
 
+  // T-261102-030: 「기본값 22sp」 로 붙어 읽히면 기본값이 22sp 인 것처럼 보인다(대종님 11/02).
+  // 오른쪽 위에는 기본값 버튼만 두고, 현재 크기는 그 아래 줄에 둔다.
+  testWidgets('현재 글자 크기 표시는 기본값 버튼과 같은 줄이 아니라 그 아래에 있다', (tester) async {
+    await SettingsService.instance.setBodyFontSize(22);
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+
+    final button = tester.getRect(find.widgetWithText(TextButton, '기본값'));
+    final size = tester.getRect(find.text('22sp'));
+    expect(size.top, greaterThanOrEqualTo(button.bottom - 1));
+    expect(size.right, greaterThan(button.left));
+  });
+
   // ★계약이 두 번 뒤집힌 자리다. 이력을 남겨 둔다 — 다음 사람이 방향을 헷갈리지 않게.
   //   ① 원래: 「미지원 기기는 Gemini 폴백을 표시한다」 = 타일 ★보인다.
   //      말로찾기가 잠겨 검색 UI 가 없는데 설정만 124MB 다운로드를 권하던 버그를
