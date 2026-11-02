@@ -15,6 +15,7 @@ import '../services/ads_service.dart';
 import '../services/app_review_service.dart';
 import '../services/remove_ads_purchase.dart';
 import '../services/settings_service.dart';
+import '../widgets/toss_segmented_control.dart';
 import '../widgets/toss_surface_card.dart';
 import '../widgets/version_footer.dart';
 import '../utils/app_palette.dart';
@@ -402,7 +403,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 valueListenable: SettingsService.instance.themeMode,
                 builder: (context, themeMode, _) {
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                     child: Row(
                       children: [
                         Icon(Icons.contrast, color: primaryColor),
@@ -413,48 +414,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: SegmentedButton<ThemeMode>(
-                            showSelectedIcon: false,
-                            selected: {themeMode},
-                            style: ButtonStyle(
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: VisualDensity.compact,
-                              foregroundColor: WidgetStateProperty.resolveWith((
-                                states,
-                              ) {
-                                if (states.contains(WidgetState.selected)) {
-                                  return palette.onAccent;
-                                }
-                                return palette.textPrimary;
-                              }),
-                              backgroundColor: WidgetStateProperty.resolveWith((
-                                states,
-                              ) {
-                                if (states.contains(WidgetState.selected)) {
-                                  return palette.accent;
-                                }
-                                return palette.surface;
-                              }),
-                            ),
+                          // T-261103-005: 토스 분절 버튼(회색 트랙 + 선택 칸 손잡이).
+                          child: TossSegmentedControl<ThemeMode>(
+                            selected: themeMode,
                             segments: [
-                              ButtonSegment<ThemeMode>(
-                                value: ThemeMode.system,
-                                label: Text(AppStrings.of(context).themeSystem),
+                              TossSegment(
+                                ThemeMode.system,
+                                AppStrings.of(context).themeSystem,
                               ),
-                              ButtonSegment<ThemeMode>(
-                                value: ThemeMode.light,
-                                label: Text(AppStrings.of(context).themeLight),
+                              TossSegment(
+                                ThemeMode.light,
+                                AppStrings.of(context).themeLight,
                               ),
-                              ButtonSegment<ThemeMode>(
-                                value: ThemeMode.dark,
-                                label: Text(AppStrings.of(context).themeDark),
+                              TossSegment(
+                                ThemeMode.dark,
+                                AppStrings.of(context).themeDark,
                               ),
                             ],
-                            onSelectionChanged: (selection) {
-                              if (selection.isEmpty) return;
-                              SettingsService.instance.setThemeMode(
-                                selection.first,
-                              );
+                            onChanged: (mode) {
+                              SettingsService.instance.setThemeMode(mode);
                             },
                           ),
                         ),
