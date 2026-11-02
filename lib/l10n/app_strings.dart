@@ -25,6 +25,7 @@ class AppStrings {
   String get newMemoTab => isEnglish ? 'New' : '새메모';
   String get fontSize => isEnglish ? 'Text size' : '글자 크기';
   String get memoBodySize => isEnglish ? 'Memo body size' : '메모 본문 크기';
+  String get fontSizeDefault => isEnglish ? 'Default' : '기본값';
   String get language => isEnglish ? 'Language' : '언어';
   String get korean => isEnglish ? 'Korean' : '한국어';
   String get english => 'English';
