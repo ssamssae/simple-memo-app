@@ -939,8 +939,12 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                                 ),
                                 cursorColor: palette.textPrimary,
                                 cursorHeight: bodyFontSize,
+                                // 옛 방식 도구는 contextMenuBuilder 를 무시한다. iOS 기본 메뉴를 쓸 수 있는
+                                // 기기에서만 새 방식 도구로 바꿔 아래 빌더(기본 메뉴)를 타게 한다(T-261103-009).
                                 selectionControls:
-                                    _largeCupertinoSelectionControls,
+                                    SystemContextMenu.isSupported(context)
+                                    ? _largeCupertinoSelectionHandleControls
+                                    : _largeCupertinoSelectionControls,
                                 scrollPhysics:
                                     const NeverScrollableScrollPhysics(),
                                 selectionHeightStyle:
@@ -980,6 +984,15 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                                 maxLines: null,
                                 autofocus: !_isEditing,
                                 contextMenuBuilder: (context, editableTextState) {
+                                  // iOS 16+ = iOS 기본 편집 메뉴. Flutter 가 그린 메뉴의 붙여넣기는 앱이
+                                  // 클립보드를 직접 읽어서 iOS 가 매번 허용 창을 띄운다(T-261103-009).
+                                  if (SystemContextMenu.isSupportedByField(
+                                    editableTextState,
+                                  )) {
+                                    return SystemContextMenu.editableText(
+                                      editableTextState: editableTextState,
+                                    );
+                                  }
                                   final items =
                                       List<ContextMenuButtonItem>.from(
                                         editableTextState
@@ -1193,6 +1206,14 @@ class _LargeCupertinoSelectionControls extends CupertinoTextSelectionControls {
 }
 
 final _largeCupertinoSelectionControls = _LargeCupertinoSelectionControls();
+
+/// 같은 큰 손잡이 + contextMenuBuilder 를 쓰는 새 방식 도구 (T-261103-009).
+class _LargeCupertinoSelectionHandleControls
+    extends _LargeCupertinoSelectionControls
+    with TextSelectionHandleControls {}
+
+final _largeCupertinoSelectionHandleControls =
+    _LargeCupertinoSelectionHandleControls();
 
 enum _PhotoSource { gallery, camera, clipboard }
 
