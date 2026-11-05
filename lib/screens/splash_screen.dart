@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../l10n/app_strings.dart';
 import '../services/settings_service.dart';
 import 'home_shell.dart';
@@ -57,30 +58,37 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final strings = AppStrings.of(context);
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: Image.asset(
-                'assets/images/app_icon.png',
-                width: 120,
-                height: 120,
+    const backgroundColor = Color(0xFFFFF8E7);
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: backgroundColor,
+      ),
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Image.asset(
+                  'assets/images/app_icon.png',
+                  width: 120,
+                  height: 120,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              strings.appName,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+              const SizedBox(height: 16),
+              Text(
+                strings.appName,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF4A3266),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
