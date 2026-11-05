@@ -89,16 +89,15 @@ flutter_launcher_icons:
   adaptive_icon_foreground: "assets/icon/app_icon.png"
   min_sdk_android: 21
 
-# 네이티브 스플래시 (T-260622, 이중 스플래시 깜빡임 fix) — OS 시스템 스플래시를
-# 인앱 스플래시(splash_screen.dart: 검은 배경 + assets/images/app_icon.png)와 동일하게
-# 맞춰 "OS 자동 스플래시 → 인앱 스플래시" 핸드오프 깜빡임 제거. 안드로이드 한정.
+# 네이티브 스플래시 — 인앱 스플래시와 같은 크림색 배경을 유지한다.
+# iOS LaunchScreen.storyboard의 배경색도 함께 맞춘다 (T-261105-022).
 flutter_native_splash:
-  color: "#000000"
+  color: "#FFF8E7"
   image: assets/images/app_icon.png
   android_12:
     image: assets/images/app_icon.png
-    color: "#000000"
-    icon_background_color: "#000000"
+    color: "#FFF8E7"
+    icon_background_color: "#FFF8E7"
   android: true
   ios: false
   web: false
