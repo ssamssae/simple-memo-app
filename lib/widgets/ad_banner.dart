@@ -43,9 +43,13 @@ class _AdBannerState extends State<AdBanner> {
     }
   }
 
-  void _loadAd() {
+  Future<void> _loadAd() async {
+    // 광고 단위는 설치 출처를 읽은 뒤에 정해진다(T-261104-014). 기다리는 사이 화면이 닫혔거나,
+    // 광고 제거가 켜졌거나, 다른 호출이 이미 배너를 붙였으면 만들지 않는다.
+    final adUnitId = await AdsService.instance.bannerAdUnitId();
+    if (!mounted || _shouldHideAds || _ad != null) return;
     final ad = BannerAd(
-      adUnitId: AdsService.instance.bannerAdUnitId,
+      adUnitId: adUnitId,
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(

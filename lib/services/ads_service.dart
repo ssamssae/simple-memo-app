@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 광고 표시 여부의 단일 소스 + AdMob 초기화 + 배너 광고 단위 ID 제공.
@@ -9,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///  - android AndroidManifest 의 com.google.android.gms.ads.APPLICATION_ID
 ///  - 아래 bannerAdUnitId 의 실제 배너 광고 단위 ID
 /// 배너 광고 단위는 출시판만 실제 ID 이고, 개발 빌드(디버그·프로필)는 구글 공식 시험 ID 라 시험 광고가 표시된다.
+/// iOS 는 출시판이라도 앱스토어에서 받은 설치만 실제 ID 다. TestFlight·개발 서명 설치는 시험 ID 다.
 class AdsService {
   AdsService._();
   static final AdsService instance = AdsService._();
@@ -38,14 +40,44 @@ class AdsService {
   ///
   /// 디버그·프로필 빌드는 구글 공식 시험 광고단위를 쓴다. 개발·실기기 시험에서 실광고가 노출·클릭되면
   /// 무효 트래픽으로 게시자 계정이 정지된다(2026-11-04 29일 정지 메일, T-261104-013).
-  String get bannerAdUnitId =>
-      bannerAdUnitIdFor(releaseMode: kReleaseMode, platform: defaultTargetPlatform);
+  /// iOS 출시판도 설치 출처를 읽은 뒤에 정한다. TestFlight 는 앱스토어와 같은 출시판이라
+  /// 빌드 모드로는 가를 수 없다(T-261104-014 B안).
+  Future<String> bannerAdUnitId() async => bannerAdUnitIdFor(
+        releaseMode: kReleaseMode,
+        platform: defaultTargetPlatform,
+        installerStore: await installerStore,
+      );
 
-  /// [bannerAdUnitId] 의 순수 함수판 — 빌드 모드·플랫폼 분기를 단위 시험으로 고정한다.
+  Future<String?>? _installerStore;
+
+  /// 설치 출처. iOS 는 앱스토어 설치면 `com.apple`, TestFlight·개발 서명 설치면 `com.apple.testflight` 다
+  /// (package_info_plus 가 영수증 경로 `sandboxReceipt` 로 가른다). 읽지 못하면 null 이다.
   @visibleForTesting
-  static String bannerAdUnitIdFor({required bool releaseMode, required TargetPlatform platform}) {
+  Future<String?> get installerStore => _installerStore ??= _readInstallerStore();
+
+  static Future<String?> _readInstallerStore() async {
+    try {
+      return (await PackageInfo.fromPlatform()).installerStore;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// [bannerAdUnitId] 의 순수 함수판 — 빌드 모드·플랫폼·설치 출처 분기를 단위 시험으로 고정한다.
+  ///
+  /// iOS 는 [installerStore] 가 정확히 `com.apple`(앱스토어 설치)일 때만 실제 배너다.
+  /// TestFlight·개발 서명·시뮬레이터·모름(null)은 시험 배너다. 우리 폰과 TestFlight 시험자가 받는
+  /// 출시판이 실광고를 부르지 않게 한다. 안드로이드는 내부 테스트와 정식 출시가 같은 앱 묶음이라
+  /// 설치 출처로 가를 수 없다. 그래서 안드로이드 출시판은 그대로 실제 배너다.
+  @visibleForTesting
+  static String bannerAdUnitIdFor({
+    required bool releaseMode,
+    required TargetPlatform platform,
+    required String? installerStore,
+  }) {
     final ios = platform == TargetPlatform.iOS;
-    if (!releaseMode) {
+    final appStoreInstall = !ios || installerStore == 'com.apple';
+    if (!releaseMode || !appStoreInstall) {
       return ios
           ? 'ca-app-pub-3940256099942544/2934735716' // 구글 공식 시험 배너 (iOS)
           : 'ca-app-pub-3940256099942544/6300978111'; // 구글 공식 시험 배너 (Android)
