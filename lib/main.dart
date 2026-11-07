@@ -101,28 +101,29 @@ class MemoApp extends StatelessWidget {
   }
 
   ThemeData _buildLightTheme() {
+    const p = AppPalette.light;
     return ThemeData(
       fontFamily: 'Pretendard',
-      extensions: const [AppPalette.light],
+      extensions: const [p],
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF7C5CFF),
+        seedColor: p.accent,
         brightness: Brightness.light,
       ),
-      scaffoldBackgroundColor: const Color(0xFFF2F4F6),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFFF2F4F6),
-        foregroundColor: Color(0xFF191F28),
-        iconTheme: IconThemeData(color: Color(0xFF4E5968)),
+      scaffoldBackgroundColor: p.background,
+      appBarTheme: AppBarTheme(
+        backgroundColor: p.background,
+        foregroundColor: p.textPrimary,
+        iconTheme: IconThemeData(color: p.textSecondary),
       ),
-      cardTheme: const CardThemeData(color: Color(0xFFFFFFFF)),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: Color(0xFF7C5CFF),
-        foregroundColor: Color(0xFFFFFFFF),
+      cardTheme: CardThemeData(color: p.surface),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: p.accent,
+        foregroundColor: p.onAccent,
       ),
-      textSelectionTheme: const TextSelectionThemeData(
-        cursorColor: Color(0xFF7C5CFF),
-        selectionColor: Color(0x337C5CFF),
-        selectionHandleColor: Color(0xFF7C5CFF),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: p.accent,
+        selectionColor: p.accent.withAlpha(0x33),
+        selectionHandleColor: p.accent,
       ),
       useMaterial3: true,
       brightness: Brightness.light,
