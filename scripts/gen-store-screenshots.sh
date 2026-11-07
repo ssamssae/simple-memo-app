@@ -17,8 +17,7 @@
 #   IPHONE_DEVICE_NAME="iPhone 17 Pro" bash scripts/gen-store-screenshots.sh
 #
 # 산출: build/screenshots/<label>/<name>.png
-#   합성은 별도 단계다: python3 scripts/compose_store_screenshots.py \
-#                        --raw build/screenshots/<label> --out store/screenshots/ko
+#   현재 촬영 파일은 <locale>__<scene>.png 이다. 기존 합성기의 옛 화면 목록을 쓰지 않는다.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
@@ -70,6 +69,13 @@ resolve_udid() {
 }
 
 shots_written=0
+package_version="$(awk '/^version:/ {print $2; exit}' pubspec.yaml)"
+capture_version="${package_version%+*}"
+capture_build="${package_version##*+}"
+if [ -z "$capture_version" ] || [ "$capture_version" = "$capture_build" ]; then
+  echo "❌ pubspec.yaml 에 version: X.Y.Z+N 이 필요하다." >&2
+  exit 1
+fi
 
 drive_one() {
   local label="$1" device_name="$2"
@@ -88,6 +94,7 @@ drive_one() {
   echo "📸 [$label] $device_name ($udid) 부팅 ..."
   xcrun simctl boot "$udid" >/dev/null 2>&1 || true
   xcrun simctl bootstatus "$udid" -b >/dev/null 2>&1 || true
+  xcrun simctl ui "$udid" appearance light
 
   # 스토어 캡처용 상태바 고정 (실패해도 캡처 자체는 계속한다)
   xcrun simctl status_bar "$udid" override \
@@ -97,9 +104,11 @@ drive_one() {
   echo "📸 [$label] flutter drive ..."
   SHOT_DEVICE="$label" "$FLUTTER" drive \
     --driver=test_driver/store_screenshots_test.dart \
-    --target=integration_test/screenshot_test.dart \
+    --target=integration_test/store_current_screenshots_test.dart \
     -d "$udid" \
-    --no-dds
+    --no-dds \
+    --dart-define="STORE_CAPTURE_VERSION=$capture_version" \
+    --dart-define="STORE_CAPTURE_BUILD=$capture_build"
 
   # ★0매치를 정상 경로로 흘려보내고 판정은 계수로 한다.
   # 옛 형태 `ls "$out"/*.png 2>/dev/null | awk …` 는 매치가 0건이면 ls 가 비영으로

@@ -1,0 +1,238 @@
+{
+  "captured_at": "2026-11-07",
+  "source_commit": "a76567548d8ad1c0ef2b7f27ca3c7d5c4f417dfe",
+  "version": "1.0.25",
+  "build": "53",
+  "fixtures": "Fictional local notes, onboarding complete, existing ad-free state; no purchase/account/backup performed",
+  "ui_languages": {
+    "ko": "ko",
+    "en-US": "en",
+    "ja": "en"
+  },
+  "files": [
+    {
+      "platform": "ios",
+      "locale": "en-US",
+      "slot": "APP_IPHONE_67",
+      "scene": "01-main",
+      "file": "fastlane/screenshots/en-US/iPhone 6.9 Display/01_dark_main.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "png_color_type": 2,
+      "sha256": "7f69a3af4ca0a7c924f1ebe2158de15e5baf33040ec7ccf234dbe2ae14423a2f",
+      "raw_sha256": "0dd6c0af347fa5cd8ef7e230bb9b6dd6abb354a91e17861b4e6dc34fe7af5e08"
+    },
+    {
+      "platform": "ios",
+      "locale": "en-US",
+      "slot": "APP_IPHONE_67",
+      "scene": "02-quick-write",
+      "file": "fastlane/screenshots/en-US/iPhone 6.9 Display/02_quick_write.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "png_color_type": 2,
+      "sha256": "99c7737a5e3c8fa91740cdbe46a5b94e4d85173e80b7c7bb277141a510376a93",
+      "raw_sha256": "629e6b914ff7aa5922739dcc8f7cfd668f7dd5c13fef61f6aa32699c52430f79"
+    },
+    {
+      "platform": "ios",
+      "locale": "en-US",
+      "slot": "APP_IPHONE_67",
+      "scene": "03-backup",
+      "file": "fastlane/screenshots/en-US/iPhone 6.9 Display/06_drive_backup.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "png_color_type": 2,
+      "sha256": "c65949ce0f04c51fbc5e790844276199f02c35396fc55525b577d44bb91861c6",
+      "raw_sha256": "0fd3967f36272e26a47eca88ee7a3e48d47dc68e99e3d11648b87f90237c1332"
+    },
+    {
+      "platform": "ios",
+      "locale": "en-US",
+      "slot": "APP_IPHONE_67",
+      "scene": "04-settings",
+      "file": "fastlane/screenshots/en-US/iPhone 6.9 Display/07_settings.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "png_color_type": 2,
+      "sha256": "920d83336a5b87ca79c17b4267994d467fe0ede474d8c0551fbd2f61733e19a5",
+      "raw_sha256": "593f55d72c6d2c57a4a1af7d9aa44ed87057a72beb492390ca6543f592b0f488"
+    },
+    {
+      "platform": "ios",
+      "locale": "ja",
+      "slot": "APP_IPHONE_67",
+      "scene": "01-main",
+      "file": "fastlane/screenshots/ja/iPhone 6.9 Display/01_dark_main.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "png_color_type": 2,
+      "sha256": "0b4029104a7a08b52fcfafd27da0c538ecea946bd965f3a01c99794767b54ee1",
+      "raw_sha256": "19257f4722710e8263f14e1f0236d26e4713160b3b0d9de8dbd3f38a43bec703"
+    },
+    {
+      "platform": "ios",
+      "locale": "ja",
+      "slot": "APP_IPHONE_67",
+      "scene": "02-quick-write",
+      "file": "fastlane/screenshots/ja/iPhone 6.9 Display/02_quick_write.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "png_color_type": 2,
+      "sha256": "6c7776ee69b1f4741a786eb4fad67e61b916a8fd7bc9a20d683b966464f2ed0d",
+      "raw_sha256": "976c2528e0bd0c91db9544a72321eb2ddab07dc799e5b737c4ff117b7696a14b"
+    },
+    {
+      "platform": "ios",
+      "locale": "ja",
+      "slot": "APP_IPHONE_67",
+      "scene": "03-backup",
+      "file": "fastlane/screenshots/ja/iPhone 6.9 Display/06_drive_backup.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "png_color_type": 2,
+      "sha256": "c65949ce0f04c51fbc5e790844276199f02c35396fc55525b577d44bb91861c6",
+      "raw_sha256": "0fd3967f36272e26a47eca88ee7a3e48d47dc68e99e3d11648b87f90237c1332"
+    },
+    {
+      "platform": "ios",
+      "locale": "ja",
+      "slot": "APP_IPHONE_67",
+      "scene": "04-settings",
+      "file": "fastlane/screenshots/ja/iPhone 6.9 Display/07_settings.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "png_color_type": 2,
+      "sha256": "920d83336a5b87ca79c17b4267994d467fe0ede474d8c0551fbd2f61733e19a5",
+      "raw_sha256": "593f55d72c6d2c57a4a1af7d9aa44ed87057a72beb492390ca6543f592b0f488"
+    },
+    {
+      "platform": "ios",
+      "locale": "ko",
+      "slot": "APP_IPHONE_67",
+      "scene": "01-main",
+      "file": "fastlane/screenshots/ko/iPhone 6.9 Display/01_dark_main.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "png_color_type": 2,
+      "sha256": "cb2fffc48ab9a54a3dfab62e34270302804e86f7fd8f3e9263e6b4c4c1c4ff2a",
+      "raw_sha256": "6bd6730e74cdd2fb4f181fc3c9118cf4b13160cce2ff27549ce575f7ee0ca3b8"
+    },
+    {
+      "platform": "ios",
+      "locale": "ko",
+      "slot": "APP_IPHONE_67",
+      "scene": "02-quick-write",
+      "file": "fastlane/screenshots/ko/iPhone 6.9 Display/02_quick_write.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "png_color_type": 2,
+      "sha256": "daa8cabbd98af6c3319c8c3647a40d5b5135ce70ffc18d1f37033f94bc71442b",
+      "raw_sha256": "3c508efc7b9ec177190469b7b31cc3713b6548b28e2a6b9b2fa70e6d5c3686c0"
+    },
+    {
+      "platform": "ios",
+      "locale": "ko",
+      "slot": "APP_IPHONE_67",
+      "scene": "03-backup",
+      "file": "fastlane/screenshots/ko/iPhone 6.9 Display/06_drive_backup.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "png_color_type": 2,
+      "sha256": "813847f35d6743804acc275fc62afc21da79cbac32a7db47fd969ac947bfe298",
+      "raw_sha256": "a66d678bc263dfb7284f29fdeae8706ef2dab03dc143c44feef9036bf1883d73"
+    },
+    {
+      "platform": "ios",
+      "locale": "ko",
+      "slot": "APP_IPHONE_67",
+      "scene": "04-settings",
+      "file": "fastlane/screenshots/ko/iPhone 6.9 Display/07_settings.png",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "png_color_type": 2,
+      "sha256": "aecd05d98eebbcc53d153f10c652d68f09a5beeadbed5333dc9680972fca9f62",
+      "raw_sha256": "c544192c1566e22cd62249efb356b95468c1c08a021ac0f04c99d1937fd1ef94"
+    },
+    {
+      "platform": "android",
+      "locale": "ko-KR",
+      "slot": "phoneScreenshots",
+      "scene": "01-main",
+      "file": "store/screenshots/ko/01_dark_main.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "png_color_type": 2,
+      "sha256": "df6286bbd12bff988b29f0e87c5d62c19b828c26c772b2adbf9ae45908928805",
+      "raw_sha256": "9b802736440b7f90ddf30f2c06d9ffa11323cd1e7fecad960a558797d6a1bccf"
+    },
+    {
+      "platform": "android",
+      "locale": "ko-KR",
+      "slot": "phoneScreenshots",
+      "scene": "02-quick-write",
+      "file": "store/screenshots/ko/02_quick_write.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "png_color_type": 2,
+      "sha256": "a9d263c4bffc07a9be6f291a6dc9193d71bd0e797eb2dcb3c217a98cd21a633c",
+      "raw_sha256": "3d0202de2569d57c4facfd6695e6ffe876f5e7991f7c78a9f2aaef0560d72b45"
+    },
+    {
+      "platform": "android",
+      "locale": "ko-KR",
+      "slot": "phoneScreenshots",
+      "scene": "03-backup",
+      "file": "store/screenshots/ko/06_drive_backup.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "png_color_type": 2,
+      "sha256": "27f335b2b3074efca3e5e436ed6da889dcb9f3c6bf52c140bd6ae8c39a0ecc9b",
+      "raw_sha256": "e78e0246ead2ca847596487ddcfb544165fb52ea109095e07677ae64500aa45f"
+    },
+    {
+      "platform": "android",
+      "locale": "ko-KR",
+      "slot": "phoneScreenshots",
+      "scene": "04-settings",
+      "file": "store/screenshots/ko/07_settings.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "png_color_type": 2,
+      "sha256": "e84a6e0805e03aff15794bc2ba3a5c59ae3c839ad8fd590b3e949c55179e60d5",
+      "raw_sha256": "2b2a1fff8b748af07d73231fbb90bb82e85e357ca192563aec8c7dfb9967972b"
+    }
+  ]
+}
