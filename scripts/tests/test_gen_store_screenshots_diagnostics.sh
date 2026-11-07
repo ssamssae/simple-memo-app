@@ -38,6 +38,7 @@ setup() {
   SANDBOX="$(mktemp -d)"
   mkdir -p "$SANDBOX/repo/scripts" "$SANDBOX/bin" "$SANDBOX/home/.config/flutter"
   cp "$SCRIPT" "$SANDBOX/repo/scripts/gen-store-screenshots.sh"
+  printf 'version: 1.0.25+53\n' > "$SANDBOX/repo/pubspec.yaml"
   chmod +x "$SANDBOX/repo/scripts/gen-store-screenshots.sh"
 
   # SPM 선행조건 통과용 (스크립트가 $HOME 아래를 본다)
