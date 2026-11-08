@@ -188,6 +188,12 @@ void main() {
     expect(find.text('시스템'), findsOneWidget);
     expect(find.text('라이트'), findsOneWidget);
     expect(find.text('다크'), findsOneWidget);
+    expect(SettingsService.instance.themeMode.value, ThemeMode.light);
+
+    await tester.tap(find.text('다크'));
+    await tester.pumpAndSettle();
+
+    expect(SettingsService.instance.themeMode.value, ThemeMode.dark);
 
     await tester.tap(find.text('라이트'));
     await tester.pumpAndSettle();

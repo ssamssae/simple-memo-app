@@ -31,8 +31,9 @@ class SettingsService {
   final ValueNotifier<bool> onboardingCompleted = ValueNotifier<bool>(false);
 
   /// MaterialApp.themeMode 와 연결되는 앱 테마 선택값.
+  /// 저장값이 없으면 라이트다. 기기 다크여도 본문은 크림 톤으로 시작한다.
   final ValueNotifier<ThemeMode> themeMode = ValueNotifier<ThemeMode>(
-    ThemeMode.system,
+    ThemeMode.light,
   );
 
   bool _initialized = false;
@@ -118,7 +119,11 @@ class SettingsService {
       case 'dark':
         return ThemeMode.dark;
       case 'system':
+        return ThemeMode.system;
+      case null:
+        return ThemeMode.light;
       default:
+        // 알 수 없는 저장값은 기존처럼 시스템으로 둔다.
         return ThemeMode.system;
     }
   }
@@ -141,6 +146,6 @@ class SettingsService {
     bodyFontSize.value = defaultBodyFontSize;
     languageCode.value = 'ko';
     onboardingCompleted.value = false;
-    themeMode.value = ThemeMode.system;
+    themeMode.value = ThemeMode.light;
   }
 }
