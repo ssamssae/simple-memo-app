@@ -1,1 +1,1 @@
-Updated the startup screen colors to complement the app icon.
+Memo screens now match the yellow icon. Light mode uses a cream background, and dark mode uses cream text. If you have never picked a theme, the app now starts in light mode.
