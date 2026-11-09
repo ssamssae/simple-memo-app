@@ -131,7 +131,7 @@ class MemoApp extends StatelessWidget {
   }
 
   /// 다크 — 명시 「다크」와 「시스템」+기기 다크 공통. 순검정 바탕 + 밝은 회색 카드,
-  /// 본문 흰 글자 SemiBold (대종님 2026-11-02 후보 2번, T-261102-001).
+  /// 본문 진한 크림 SemiBold (대종님 2026-11-09 「진한크림」 C, T-261109-019).
   ThemeData _buildDarkTheme() {
     const p = AppPalette.dark;
     const divider = Color(0xFF48484A);
