@@ -60,6 +60,13 @@ void main() {
     expect(bodyTextColor(tester), AppPalette.dark.textPrimary);
   });
 
+  testWidgets('다크 모드 편집 본문 글자는 진한 크림이다', (tester) async {
+    // T-261109-019. 팔레트 상수와 따로, 화면에 올라간 TextField 색을 읽는다.
+    await pumpEditor(tester, Brightness.dark);
+
+    expect(bodyTextColor(tester), const Color(0xFFFDE3A0));
+  });
+
   testWidgets('본문 글자와 바탕이 같은 색이 아니다 — 안 보이는 상태 차단', (tester) async {
     // T-260720-024 가 막으려던 실제 증상은 「글자가 바탕에 묻힌다」였다.
     // 색 이름이 아니라 그 조건을 직접 잰다.
