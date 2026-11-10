@@ -90,6 +90,22 @@ void main() {
     expect(c.right - b.right, closeTo(inset, 0.5));
   });
 
+  // T-261110-016 — 대종님 아이폰 스크린샷: 카드 바깥 빈칸이 왼쪽 24·오른쪽 16 으로 달랐다.
+  // 메모 목록 화면(좌우 16)과 같게 왼쪽·오른쪽 모두 16 을 둔다.
+  testWidgets('카드 바깥 여백은 왼쪽·오른쪽이 같은 16 이다', (tester) async {
+    await pumpEditor(tester, content: '장보기\n우유');
+
+    final c = card(tester);
+    final screenWidth =
+        tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    expect(c.left, closeTo(inset, 0.5), reason: '카드 $c 왼쪽 바깥 여백');
+    expect(
+      screenWidth - c.right,
+      closeTo(inset, 0.5),
+      reason: '카드 $c 오른쪽 바깥 여백',
+    );
+  });
+
   testWidgets('빈 새 메모의 힌트 글자도 같은 여백 안에 있다', (tester) async {
     await pumpEditor(tester);
 

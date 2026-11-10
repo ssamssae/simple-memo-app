@@ -882,7 +882,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
           child: SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
+              // 카드 바깥 여백은 좌우 같게 16 — 메모 목록 화면과 같다(T-261110-016).
+              padding: const EdgeInsets.all(16),
               child: LayoutBuilder(
                 builder: (context, constraints) => SingleChildScrollView(
                   controller: _contentScrollController,
