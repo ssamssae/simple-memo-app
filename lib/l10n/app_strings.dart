@@ -196,6 +196,9 @@ class AppStrings {
   String get editMemoTitle => isEnglish ? 'Edit memo' : '메모수정';
   String get newMemoTitle => isEnglish ? 'New memo' : '새메모';
   String get contentHint => isEnglish ? 'Type your memo...' : '내용을 입력하세요...';
+  String get checklist => isEnglish ? 'Checklist' : '체크리스트';
+  String get checklistMark => isEnglish ? 'Check item' : '할 일 체크';
+  String checklistProgress(int done, int total) => '$done/$total';
 
   // 기기 내 뜻 검색 모델 (MiniLM) 행·다이얼로그
   String get miniLmTitle =>

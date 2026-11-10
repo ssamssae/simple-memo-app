@@ -16,8 +16,11 @@ import '../widgets/toss_surface_card.dart';
 import '../l10n/app_strings.dart';
 import '../features/memos/services/attachment_service.dart';
 import '../features/memos/services/attachment_store.dart';
+import '../features/memos/services/checklist_newline_formatter.dart';
+import '../features/memos/services/checklist_text.dart';
 import '../features/memos/widgets/attachment_strip.dart';
 import '../features/memos/widgets/attachment_viewer.dart';
+import '../features/memos/widgets/checklist_marker_targets.dart';
 
 class MemoEditScreen extends StatefulWidget {
   final Memo? memo;
@@ -38,6 +41,8 @@ class MemoEditScreen extends StatefulWidget {
 
 class _MemoEditScreenState extends State<MemoEditScreen> {
   late final TextEditingController _contentController;
+  final GlobalKey _contentFieldKey = GlobalKey();
+  TextSelection _lastSelection = const TextSelection.collapsed(offset: -1);
   final UndoHistoryController _undoController = UndoHistoryController();
   final ScrollController _contentScrollController = ScrollController();
   // 사진 피커/카메라에서 돌아온 뒤 키보드를 다시 올리기 위한 본문 포커스 핸들
@@ -91,6 +96,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     _contentController = TextEditingController(
       text: widget.memo?.content ?? '',
     );
+    _lastSelection = _contentController.selection;
+    _contentController.addListener(_rememberSelection);
     _contentController.addListener(_clampSelectionTrailingNewline);
     if (!kIsWeb && (Platform.isIOS || Platform.isAndroid)) {
       _accelSub = accelerometerEventStream(
@@ -102,12 +109,47 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   @override
   void dispose() {
     _accelSub?.cancel();
+    _contentController.removeListener(_rememberSelection);
     _contentController.removeListener(_clampSelectionTrailingNewline);
     _contentController.dispose();
     _contentScrollController.dispose();
     _contentFocusNode.dispose();
     _undoController.dispose();
     super.dispose();
+  }
+
+  void _rememberSelection() {
+    final sel = _contentController.selection;
+    if (sel.isValid) _lastSelection = sel;
+  }
+
+  void _toggleChecklistPrefixes() {
+    final value = _contentController.value;
+    final sel = value.selection.isValid ? value.selection : _lastSelection;
+    final edit = ChecklistText.togglePrefixes(
+      text: value.text,
+      base: sel.baseOffset,
+      extent: sel.extentOffset,
+      selectionValid: sel.isValid,
+    );
+    _contentController.value = value.copyWith(
+      text: edit.text,
+      selection: TextSelection(
+        baseOffset: edit.base,
+        extentOffset: edit.extent,
+      ),
+      composing: TextRange.empty,
+    );
+  }
+
+  void _toggleMarker(int offset) {
+    final value = _contentController.value;
+    final next = ChecklistText.toggleCheckedAt(value.text, offset);
+    if (next == null) return;
+    _contentController.value = value.copyWith(
+      text: next,
+      composing: TextRange.empty,
+    );
   }
 
   // 선택 양 끝이 "라인 끝의 공백/개행" 영역에 걸쳐 있으면 실제 글자 뒤로
@@ -243,7 +285,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   // (T-260718-021 실기기 영상 판독). 저장 시 라인별로 걷어낸다 — 문장 중간
   // 공백과 라인 앞 들여쓰기는 보존 (_clampSelectionTrailingNewline 철학과 동일).
   String _normalizeContent(String raw) {
-    return raw.split('\n').map((line) => line.trimRight()).join('\n').trim();
+    return ChecklistText.normalizeStoredContent(raw);
   }
 
   Memo? _buildMemo() {
@@ -863,13 +905,53 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
         // 원래 AppBar actions 에 있었는데 402pt 폭에서 뒤로·취소·공유 + 되돌리기·
         // 다시실행·저장까지 8개가 되자 가운데 제목과 겹쳤다(21:05 스크린샷).
         // 위 바는 PR 이전 배치 그대로 되돌렸다.
-        floatingActionButton: FloatingActionButton.small(
-          heroTag: null,
-          backgroundColor: palette.accent,
-          foregroundColor: palette.onAccent,
-          tooltip: AppStrings.of(context).addPhoto,
-          onPressed: _addPhoto,
-          child: const Icon(Icons.add_photo_alternate_outlined, size: 22),
+        floatingActionButton: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Tooltip(
+              message: AppStrings.of(context).checklist,
+              child: Material(
+                color: palette.accent,
+                elevation: 6,
+                shadowColor: Colors.black26,
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  key: const ValueKey<String>('checklist-button'),
+                  onTap: _toggleChecklistPrefixes,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.checklist, size: 18, color: palette.onAccent),
+                        const SizedBox(width: 4),
+                        Text(
+                          AppStrings.of(context).checklist,
+                          style: TextStyle(
+                            color: palette.onAccent,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            height: 1.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            FloatingActionButton.small(
+              heroTag: null,
+              backgroundColor: palette.accent,
+              foregroundColor: palette.onAccent,
+              tooltip: AppStrings.of(context).addPhoto,
+              onPressed: _addPhoto,
+              child: const Icon(Icons.add_photo_alternate_outlined, size: 22),
+            ),
+          ],
         ),
         body: GestureDetector(
           behavior: HitTestBehavior.translucent,
@@ -917,6 +999,8 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                             // (뷰포트 − 스트립 높이) minHeight 를 준다. constraints = LayoutBuilder 인자.
                             // 카드 안쪽 여백은 TextField 의 contentPadding 으로 준다 (T-261101-034).
                             // 여백도 입력 칸이라 눌러도 캐럿이 가고, 이 minHeight 계산은 그대로다.
+                            Stack(
+                              children: [
                             ConstrainedBox(
                               constraints: BoxConstraints(
                                 minHeight: math.max(
@@ -928,7 +1012,9 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                                 ),
                               ),
                               child: TextField(
+                                key: _contentFieldKey,
                                 controller: _contentController,
+                                inputFormatters: const [ChecklistNewlineFormatter()],
                                 focusNode: _contentFocusNode,
                                 undoController: _undoController,
                                 scrollPadding: const EdgeInsets.fromLTRB(
@@ -1075,6 +1161,17 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                                 }, // end contextMenuBuilder
                               ), // end TextField
                             ), // end ConstrainedBox
+                                Positioned.fill(
+                                  child: ChecklistMarkerTargets(
+                                    fieldKey: _contentFieldKey,
+                                    controller: _contentController,
+                                    layoutToken: bodyFontSize,
+                                    semanticsLabel: AppStrings.of(context).checklistMark,
+                                    onToggle: _toggleMarker,
+                                  ),
+                                ),
+                              ],
+                            ),
                             // 사진 0장이면 위젯 자체를 넣지 않는다 → 기존 레이아웃 무변경.
                             if (_imageFiles.isNotEmpty)
                               AttachmentStrip(
