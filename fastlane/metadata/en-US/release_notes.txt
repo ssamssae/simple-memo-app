@@ -1,1 +1,1 @@
-Memo screens now match the yellow icon. Light mode uses a cream background, and dark mode uses cream text. If you have never picked a theme, the app now starts in light mode.
+The left and right margins on the memo editing screen now match.
