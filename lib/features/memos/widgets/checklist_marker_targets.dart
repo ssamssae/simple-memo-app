@@ -38,6 +38,8 @@ class _ChecklistMarkerTargetsState extends State<ChecklistMarkerTargets> {
   List<_Hit> _hits = const [];
   var _scheduled = false;
   String _text = '';
+  Size? _mediaSize;
+  TextScaler? _textScaler;
 
   @override
   void initState() {
@@ -48,17 +50,31 @@ class _ChecklistMarkerTargetsState extends State<ChecklistMarkerTargets> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _trackMediaQuery();
+  }
+
+  @override
   void didUpdateWidget(ChecklistMarkerTargets oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onController);
       widget.controller.addListener(_onController);
     }
-    if (oldWidget.layoutToken != widget.layoutToken ||
-        oldWidget.controller.text != widget.controller.text) {
-      _text = widget.controller.text;
-      _schedule();
-    }
+    // Width and wrapping can change without a new memo string or font token.
+    // _same drops a measurement that did not move.
+    _text = widget.controller.text;
+    _schedule();
+  }
+
+  void _trackMediaQuery() {
+    final size = MediaQuery.sizeOf(context);
+    final scaler = MediaQuery.textScalerOf(context);
+    if (size == _mediaSize && scaler == _textScaler) return;
+    _mediaSize = size;
+    _textScaler = scaler;
+    _schedule();
   }
 
   @override
@@ -162,6 +178,7 @@ class _ChecklistMarkerTargetsState extends State<ChecklistMarkerTargets> {
 
   @override
   Widget build(BuildContext context) {
+    _trackMediaQuery();
     return Stack(
       fit: StackFit.expand,
       children: [

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/features/memos/services/checklist_text.dart';
@@ -84,6 +85,22 @@ void main() {
 
   String fieldText(WidgetTester tester) =>
       tester.widget<TextField>(find.byType(TextField)).controller!.text;
+
+  RenderEditable editableRender(WidgetTester tester) {
+    final root = tester.renderObject(find.byType(EditableText));
+    RenderEditable? found;
+    void visit(RenderObject object) {
+      if (found != null) return;
+      if (object is RenderEditable) {
+        found = object;
+        return;
+      }
+      object.visitChildren(visit);
+    }
+
+    visit(root);
+    return found!;
+  }
 
   testWidgets('체크리스트 버튼이 커서가 있는 줄에 표기를 넣고 다시 누르면 뺀다', (tester) async {
     await pumpEditor(tester, editing: memo('milk\neggs'));
@@ -241,5 +258,36 @@ void main() {
       ),
       findsNothing,
     );
+  });
+
+  testWidgets('400x800에서 900x400으로 바꾸면 칸 top이 ☐ 와 같고 누르면 ☑ 가 된다', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(400, 800));
+
+    final firstLine = 'W' * 180;
+    final source = '$firstLine\n${open}milk';
+    final offset = firstLine.length + 1;
+    await pumpEditor(tester, editing: memo(source));
+
+    final mark = find.byKey(ValueKey<String>('checklist-mark-$offset'));
+    final portraitTop = tester.getRect(mark).top;
+
+    await tester.binding.setSurfaceSize(const Size(900, 400));
+    await tester.pumpAndSettle();
+
+    final editable = editableRender(tester);
+    final caret = editable.getLocalRectForCaret(TextPosition(offset: offset));
+    final caretTop = editable.localToGlobal(caret.topLeft).dy;
+    final markTop = tester.getRect(mark).top;
+    expect((caretTop - portraitTop).abs(), greaterThan(0.5));
+    expect((markTop - caretTop).abs(), lessThanOrEqualTo(0.5));
+
+    await tester.tap(mark);
+    await tester.pumpAndSettle();
+    expect(fieldText(tester), '$firstLine\n${done}milk');
+
+    await tester.binding.setSurfaceSize(null);
   });
 }
