@@ -1,1 +1,1 @@
-The left and right margins on the memo editing screen now match.
+You can now add checklists to a memo. Tap the Checklist button to put a checkbox in front of a line, then tap the box to mark it done. The memo list shows your progress, like 2/5.
