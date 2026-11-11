@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../features/memos/services/attachment_store.dart';
+import '../features/memos/services/checklist_text.dart';
 import '../features/memos/services/favorite_order.dart';
 import '../features/memos/widgets/attachment_thumbnail.dart';
 import '../l10n/app_strings.dart';
@@ -1082,6 +1083,23 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                             },
                           ),
                         ),
+                        if (ChecklistText.progressOf(widget.memo.content)
+                            case final progress?)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: Text(
+                              AppStrings.of(context).checklistProgress(
+                                progress.done,
+                                progress.total,
+                              ),
+                              style: TextStyle(
+                                color: palette.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                height: 1.0,
+                              ),
+                            ),
+                          ),
                         if (!widget.isEditMode)
                           ReorderableDragStartListener(
                             index: widget.index,
