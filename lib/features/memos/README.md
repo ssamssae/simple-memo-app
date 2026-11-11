@@ -63,3 +63,5 @@ Keep outside this domain when:
 - The editor stores them with the existing trailing-whitespace cleanup, and keeps the
   one prefix space on an otherwise empty checklist line.
 - Search, semantic indexing, and speech search keep using the raw memo text.
+- The editor measures checklist tap targets again when the window size or the
+  system text scale changes. Rotation and split view keep the target on the mark.

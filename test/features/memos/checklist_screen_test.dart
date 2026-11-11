@@ -290,4 +290,34 @@ void main() {
 
     await tester.binding.setSurfaceSize(null);
   });
+
+  testWidgets('시스템 글자 배율을 키우면 칸 top이 ☐ 와 같고 누르면 ☑ 가 된다', (tester) async {
+    addTearDown(() {
+      tester.platformDispatcher.clearTextScaleFactorTestValue();
+      tester.binding.setSurfaceSize(null);
+    });
+    await tester.binding.setSurfaceSize(const Size(400, 800));
+
+    final firstLine = 'W' * 80;
+    final source = '$firstLine\n${open}milk';
+    final offset = firstLine.length + 1;
+    await pumpEditor(tester, editing: memo(source));
+
+    final mark = find.byKey(ValueKey<String>('checklist-mark-$offset'));
+    final beforeTop = tester.getRect(mark).top;
+
+    tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+    await tester.pumpAndSettle();
+
+    final editable = editableRender(tester);
+    final caret = editable.getLocalRectForCaret(TextPosition(offset: offset));
+    final caretTop = editable.localToGlobal(caret.topLeft).dy;
+    final markTop = tester.getRect(mark).top;
+    expect((caretTop - beforeTop).abs(), greaterThan(0.5));
+    expect((markTop - caretTop).abs(), lessThanOrEqualTo(0.5));
+
+    await tester.tap(mark);
+    await tester.pumpAndSettle();
+    expect(fieldText(tester), '$firstLine\n${done}milk');
+  });
 }
