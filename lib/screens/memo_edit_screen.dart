@@ -45,6 +45,11 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   TextSelection _lastSelection = const TextSelection.collapsed(offset: -1);
   final UndoHistoryController _undoController = UndoHistoryController();
   final ScrollController _contentScrollController = ScrollController();
+  // 키보드가 열릴 때만 엔진이 커서를 보이도록 바깥 스크롤을 옮긴다.
+  // 닫히면 그 위치를 그대로 둔다. 짧은 메모의 스크롤 범위는 떠 있는 버튼
+  // 여백뿐이라, 그 자리에 남으면 첫 줄이 보이는 영역 위로 빠진다 (T-261112-003).
+  double? _keyboardBottomInset;
+  bool _revealShortMemoScheduled = false;
   // 사진 피커/카메라에서 돌아온 뒤 키보드를 다시 올리기 위한 본문 포커스 핸들
   // (아니키 S24 실기기 피드백 2026-08-30 01:15 「사진 첨부하고 키보드가 바로
   // 나오지 않는 이슈」). 피커 액티비티가 IME 를 내리지만 포커스는 남아 있어
@@ -724,6 +729,38 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
       );
     }
     editableTextState.hideToolbar();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    final previous = _keyboardBottomInset;
+    _keyboardBottomInset = inset;
+    if (previous != null && previous > 0 && inset == 0) {
+      _scheduleRevealShortMemo();
+    }
+  }
+
+  void _scheduleRevealShortMemo() {
+    if (_revealShortMemoScheduled) return;
+    _revealShortMemoScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _revealShortMemoScheduled = false;
+      if (!mounted) return;
+      if (MediaQuery.viewInsetsOf(context).bottom > 0) return;
+      _revealShortMemoAfterKeyboard();
+    });
+  }
+
+  void _revealShortMemoAfterKeyboard() {
+    if (!_contentScrollController.hasClients) return;
+    final position = _contentScrollController.position;
+    if (position.pixels <= position.minScrollExtent) return;
+    // 본문이 뷰포트에 들어가면 스크롤 범위는 버튼 여백(_contentEndPadding - _cardPadding)뿐이다.
+    final slack = _contentEndPadding - _cardPadding;
+    if (position.maxScrollExtent > slack + 0.5) return;
+    position.jumpTo(position.minScrollExtent);
   }
 
   void _handleContentPointerSignal(PointerSignalEvent event) {
