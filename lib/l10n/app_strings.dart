@@ -134,6 +134,24 @@ class AppStrings {
   String get install => isEnglish ? 'Install' : '설치';
   String get search => isEnglish ? 'Search' : '검색';
   String get undo => isEnglish ? 'Undo' : '되돌리기';
+
+  // T-261112-052 할 일 탭
+  String get todoTab => isEnglish ? 'To-do' : '할 일';
+  String get todoTitle => isEnglish ? 'To-do' : '할 일';
+  String get todoEmpty => isEnglish
+      ? 'No to-dos yet.\nTap + to add one.'
+      : '아직 할 일이 없어요.\n오른쪽 아래 + 를 눌러 추가해 보세요.';
+  String get todoTitleHint => isEnglish ? 'New to-do' : '새 할 일';
+  String get todoNoteHint => isEnglish ? 'Notes' : '메모';
+  String todoDoneSection(int n) => isEnglish ? 'Completed $n' : '완료 $n개';
+  String get todoClearDone => isEnglish ? 'Clear completed' : '완료 비우기';
+  String get todoDeleted => isEnglish ? 'To-do deleted' : '할 일을 지웠어요';
+  String get todoAdd => isEnglish ? 'Add to-do' : '할 일 추가';
+  String importedTodos(int n) =>
+      isEnglish ? 'Imported $n to-dos' : '할 일 $n개를 가져왔어요';
+  String get todoLoadFailed => isEnglish
+      ? 'Could not read saved to-dos. Changes will not be saved.'
+      : '저장된 할 일을 읽지 못했어요. 바꾼 내용은 저장하지 않아요.';
   String get undoSpaced => isEnglish ? 'Undo' : '실행 취소';
 
   // 백업 & 복원 화면

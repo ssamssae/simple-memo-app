@@ -13,11 +13,19 @@ class BackupSizeException implements Exception {}
 
 /// Shared file/Drive format. Decode validates everything before restore writes.
 class MemoBackupArchive {
-  MemoBackupArchive(this.memos, this.photos, {required this.isZip});
+  MemoBackupArchive(
+    this.memos,
+    this.photos, {
+    required this.isZip,
+    this.todosJson,
+  });
 
   final List<Memo> memos;
   final Map<String, Uint8List> photos;
   final bool isZip;
+
+  /// 할 일 JSON 원문(T-261112-052). 옛 백업·평문 JSON 은 null.
+  final String? todosJson;
   static const maxBytes = 128 * 1024 * 1024;
   static const maxPhotoBytes = 8 * 1024 * 1024;
   static const maxJsonBytes = 16 * 1024 * 1024;
@@ -26,15 +34,23 @@ class MemoBackupArchive {
   static Future<Uint8List> encode(
     List<Memo> memos, {
     AttachmentStore? store,
+    String? todosJson,
   }) async {
     final json = utf8.encode(Memo.encodeList(memos));
+    final todos = todosJson == null ? null : utf8.encode(todosJson);
     final names = memos.expand((m) => m.imageFiles).toSet();
-    if (json.length > maxJsonBytes || names.length + 1 > maxEntries) {
+    if (json.length > maxJsonBytes ||
+        (todos != null && todos.length > maxJsonBytes) ||
+        names.length + 2 > maxEntries) {
       throw BackupSizeException();
     }
     final archive = zip.Archive()
       ..add(zip.ArchiveFile('memos.json', json.length, json));
     var total = json.length;
+    if (todos != null) {
+      archive.add(zip.ArchiveFile('todos.json', todos.length, todos));
+      total += todos.length;
+    }
     for (final name in names) {
       if (store == null || !Memo.isValidImageFileName(name)) {
         throw BackupPhotoUnavailableException();
@@ -92,6 +108,7 @@ class MemoBackupArchive {
           throw const FormatException('Unsupported ZIP entry');
         }
         if (name != 'memos.json' &&
+            name != 'todos.json' &&
             name != 'attachments/' &&
             !(name.startsWith('attachments/') &&
                 Memo.isValidImageFileName(name.substring(12)))) {
@@ -99,8 +116,9 @@ class MemoBackupArchive {
         }
         final size = header.uncompressedSize;
         total += size;
+        final isJson = name == 'memos.json' || name == 'todos.json';
         if (size < 0 ||
-            size > (name == 'memos.json' ? maxJsonBytes : maxPhotoBytes) ||
+            size > (isJson ? maxJsonBytes : maxPhotoBytes) ||
             total > maxBytes) {
           throw BackupSizeException();
         }
@@ -109,6 +127,7 @@ class MemoBackupArchive {
         throw const FormatException('Missing memos.json');
       }
       String? json;
+      String? todosJson;
       final photos = <String, Uint8List>{};
       for (final header in directory.fileHeaders) {
         final output = _BoundedBytes(header.uncompressedSize);
@@ -128,6 +147,8 @@ class MemoBackupArchive {
         }
         if (header.filename == 'memos.json') {
           json = utf8.decode(content);
+        } else if (header.filename == 'todos.json') {
+          todosJson = utf8.decode(content);
         } else if (header.filename != 'attachments/') {
           if (content.isEmpty) throw const FormatException('Empty photo');
           photos[header.filename.substring(12)] = content;
@@ -139,7 +160,12 @@ class MemoBackupArchive {
           .any((name) => !photos.containsKey(name))) {
         throw const FormatException('Missing backup photo');
       }
-      return MemoBackupArchive(memos, photos, isZip: true);
+      return MemoBackupArchive(
+        memos,
+        photos,
+        isZip: true,
+        todosJson: todosJson,
+      );
     } on BackupSizeException {
       rethrow;
     } on FormatException {

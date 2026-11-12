@@ -7,14 +7,41 @@ import 'package:file_picker/file_picker.dart';
 import '../models/memo.dart';
 import '../features/memos/services/attachment_store.dart';
 import '../features/memos/services/memo_backup_archive.dart';
+import '../features/todos/models/todo.dart';
+import '../features/todos/services/todo_ops.dart';
+import '../features/todos/services/todo_storage.dart';
 import 'memo_storage.dart';
 import 'snapshot_store.dart';
 
 class ExportImportService {
   static bool _restoring = false;
 
-  static Future<Uint8List> exportBytes(List<Memo> memos) =>
-      MemoBackupArchive.encode(memos, store: AttachmentStore.maybeInstance);
+  static Future<Uint8List> exportBytes(List<Memo> memos) async {
+    final todos = await TodoStorage.load();
+    return MemoBackupArchive.encode(
+      memos,
+      store: AttachmentStore.maybeInstance,
+      // 할 일이 없으면 todos.json 을 넣지 않는다 — 옛 메모요도 이 백업을 읽게(T-261112-052).
+      todosJson: todos.corrupt || todos.todos.isEmpty
+          ? null
+          : Todo.encodeList(todos.todos),
+    );
+  }
+
+  /// 마지막 가져오기에서 합친 할 일 수(T-261112-052). 가져오기 결과 (메모, 전체)
+  /// 계약은 그대로 두고, 백업 화면이 「할 일만 든 백업」 안내를 고를 때 읽는다.
+  static int lastImportedTodos = 0;
+
+  /// 백업의 할 일을 지금 할 일과 합쳐 저장한다(T-261112-052). 지우지 않는다.
+  static Future<void> _mergeTodos(List<Todo> incoming) async {
+    if (incoming.isEmpty) return;
+    final existing = await TodoStorage.load(throwOnError: true);
+    final merged = TodoOps.merge(existing.todos, incoming);
+    if (!await TodoStorage.save(merged)) {
+      throw StateError('Could not save restored todos');
+    }
+    lastImportedTodos = incoming.length;
+  }
 
   static String backupFileName() =>
       'memoyo-export-${DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first}.zip';
@@ -69,9 +96,18 @@ class ExportImportService {
     List<int> bytes, {
     Future<bool> Function(List<Memo>)? saveMemos,
   }) => _restoreLocked(() async {
+    lastImportedTodos = 0;
     final backup = MemoBackupArchive.decode(bytes);
+    // 쓰기 전에 할 일 JSON 을 검사한다(깨졌으면 여기서 FormatException).
+    final incomingTodos = backup.todosJson == null
+        ? const <Todo>[]
+        : Todo.decodeList(backup.todosJson!);
     final incoming = backup.memos;
     if (incoming.isEmpty) {
+      await _mergeTodos(incomingTodos);
+      // 메모를 쓰지 않았다 — 예전 가져오기의 기록이 이번 「되돌리기」로 쓰이면
+      // 지금 메모가 옛 상태로 바뀌고 사진 파일이 지워진다(T-261112-052 검토 I5).
+      await SnapshotStore.clear();
       return (0, 0);
     }
 
@@ -79,6 +115,8 @@ class ExportImportService {
     final merged = mergeSilently(existing, incoming);
     final incomingSet = incoming.toSet();
     if (!merged.any(incomingSet.contains)) {
+      await _mergeTodos(incomingTodos);
+      await SnapshotStore.clear();
       return (incoming.length, merged.length);
     }
     final oldSnapshot = await SnapshotStore.load();
@@ -115,6 +153,8 @@ class ExportImportService {
       if (!await (saveMemos ?? MemoStorage.saveMemos)(restored)) {
         throw StateError('Could not save restored memos');
       }
+      // 할 일 저장이 실패하면 아래 catch 가 메모를 되돌린다.
+      await _mergeTodos(incomingTodos);
       return (incoming.length, restored.length);
     } catch (_) {
       final rolledBack =
