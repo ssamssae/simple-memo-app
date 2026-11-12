@@ -6,6 +6,9 @@ import '../services/premium_service.dart';
 import '../utils/app_palette.dart';
 
 /// 하단 배너 광고. 광고 제거 구매 또는 활성 프리미엄 기간에는 표시하지 않는다.
+///
+/// 실제 광고 단위는 설치 후 72시간 동안 요청하지 않고 자리도 비운다.
+/// 시험 광고 단위(디버그·프로필·TestFlight)는 그 유예를 보지 않는다.
 class AdBanner extends StatefulWidget {
   const AdBanner({super.key});
 
@@ -16,6 +19,8 @@ class AdBanner extends StatefulWidget {
 class _AdBannerState extends State<AdBanner> {
   BannerAd? _ad;
   bool _loaded = false;
+  bool _loadInFlight = false;
+  bool _inInstallGrace = false;
 
   @override
   void initState() {
@@ -44,23 +49,54 @@ class _AdBannerState extends State<AdBanner> {
   }
 
   Future<void> _loadAd() async {
-    // 광고 단위는 설치 출처를 읽은 뒤에 정해진다(T-261104-014). 기다리는 사이 화면이 닫혔거나,
-    // 광고 제거가 켜졌거나, 다른 호출이 이미 배너를 붙였으면 만들지 않는다.
-    final adUnitId = await AdsService.instance.bannerAdUnitId();
-    if (!mounted || _shouldHideAds || _ad != null) return;
-    final ad = BannerAd(
-      adUnitId: adUnitId,
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (_) {
-          if (mounted) setState(() => _loaded = true);
-        },
-        onAdFailedToLoad: (ad, error) => ad.dispose(),
-      ),
-    );
-    _ad = ad;
-    ad.load();
+    // 광고 제거·프리미엄은 유예보다 먼저 본다. 유예 판정이 비동기라 두 번 만들지 않는다.
+    if (_shouldHideAds || _loadInFlight || _ad != null) return;
+    _loadInFlight = true;
+    try {
+      // 광고 단위는 설치 출처를 읽은 뒤에 정해진다(T-261104-014). 기다리는 사이 화면이 닫혔거나,
+      // 광고 제거가 켜졌거나, 다른 호출이 이미 배너를 붙였으면 만들지 않는다.
+      final adUnitId = await AdsService.instance.bannerAdUnitId();
+      if (!mounted || _shouldHideAds || _ad != null) return;
+      if (await _holdsRealAdsForInstallGrace(adUnitId)) return;
+      if (!mounted || _shouldHideAds || _ad != null) return;
+      final ad = AdsService.instance.createBannerAd(
+        adUnitId: adUnitId,
+        listener: BannerAdListener(
+          onAdLoaded: (_) {
+            if (mounted) setState(() => _loaded = true);
+          },
+          onAdFailedToLoad: (ad, error) => ad.dispose(),
+        ),
+      );
+      _ad = ad;
+      await AdsService.instance.loadBannerAd(ad);
+    } finally {
+      _loadInFlight = false;
+    }
+  }
+
+  /// 실제 광고 단위일 때만 설치 유예를 본다. 유예이거나 판정에 실패하면 참이다.
+  /// 시험 광고 단위는 [AdsService.shouldSuppressRealAdsForInstallGrace] 가 거짓이라
+  /// 종전처럼 배너를 만든다.
+  Future<bool> _holdsRealAdsForInstallGrace(String adUnitId) async {
+    try {
+      final suppress = await AdsService.instance
+          .shouldSuppressRealAdsForInstallGrace(adUnitId);
+      if (!mounted || _shouldHideAds) return true;
+      if (suppress) {
+        _inInstallGrace = true;
+        setState(() {});
+        return true;
+      }
+      if (_inInstallGrace) {
+        _inInstallGrace = false;
+        setState(() {});
+      }
+      return false;
+    } catch (_) {
+      if (mounted) setState(() => _inInstallGrace = true);
+      return true;
+    }
   }
 
   @override
@@ -74,7 +110,7 @@ class _AdBannerState extends State<AdBanner> {
   @override
   Widget build(BuildContext context) {
     final ad = _ad;
-    if (_shouldHideAds || !_loaded || ad == null) {
+    if (_shouldHideAds || _inInstallGrace || !_loaded || ad == null) {
       return const SizedBox.shrink();
     }
     return Container(
