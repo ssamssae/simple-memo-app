@@ -132,6 +132,10 @@ class TodoListScreenState extends State<TodoListScreen> {
     messenger.showSnackBar(
       SnackBar(
         content: Text(strings.todoDeleted),
+        // 메모 목록과 같은 닫힘 규칙(action_snackbar_dismiss_test).
+        persist: MediaQuery.accessibleNavigationOf(context),
+        duration: const Duration(seconds: 5),
+        showCloseIcon: true,
         action: SnackBarAction(
           label: strings.undo,
           onPressed: () =>
@@ -141,10 +145,13 @@ class TodoListScreenState extends State<TodoListScreen> {
     );
   }
 
+  /// onReorderItem 은 [newIndex] 를 이미 「뺀 뒤 위치」로 준다.
+  /// TodoOps.reorderActive 는 옛 onReorder 규칙(아래로 옮기면 +1)을 받으므로 되돌려 넘긴다.
   void _reorder(int oldIndex, int newIndex) {
     // 대기 중인 항목이 섞여 있으면 화면 순서와 저장 순서가 어긋나므로 먼저 정리한다.
     if (_settling.isNotEmpty) return;
-    _apply(TodoOps.reorderActive(_all, oldIndex, newIndex));
+    final raw = newIndex > oldIndex ? newIndex + 1 : newIndex;
+    _apply(TodoOps.reorderActive(_all, oldIndex, raw));
   }
 
   @override
@@ -205,7 +212,7 @@ class TodoListScreenState extends State<TodoListScreen> {
                   ],
                 ),
                 itemCount: active.length,
-                onReorder: _reorder,
+                onReorderItem: _reorder,
                 itemBuilder: (context, i) {
                   final todo = active[i];
                   return Dismissible(
