@@ -28,6 +28,10 @@ class ExportImportService {
     );
   }
 
+  /// 마지막 가져오기에서 합친 할 일 수(T-261112-052). 가져오기 결과 (메모, 전체)
+  /// 계약은 그대로 두고, 백업 화면이 「할 일만 든 백업」 안내를 고를 때 읽는다.
+  static int lastImportedTodos = 0;
+
   /// 백업의 할 일을 지금 할 일과 합쳐 저장한다(T-261112-052). 지우지 않는다.
   static Future<void> _mergeTodos(List<Todo> incoming) async {
     if (incoming.isEmpty) return;
@@ -36,6 +40,7 @@ class ExportImportService {
     if (!await TodoStorage.save(merged)) {
       throw StateError('Could not save restored todos');
     }
+    lastImportedTodos = incoming.length;
   }
 
   static String backupFileName() =>
@@ -91,6 +96,7 @@ class ExportImportService {
     List<int> bytes, {
     Future<bool> Function(List<Memo>)? saveMemos,
   }) => _restoreLocked(() async {
+    lastImportedTodos = 0;
     final backup = MemoBackupArchive.decode(bytes);
     // 쓰기 전에 할 일 JSON 을 검사한다(깨졌으면 여기서 FormatException).
     final incomingTodos = backup.todosJson == null
@@ -99,6 +105,9 @@ class ExportImportService {
     final incoming = backup.memos;
     if (incoming.isEmpty) {
       await _mergeTodos(incomingTodos);
+      // 메모를 쓰지 않았다 — 예전 가져오기의 기록이 이번 「되돌리기」로 쓰이면
+      // 지금 메모가 옛 상태로 바뀌고 사진 파일이 지워진다(T-261112-052 검토 I5).
+      await SnapshotStore.clear();
       return (0, 0);
     }
 
@@ -107,6 +116,7 @@ class ExportImportService {
     final incomingSet = incoming.toSet();
     if (!merged.any(incomingSet.contains)) {
       await _mergeTodos(incomingTodos);
+      await SnapshotStore.clear();
       return (incoming.length, merged.length);
     }
     final oldSnapshot = await SnapshotStore.load();

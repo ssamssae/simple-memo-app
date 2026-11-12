@@ -59,7 +59,7 @@ class TodoListScreenState extends State<TodoListScreen> {
   }
 
   Future<void> _apply(List<Todo> next) async {
-    setState(() => _all = next);
+    if (mounted) setState(() => _all = next);
     if (_corrupt) return; // 깨진 원본을 덮어쓰지 않는다.
     await TodoStorage.save(next);
   }
@@ -138,8 +138,13 @@ class TodoListScreenState extends State<TodoListScreen> {
         showCloseIcon: true,
         action: SnackBarAction(
           label: strings.undo,
-          onPressed: () =>
-              _apply(TodoOps.restore(_all, removed.$2, removed.$3)),
+          // 알림은 다른 탭·설정 화면 위에서도 눌린다. 그사이 복원으로 저장값이
+          // 바뀌었을 수 있으니 화면 목록이 아니라 저장값을 다시 읽고 끼운다.
+          onPressed: () async {
+            final fresh = await TodoStorage.load();
+            if (fresh.corrupt) return;
+            await _apply(TodoOps.restore(fresh.todos, removed.$2, removed.$3));
+          },
         ),
       ),
     );
@@ -309,7 +314,14 @@ class _DoneSection extends StatelessWidget {
         ),
         if (open)
           for (final t in items)
-            TodoRow(todo: t, checked: true, dimmed: true, onToggle: onToggle),
+            TodoRow(
+              todo: t,
+              checked: true,
+              dimmed: true,
+              onToggle: onToggle,
+              // 완료 구역은 줄 어디를 눌러도 되돌린다(설계 ④).
+              onTap: () => onToggle(t),
+            ),
       ],
     );
   }

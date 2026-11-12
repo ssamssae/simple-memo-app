@@ -147,6 +147,8 @@ class AppStrings {
   String get todoClearDone => isEnglish ? 'Clear completed' : '완료 비우기';
   String get todoDeleted => isEnglish ? 'To-do deleted' : '할 일을 지웠어요';
   String get todoAdd => isEnglish ? 'Add to-do' : '할 일 추가';
+  String importedTodos(int n) =>
+      isEnglish ? 'Imported $n to-dos' : '할 일 $n개를 가져왔어요';
   String get todoLoadFailed => isEnglish
       ? 'Could not read saved to-dos. Changes will not be saved.'
       : '저장된 할 일을 읽지 못했어요. 바꾼 내용은 저장하지 않아요.';

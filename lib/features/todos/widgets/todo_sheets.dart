@@ -38,9 +38,27 @@ class _TodoQuickAddSheetState extends State<TodoQuickAddSheet> {
     _focus.requestFocus();
   }
 
+  /// 시트를 바깥 누르기·끌어내리기로 닫아도 쓰던 제목은 저장한다.
+  void _savePending() {
+    final title = _title.text.trim();
+    if (title.isEmpty) return;
+    widget.onAdd(title, _note.text);
+    _title.clear();
+    _note.clear();
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = AppStrings.of(context);
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) _savePending();
+      },
+      child: _quickAddFields(strings),
+    );
+  }
+
+  Widget _quickAddFields(AppStrings strings) {
     return _SheetFrame(
       children: [
         TextField(

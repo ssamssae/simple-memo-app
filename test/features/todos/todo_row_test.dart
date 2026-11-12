@@ -20,6 +20,38 @@ void main() {
     expect(toggled?.id, todo.id);
   });
 
+  testWidgets('칸 둘레 44 안을 눌러도 체크되고 줄 편집은 열리지 않는다', (tester) async {
+    var toggled = 0, tapped = 0;
+    final todo = Todo.create(title: 'a');
+    await tester.pumpWidget(
+      host(
+        TodoRow(
+          todo: todo,
+          checked: false,
+          onToggle: (_) => toggled++,
+          onTap: () => tapped++,
+        ),
+      ),
+    );
+    final c = tester.getCenter(find.byKey(ValueKey('todo-check-${todo.id}')));
+    await tester.tapAt(c + const Offset(0, 16));
+    expect(toggled, 1);
+    expect(tapped, 0);
+  });
+
+  testWidgets('칸은 화면 읽기에서 체크 상태가 있는 버튼이다', (tester) async {
+    final handle = tester.ensureSemantics();
+    final todo = Todo.create(title: 'a');
+    await tester.pumpWidget(
+      host(TodoRow(todo: todo, checked: true, onToggle: (_) {})),
+    );
+    expect(
+      tester.getSemantics(find.byKey(ValueKey('todo-check-${todo.id}'))),
+      isSemantics(hasCheckedState: true, isChecked: true, isButton: true),
+    );
+    handle.dispose();
+  });
+
   testWidgets('메모가 없으면 문서 표시가 없다', (tester) async {
     final todo = Todo.create(title: 'a');
     await tester.pumpWidget(

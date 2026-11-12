@@ -151,6 +151,49 @@ void main() {
     expect((await TodoStorage.load()).todos.map((t) => t.title), ['b', 'a']);
   });
 
+  testWidgets('되돌리기는 그사이 바뀐 저장값을 덮어쓰지 않는다', (tester) async {
+    final a = Todo.create(title: 'a'), b = Todo.create(title: 'b');
+    await seed([a, b]);
+    await open(tester);
+    await tester.drag(find.text('a'), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+    // 설정 탭에서 백업을 복원해 할 일이 늘어난 상황.
+    await TodoStorage.save([b, Todo.create(title: 'c')]);
+    await tester.tap(find.text('되돌리기'));
+    await tester.pumpAndSettle();
+    final titles = (await TodoStorage.load()).todos.map((t) => t.title);
+    expect(titles.toSet(), {'a', 'b', 'c'});
+    expect(titles.length, 3);
+  });
+
+  testWidgets('빠른 입력 시트를 그냥 닫아도 쓴 제목은 저장한다', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await open(tester);
+    await tester.tap(find.byKey(const Key('todo-add')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('todo-title-field')),
+      '닫아도 남김',
+    );
+    await tester.tapAt(const Offset(20, 20)); // 시트 바깥
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('todo-title-field')), findsNothing);
+    expect((await TodoStorage.load()).todos.single.title, '닫아도 남김');
+  });
+
+  testWidgets('완료 구역 줄을 눌러도 되돌린다', (tester) async {
+    final a = Todo.create(
+      title: 'a',
+    ).copyWith(done: true, doneAt: DateTime(2026, 11, 12));
+    await seed([a]);
+    await open(tester);
+    await tester.tap(find.byKey(const Key('todo-done-header')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('a'));
+    await tester.pumpAndSettle();
+    expect((await TodoStorage.load()).todos.single.done, isFalse);
+  });
+
   testWidgets('깨진 저장값은 덮어쓰지 않는다', (tester) async {
     SharedPreferences.setMockInitialValues({'todos': '{broken'});
     await open(tester);

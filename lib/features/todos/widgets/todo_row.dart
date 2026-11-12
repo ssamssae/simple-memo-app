@@ -27,26 +27,39 @@ class TodoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     const box = 22.0;
-    final check = InkResponse(
+    // 누르는 범위는 44×44(그림 칸은 22). 빗맞아도 편집 시트가 열리지 않게.
+    final check = Semantics(
       key: ValueKey('todo-check-${todo.id}'),
-      onTap: () => onToggle(todo),
-      radius: 22,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: box,
-        height: box,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: checked ? palette.accent : null,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: checked ? palette.accent : palette.textSecondary,
-            width: 1.6,
+      container: true,
+      button: true,
+      checked: checked,
+      label: todo.title,
+      child: InkResponse(
+        onTap: () => onToggle(todo),
+        radius: 22,
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: box,
+              height: box,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: checked ? palette.accent : null,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: checked ? palette.accent : palette.textSecondary,
+                  width: 1.6,
+                ),
+              ),
+              child: checked
+                  ? Icon(Icons.check, size: 16, color: palette.onAccent)
+                  : null,
+            ),
           ),
         ),
-        child: checked
-            ? Icon(Icons.check, size: 16, color: palette.onAccent)
-            : null,
       ),
     );
     final titleStyle = TextStyle(
@@ -57,11 +70,11 @@ class TodoRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
         child: Row(
           children: [
-            Padding(padding: const EdgeInsets.all(4), child: check),
-            const SizedBox(width: 10),
+            check,
+            const SizedBox(width: 3),
             Flexible(
               child: Text(
                 todo.title.replaceAll(RegExp(r'\s*\n\s*'), ' '),

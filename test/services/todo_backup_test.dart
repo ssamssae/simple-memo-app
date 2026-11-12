@@ -6,6 +6,8 @@ import 'package:simple_memo_app/features/todos/models/todo.dart';
 import 'package:simple_memo_app/features/todos/services/todo_storage.dart';
 import 'package:simple_memo_app/models/memo.dart';
 import 'package:simple_memo_app/services/export_import_service.dart';
+import 'package:simple_memo_app/services/memo_storage.dart';
+import 'package:simple_memo_app/services/snapshot_store.dart';
 
 List<String> entryNames(List<int> bytes) =>
     zip.ZipDecoder().decodeBytes(bytes).files.map((f) => f.name).toList();
@@ -74,6 +76,24 @@ void main() {
     );
     await ExportImportService.importBytes(bytes);
     expect((await TodoStorage.load()).todos.single.title, 'new');
+  });
+
+  test('메모를 하나도 쓰지 않은 가져오기는 묵은 되돌리기 기록을 지운다', () async {
+    final m = Memo.create(content: 'm');
+    SharedPreferences.setMockInitialValues({});
+    await MemoStorage.saveMemos([m]);
+    await SnapshotStore.save('[]'); // 예전 가져오기가 남긴 기록
+    final older = m.copyWith(
+      updatedAt: m.updatedAt.subtract(const Duration(days: 1)),
+    );
+    final bytes = await MemoBackupArchive.encode(
+      [older],
+      todosJson: Todo.encodeList([Todo.create(title: 't')]),
+    );
+    await ExportImportService.importBytes(bytes);
+    expect(await SnapshotStore.load(), isNull);
+    expect(await ExportImportService.undoImport(), isNull);
+    expect((await MemoStorage.loadMemos()).single.id, m.id);
   });
 
   test('깨진 todos.json 은 아무것도 쓰기 전에 FormatException', () async {
