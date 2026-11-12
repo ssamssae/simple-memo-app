@@ -146,6 +146,8 @@ class AppStrings {
   String todoDoneSection(int n) => isEnglish ? 'Completed $n' : '완료 $n개';
   String get todoClearDone => isEnglish ? 'Clear completed' : '완료 비우기';
   String get todoDeleted => isEnglish ? 'To-do deleted' : '할 일을 지웠어요';
+  String todoClearedDone(int n) =>
+      isEnglish ? 'Cleared $n completed' : '완료 $n개를 지웠어요';
   String get todoAdd => isEnglish ? 'Add to-do' : '할 일 추가';
   String importedTodos(int n) =>
       isEnglish ? 'Imported $n to-dos' : '할 일 $n개를 가져왔어요';

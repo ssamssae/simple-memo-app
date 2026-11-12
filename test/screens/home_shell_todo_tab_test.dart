@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:simple_memo_app/features/todos/models/todo.dart';
+import 'package:simple_memo_app/features/todos/services/todo_storage.dart';
 import 'package:simple_memo_app/screens/home_shell.dart';
 import 'package:simple_memo_app/widgets/ad_banner.dart';
 
@@ -37,5 +39,27 @@ void main() {
       3,
     );
     expect(find.byType(AdBanner), findsOneWidget);
+  });
+
+  testWidgets('할 일을 지운 뒤 뜨는 알림이 + 버튼을 가리지 않는다', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await TodoStorage.save([Todo.create(title: 'a'), Todo.create(title: 'b')]);
+    await tester.pumpWidget(const MaterialApp(home: HomeShell()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.check_box_outlined));
+    await tester.pumpAndSettle();
+    await tester.drag(find.text('a'), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+    // 눈에 보이는 알림 상자(Material). SnackBar 위젯 상자는 바깥 여백까지 가로 전체다.
+    final bar = tester.getRect(
+      find
+          .descendant(
+            of: find.byType(SnackBar),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    final fab = tester.getRect(find.byKey(const Key('todo-add')));
+    expect(bar.overlaps(fab), isFalse, reason: 'snackbar $bar fab $fab');
   });
 }
