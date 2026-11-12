@@ -3,6 +3,8 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'ad_install_grace.dart';
+
 /// 광고 표시 여부의 단일 소스 + AdMob 초기화 + 배너 광고 단위 ID 제공.
 ///
 /// ⚠️ 출시 전 교체 필요 (아니키 AdMob 계정 자산):
@@ -43,17 +45,40 @@ class AdsService {
   /// iOS 출시판도 설치 출처를 읽은 뒤에 정한다. TestFlight 는 앱스토어와 같은 출시판이라
   /// 빌드 모드로는 가를 수 없다(T-261104-014 B안).
   Future<String> bannerAdUnitId() async => bannerAdUnitIdFor(
-        releaseMode: kReleaseMode,
-        platform: defaultTargetPlatform,
-        installerStore: await installerStore,
-      );
+    releaseMode: debugReleaseMode ?? kReleaseMode,
+    platform: debugPlatform ?? defaultTargetPlatform,
+    installerStore: await installerStore,
+  );
+
+  /// 메모요 하단 배너 (iOS). [bannerAdUnitIdFor] 가 앱스토어 출시판에서 돌려주는 값이다.
+  @visibleForTesting
+  static const realIosBannerAdUnitId = 'ca-app-pub-7025432711849670/2649951313';
+
+  /// 메모요 하단 배너 (Android). [bannerAdUnitIdFor] 가 안드로이드 출시판에서 돌려주는 값이다.
+  @visibleForTesting
+  static const realAndroidBannerAdUnitId =
+      'ca-app-pub-7025432711849670/5924152772';
+
+  static const _testIosBannerAdUnitId =
+      'ca-app-pub-3940256099942544/2934735716';
+
+  static const _testAndroidBannerAdUnitId =
+      'ca-app-pub-3940256099942544/6300978111';
+
+  /// [bannerAdUnitIdFor] 가 시험 ID 가 아닌 실제 배너 단위를 돌려줬는지.
+  @visibleForTesting
+  static bool isRealBannerAdUnitId(String adUnitId) {
+    return adUnitId == realIosBannerAdUnitId ||
+        adUnitId == realAndroidBannerAdUnitId;
+  }
 
   Future<String?>? _installerStore;
 
   /// 설치 출처. iOS 는 앱스토어 설치면 `com.apple`, TestFlight·개발 서명 설치면 `com.apple.testflight` 다
   /// (package_info_plus 가 영수증 경로 `sandboxReceipt` 로 가른다). 읽지 못하면 null 이다.
   @visibleForTesting
-  Future<String?> get installerStore => _installerStore ??= _readInstallerStore();
+  Future<String?> get installerStore =>
+      _installerStore ??= _readInstallerStore();
 
   static Future<String?> _readInstallerStore() async {
     try {
@@ -79,11 +104,107 @@ class AdsService {
     final appStoreInstall = !ios || installerStore == 'com.apple';
     if (!releaseMode || !appStoreInstall) {
       return ios
-          ? 'ca-app-pub-3940256099942544/2934735716' // 구글 공식 시험 배너 (iOS)
-          : 'ca-app-pub-3940256099942544/6300978111'; // 구글 공식 시험 배너 (Android)
+          ? _testIosBannerAdUnitId // 구글 공식 시험 배너 (iOS)
+          : _testAndroidBannerAdUnitId; // 구글 공식 시험 배너 (Android)
     }
     return ios
-        ? 'ca-app-pub-7025432711849670/2649951313' // 메모요 하단 배너 (iOS)
-        : 'ca-app-pub-7025432711849670/5924152772'; // 메모요 하단 배너 (Android)
+        ? realIosBannerAdUnitId // 메모요 하단 배너 (iOS)
+        : realAndroidBannerAdUnitId; // 메모요 하단 배너 (Android)
+  }
+
+  /// 실제 광고 단위일 때만 설치 유예를 본다.
+  ///
+  /// 시험 광고 단위는 처음 본 시각을 읽지도 저장하지도 않고 거짓을 돌려준다.
+  /// 판정에 실패하면 참이다. 그때는 광고를 요청하지 않는다.
+  Future<bool> shouldSuppressRealAdsForInstallGrace(String adUnitId) {
+    final future = _shouldSuppressRealAdsForInstallGrace(adUnitId);
+    debugLastGraceDecision = future;
+    return future;
+  }
+
+  Future<bool> _shouldSuppressRealAdsForInstallGrace(String adUnitId) async {
+    if (!isRealBannerAdUnitId(adUnitId)) return false;
+    try {
+      final now = debugNow?.call() ?? DateTime.now();
+      final prefs = await SharedPreferences.getInstance();
+      final firstSeen = await AdInstallGrace.resolveFirstSeen(
+        now: now,
+        storedMs: prefs.getInt(AdInstallGrace.storageKey),
+        saveMs: (milliseconds) async {
+          await prefs.setInt(AdInstallGrace.storageKey, milliseconds);
+        },
+        readInstallTime: debugReadInstallTime ?? _readInstallTime,
+      );
+      return AdInstallGrace.inInstallGrace(now: now, firstSeen: firstSeen);
+    } catch (_) {
+      return true;
+    }
+  }
+
+  static Future<DateTime?> _readInstallTime() async {
+    final info = await PackageInfo.fromPlatform();
+    return info.installTime;
+  }
+
+  /// 배너 위젯이 광고 객체를 만들 때 쓴다. 시험은 만든 횟수를 센다.
+  BannerAd createBannerAd({
+    required String adUnitId,
+    required BannerAdListener listener,
+  }) {
+    bannerAdsCreatedForTest++;
+    return BannerAd(
+      adUnitId: adUnitId,
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: listener,
+    );
+  }
+
+  /// 시험 대체 로드가 있으면 그걸 부르고, 없으면 [BannerAd.load] 를 부른다.
+  Future<void> loadBannerAd(BannerAd ad) {
+    final customLoad = debugLoadBanner;
+    if (customLoad != null) return customLoad(ad);
+    return ad.load();
+  }
+
+  @visibleForTesting
+  static bool? debugReleaseMode;
+
+  @visibleForTesting
+  static TargetPlatform? debugPlatform;
+
+  @visibleForTesting
+  static DateTime Function()? debugNow;
+
+  /// null 이면 [PackageInfo.installTime] 을 읽는다. 예외를 던지면 현재 시각을 쓴다.
+  @visibleForTesting
+  static Future<DateTime?> Function()? debugReadInstallTime;
+
+  /// null 이면 [BannerAd.load] 를 부른다. 시험은 여기서 로드를 대신한다.
+  @visibleForTesting
+  static Future<void> Function(BannerAd ad)? debugLoadBanner;
+
+  @visibleForTesting
+  static int bannerAdsCreatedForTest = 0;
+
+  /// 배너가 유예 판정을 시작했으면 그 Future. 시험이 판정이 끝난 뒤에 광고 객체를 센다.
+  @visibleForTesting
+  static Future<bool>? debugLastGraceDecision;
+
+  @visibleForTesting
+  void debugClearInstallerStoreCache() {
+    _installerStore = null;
+  }
+
+  @visibleForTesting
+  static void debugReset() {
+    debugReleaseMode = null;
+    debugPlatform = null;
+    debugNow = null;
+    debugReadInstallTime = null;
+    debugLoadBanner = null;
+    bannerAdsCreatedForTest = 0;
+    debugLastGraceDecision = null;
+    instance.debugClearInstallerStoreCache();
   }
 }
