@@ -126,26 +126,48 @@ class TodoListScreenState extends State<TodoListScreen> {
     if (removed == null) return;
     _settling.remove(todo.id)?.cancel();
     _apply(removed.$1);
+    // 알림은 다른 탭·설정 화면 위에서도 눌린다. 그사이 복원으로 저장값이
+    // 바뀌었을 수 있으니 화면 목록이 아니라 저장값을 다시 읽고 끼운다.
+    _showUndo(AppStrings.of(context).todoDeleted, () async {
+      final fresh = await TodoStorage.load();
+      if (fresh.corrupt) return;
+      await _apply(TodoOps.restore(fresh.todos, removed.$2, removed.$3));
+    });
+  }
+
+  /// 「완료 비우기」 — 보이는 완료 항목만 지운다(1초 대기 중인 항목은 남긴다).
+  void _clearCompleted() {
+    final cleared = _completed;
+    if (cleared.isEmpty) return;
+    final ids = {for (final t in cleared) t.id};
+    _apply(_all.where((t) => !ids.contains(t.id)).toList());
+    _showUndo(AppStrings.of(context).todoClearedDone(cleared.length), () async {
+      final fresh = await TodoStorage.load();
+      if (fresh.corrupt) return;
+      final have = {for (final t in fresh.todos) t.id};
+      await _apply([
+        ...fresh.todos,
+        ...cleared.where((t) => !have.contains(t.id)),
+      ]);
+    });
+  }
+
+  void _showUndo(String message, Future<void> Function() onUndo) {
     final strings = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
-        content: Text(strings.todoDeleted),
+        content: Text(message),
         // 메모 목록과 같은 닫힘 규칙(action_snackbar_dismiss_test).
         persist: MediaQuery.accessibleNavigationOf(context),
         duration: const Duration(seconds: 5),
         showCloseIcon: true,
-        action: SnackBarAction(
-          label: strings.undo,
-          // 알림은 다른 탭·설정 화면 위에서도 눌린다. 그사이 복원으로 저장값이
-          // 바뀌었을 수 있으니 화면 목록이 아니라 저장값을 다시 읽고 끼운다.
-          onPressed: () async {
-            final fresh = await TodoStorage.load();
-            if (fresh.corrupt) return;
-            await _apply(TodoOps.restore(fresh.todos, removed.$2, removed.$3));
-          },
-        ),
+        // 알림은 바깥(HomeShell) 화면에 뜨고 + 버튼은 이 화면에 있어 위로 비키지 않는다.
+        // 오른쪽을 + 버튼 폭만큼 비워 겹치지 않게 한다.
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 88, 12),
+        action: SnackBarAction(label: strings.undo, onPressed: onUndo),
       ),
     );
   }
@@ -248,7 +270,7 @@ class TodoListScreenState extends State<TodoListScreen> {
                         open: _doneOpen,
                         onHeader: () => setState(() => _doneOpen = !_doneOpen),
                         onToggle: _toggle,
-                        onClear: () => _apply(TodoOps.clearCompleted(_all)),
+                        onClear: _clearCompleted,
                       ),
               ),
       ),

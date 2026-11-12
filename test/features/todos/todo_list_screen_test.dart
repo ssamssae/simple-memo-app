@@ -194,6 +194,46 @@ void main() {
     expect((await TodoStorage.load()).todos.single.done, isFalse);
   });
 
+  testWidgets('완료 비우기도 되돌릴 수 있다', (tester) async {
+    final a = Todo.create(
+      title: 'a',
+    ).copyWith(done: true, doneAt: DateTime(2026, 11, 12));
+    final b = Todo.create(
+      title: 'b',
+    ).copyWith(done: true, doneAt: DateTime(2026, 11, 11));
+    final c = Todo.create(title: 'c');
+    await seed([a, b, c]);
+    await open(tester);
+    await tester.tap(find.byKey(const Key('todo-done-header')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('todo-clear-done')));
+    await tester.pumpAndSettle();
+    expect((await TodoStorage.load()).todos.map((t) => t.title), ['c']);
+    await tester.tap(find.text('되돌리기'));
+    await tester.pumpAndSettle();
+    final back = (await TodoStorage.load()).todos;
+    expect(back.map((t) => t.title).toSet(), {'a', 'b', 'c'});
+    expect(back.where((t) => t.done).length, 2);
+  });
+
+  testWidgets('완료 비우기는 막 체크해 1초를 기다리는 항목을 지우지 않는다', (tester) async {
+    final a = Todo.create(
+      title: 'a',
+    ).copyWith(done: true, doneAt: DateTime(2026, 11, 12));
+    final c = Todo.create(title: 'c');
+    await seed([a, c]);
+    await open(tester);
+    await tester.tap(find.byKey(const Key('todo-done-header')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('todo-check-${c.id}')));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.byKey(const Key('todo-clear-done')));
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    final saved = (await TodoStorage.load()).todos;
+    expect(saved.map((t) => t.title), ['c']);
+  });
+
   testWidgets('깨진 저장값은 덮어쓰지 않는다', (tester) async {
     SharedPreferences.setMockInitialValues({'todos': '{broken'});
     await open(tester);
