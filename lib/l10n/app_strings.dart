@@ -166,6 +166,11 @@ class AppStrings {
   String doneMovedToTrash(int n) => isEnglish
       ? 'Moved $n completed ${n == 1 ? 'memo' : 'memos'} to Trash'
       : '완료 $n개를 휴지통으로 옮겼어요';
+
+  // T-261113-028 완료 탭 「편집」 → 고른 완료 메모만 비우기. 0개면 숫자 없이(누를 수 없음).
+  String clearSelected(int n) => isEnglish
+      ? (n == 0 ? 'Clear selected' : 'Clear selected ($n)')
+      : (n == 0 ? '선택 비우기' : '선택 비우기 ($n)');
   static const _monthsEn = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
