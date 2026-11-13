@@ -365,4 +365,79 @@ void main() {
     }
     expect(() => MemoBackupArchive.decode(bytes), throwsFormatException);
   });
+
+  test('새 버전이 더한 모르는 최상위 파일은 풀지 않고 건너뛴다(T-261112-057 M8)', () {
+    final bytes = bundle(
+      [
+        memo('a', images: ['keep.jpg']),
+      ],
+      photos: {
+        'attachments/keep.jpg': [1, 2],
+        'settings.json': utf8.encode('{"theme":"dark"}'),
+      },
+    );
+    final restored = MemoBackupArchive.decode(bytes);
+    expect(restored.memos.map((m) => m.id), ['a']);
+    expect(restored.photos.keys, ['keep.jpg']);
+
+    // 건너뛴 항목은 풀지 않으므로 CRC 가 깨져 있어도 복원된다.
+    final directory = zip.ZipDirectory()..read(zip.InputMemoryStream(bytes));
+    final offset = directory.fileHeaders.last.localHeaderOffset;
+    final view = ByteData.sublistView(bytes);
+    final dataOffset =
+        offset +
+        30 +
+        view.getUint16(offset + 26, Endian.little) +
+        view.getUint16(offset + 28, Endian.little);
+    bytes[dataOffset] ^= 1;
+    expect(MemoBackupArchive.decode(bytes).memos.map((m) => m.id), ['a']);
+  });
+
+  test('모르는 하위 경로·숨김·절대 경로 항목은 계속 거부한다(T-261112-057 M8)', () {
+    for (final name in [
+      'extra/data.json',
+      'attachments/sub/x.jpg',
+      'attachments/../x.jpg',
+      '/settings.json',
+      r'extra\data.json',
+      '.settings',
+      '..',
+    ]) {
+      expect(
+        () => MemoBackupArchive.decode(
+          bundle(
+            [memo('a')],
+            photos: {
+              name: [1],
+            },
+          ),
+        ),
+        throwsFormatException,
+        reason: name,
+      );
+    }
+  });
+
+  test('건너뛰는 최상위 파일도 크기 상한을 지킨다(T-261112-057 M8)', () {
+    final archive = zip.Archive()
+      ..add(zip.ArchiveFile.string('memos.json', '[]'))
+      ..add(zip.ArchiveFile('settings.json', 1000, List.filled(1000, 0)));
+    final bytes = Uint8List.fromList(zip.ZipEncoder().encode(archive));
+    final data = ByteData.sublistView(bytes);
+    for (var i = 0; i < bytes.length - 46; i++) {
+      if (data.getUint32(i, Endian.little) == 0x02014b50 &&
+          data.getUint32(i + 24, Endian.little) == 1000) {
+        data.setUint32(
+          i + 24,
+          MemoBackupArchive.maxJsonBytes + 1,
+          Endian.little,
+        );
+        break;
+      }
+    }
+    expect(
+      () => MemoBackupArchive.decode(bytes),
+      throwsA(isA<BackupSizeException>()),
+    );
+  });
 }
