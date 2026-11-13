@@ -304,7 +304,8 @@ class _DoneSection extends StatelessWidget {
           key: const Key('todo-done-header'),
           onTap: onHeader,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            // 위아래 여백을 같게 해 「완료 N개」·「완료 비우기」가 줄 가운데 오게 한다(T-261113-023).
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Row(
               children: [
                 Text(
