@@ -5,14 +5,15 @@ import 'package:simple_memo_app/models/memo.dart';
 import 'package:simple_memo_app/screens/home_shell.dart';
 import 'package:simple_memo_app/utils/app_palette.dart';
 
-// T-261113-027: 다크 포인트색 = 호박 골드. 화면이 보라를 직접 들고 있으면
+// T-261113-027·029: 다크 포인트색 = 크림 단색(본문 글자색과 같음). 화면이 보라를 직접 들고 있으면
 // 팔레트를 바꿔도 그 자리만 보라로 남는다 — 하단 탭·새메모 단추·즐겨찾기 별이
 // 팔레트 accent 를 따르는지 잰다.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('다크 포인트색은 호박 골드, 라이트는 보라 그대로', () {
-    expect(AppPalette.dark.accent, const Color(0xFFF2B84B));
+  test('다크 포인트색은 크림 단색, 라이트는 보라 그대로', () {
+    expect(AppPalette.dark.accent, const Color(0xFFFDE3A0));
+    expect(AppPalette.dark.accent, AppPalette.dark.textPrimary);
     expect(AppPalette.dark.onAccent, const Color(0xFF1F1606));
     expect(AppPalette.light.accent, const Color(0xFF7C5CFF));
     expect(AppPalette.purpleLight.accent, const Color(0xFF7C5CFF));
