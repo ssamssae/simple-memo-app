@@ -29,7 +29,6 @@ class _HomeShellState extends State<HomeShell> {
   final GlobalKey<DoneMemosScreenState> _doneKey =
       GlobalKey<DoneMemosScreenState>();
 
-  static const Color _accent = Color(0xFF7C5CFF);
   static const Color _inactive = Color(0xFF8B95A1);
 
   void _onBarTapped(int barIndex) {
@@ -102,7 +101,7 @@ class _HomeShellState extends State<HomeShell> {
             type: BottomNavigationBarType.fixed,
             elevation: 0,
             backgroundColor: AppPalette.of(context).navigationBar,
-            selectedItemColor: _accent,
+            selectedItemColor: AppPalette.of(context).accent,
             unselectedItemColor: _inactive,
             selectedFontSize: 11,
             unselectedFontSize: 11,
@@ -120,12 +119,12 @@ class _HomeShellState extends State<HomeShell> {
                   height: 36,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: _accent,
+                    color: AppPalette.of(context).accent,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.add_box_outlined,
-                    color: Colors.white,
+                    color: AppPalette.of(context).onAccent,
                     size: 22,
                   ),
                 ),

@@ -214,7 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       textColor: AppPalette.of(sheetContext).textPrimary,
       title: Text(label),
       trailing: selected
-          ? const Icon(Icons.check, color: Color(0xFF7C5CFF))
+          ? Icon(Icons.check, color: AppPalette.of(sheetContext).accent)
           : null,
       onTap: () => _selectLanguage(sheetContext, code),
     );
