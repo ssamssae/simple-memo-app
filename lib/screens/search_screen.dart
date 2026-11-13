@@ -454,6 +454,12 @@ class _SearchResultCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
           child: Row(
             children: [
+              if (memo.isDone)
+                Padding(
+                  key: const Key('search-done-mark'),
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Icon(Icons.check_box, size: 18, color: palette.accent),
+                ),
               if (memo.isFavorite)
                 Padding(
                   padding: const EdgeInsets.only(right: 10),
@@ -484,7 +490,14 @@ class _SearchResultCard extends StatelessWidget {
                             fontSize: 17 * scale,
                             fontWeight: FontWeight.w600,
                             letterSpacing: -0.2,
-                            color: palette.textPrimary,
+                            // 완료한 메모도 찾힌다 — 완료 탭처럼 흐린 취소선 (T-261113-024).
+                            color: memo.isDone
+                                ? palette.textSecondary
+                                : palette.textPrimary,
+                            decoration: memo.isDone
+                                ? TextDecoration.lineThrough
+                                : null,
+                            decorationColor: palette.textSecondary,
                           ),
                         ),
                         if (bodyPreview.text.isNotEmpty) ...[

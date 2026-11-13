@@ -4,7 +4,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/memo.dart';
 import '../features/memos/services/memo_backup_archive.dart';
-import '../features/todos/services/todo_storage.dart';
 import '../services/drive_backup_service.dart';
 import '../services/export_import_service.dart';
 import '../services/memo_storage.dart';
@@ -46,9 +45,6 @@ class BackupRestoreScreen extends StatefulWidget {
 
 class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   List<Memo> _activeMemos = [];
-
-  /// 할 일 수(T-261112-052). 메모가 없어도 할 일이 있으면 백업한다.
-  int _todoCount = 0;
   bool _isLoading = true;
   bool _isBackupRunning = false;
   bool _isRestoreRunning = false;
@@ -63,21 +59,19 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   }
 
   Future<void> _load() async {
+    // 옛 할 일은 loadMemos 가 메모로 옮겨 둔다(T-261113-024) — 완료한 메모도 함께 백업된다.
     final memos = await MemoStorage.loadMemos();
-    final todos = await TodoStorage.load();
     final prefs = await SharedPreferences.getInstance();
     final lastRaw = prefs.getString(BackupRestoreScreen._lastBackupKey);
     if (!mounted) return;
     setState(() {
       _activeMemos = memos.where((m) => m.deletedAt == null).toList();
-      _todoCount = todos.todos.length;
       _lastBackupAt = lastRaw == null ? null : DateTime.tryParse(lastRaw);
       _isLoading = false;
     });
   }
 
-  /// 메모도 할 일도 없을 때만 백업을 막는다.
-  bool get _nothingToBackUp => _activeMemos.isEmpty && _todoCount == 0;
+  bool get _nothingToBackUp => _activeMemos.isEmpty;
 
   Future<void> _handleBackup() async {
     if (_busy) return;
@@ -219,13 +213,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     if (result == null) return;
     final (incoming, total) = result;
     if (incoming == 0) {
-      // 할 일만 든 백업(T-261112-052). 할 일 가져오기는 합치기라 되돌리기는 없다.
-      final todos = ExportImportService.lastImportedTodos;
-      if (todos > 0) {
-        if (mounted) await _load();
-        notices.show(notices.strings.importedTodos(todos));
-        return;
-      }
       notices.show(notices.strings.noMemosToImport);
       return;
     }

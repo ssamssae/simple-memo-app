@@ -1,0 +1,424 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../../l10n/app_strings.dart';
+import '../../../models/memo.dart';
+import '../../../screens/memo_edit_screen.dart';
+import '../../../services/memo_storage.dart';
+import '../../../services/settings_service.dart';
+import '../../../utils/app_palette.dart';
+import '../../../widgets/toss_surface_card.dart';
+import '../services/memo_done_ops.dart';
+import '../widgets/attachment_thumbnail.dart';
+import '../widgets/collapse_out.dart';
+import '../widgets/memo_done_checkbox.dart';
+
+/// 완료 탭 (T-261113-024). 옛 「할 일」 탭 자리.
+///
+/// 메모 목록에서 체크한 메모를 최근 완료 순으로 보여 준다. 체크를 풀면 1초 뒤 접히며
+/// 메모 목록의 원래 자리로 돌아간다. 줄을 누르면 메모 편집. 「완료 비우기」는
+/// 휴지통으로 옮긴다(되살릴 수 있다). 새 메모 버튼은 없다.
+class DoneMemosScreen extends StatefulWidget {
+  const DoneMemosScreen({
+    super.key,
+    this.undoDelay = const Duration(seconds: 1),
+    this.onChanged,
+  });
+
+  /// 체크를 푼 뒤 줄이 접혀 메모 목록으로 가기까지 기다리는 시간.
+  final Duration undoDelay;
+
+  /// 저장한 뒤 부른다. HomeShell 이 메모 목록을 다시 읽게 한다.
+  final VoidCallback? onChanged;
+
+  @override
+  State<DoneMemosScreen> createState() => DoneMemosScreenState();
+}
+
+class DoneMemosScreenState extends State<DoneMemosScreen> {
+  List<Memo> _all = const [];
+  bool _loading = true;
+
+  /// 체크를 풀고 1초 기다리는 메모 id → 타이머.
+  final Map<String, Timer> _undoTimers = {};
+
+  /// 1초가 지나 접히는 중인 메모 id.
+  final Set<String> _leavingIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    reload();
+  }
+
+  @override
+  void dispose() {
+    for (final timer in _undoTimers.values) {
+      timer.cancel();
+    }
+    super.dispose();
+  }
+
+  /// 탭을 열 때·다른 탭이 저장했을 때 다시 읽는다.
+  Future<void> reload() async {
+    final memos = await MemoStorage.loadMemos();
+    if (!mounted) return;
+    setState(() {
+      _all = memos;
+      _loading = false;
+    });
+  }
+
+  /// 저장값을 다시 읽어 [change] 를 적용하고 저장한다. 다른 탭의 저장을 덮지 않는다.
+  /// 저장값을 읽지 못하면 아무것도 쓰지 않는다.
+  Future<bool> _mutate(List<Memo> Function(List<Memo>) change) async {
+    final List<Memo> base;
+    try {
+      base = await MemoStorage.loadMemos(throwOnError: true);
+    } catch (e) {
+      debugPrint('[DoneMemosScreen] $e');
+      return false;
+    }
+    final next = change(base);
+    if (!await MemoStorage.saveMemos(next)) return false;
+    if (mounted) setState(() => _all = next);
+    widget.onChanged?.call();
+    return true;
+  }
+
+  bool _isUnchecking(String id) =>
+      _undoTimers.containsKey(id) || _leavingIds.contains(id);
+
+  void _toggle(String id) {
+    if (_leavingIds.contains(id)) return; // 이미 접히는 중
+    final pending = _undoTimers.remove(id);
+    if (pending != null) {
+      // 1초 안에 다시 누름 — 완료 그대로.
+      pending.cancel();
+      HapticFeedback.selectionClick();
+      setState(() {});
+      return;
+    }
+    HapticFeedback.lightImpact();
+    setState(() {
+      _undoTimers[id] = Timer(widget.undoDelay, () {
+        if (!mounted || _undoTimers.remove(id) == null) return;
+        setState(() => _leavingIds.add(id));
+      });
+    });
+  }
+
+  Future<void> _commitUndone(String id) async {
+    await _mutate((all) => MemoDoneOps.setDone(all, id, null));
+    if (mounted) setState(() => _leavingIds.remove(id));
+  }
+
+  /// 「완료 비우기」 — 보이는 완료 메모를 휴지통으로. 체크를 푸는 중인 메모는 남긴다.
+  Future<void> _clearDone() async {
+    final ids = {
+      for (final m in MemoDoneOps.done(_all))
+        if (!_isUnchecking(m.id)) m.id,
+    };
+    if (ids.isEmpty) return;
+    final strings = AppStrings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final keepForScreenReader = MediaQuery.accessibleNavigationOf(context);
+    final ok = await _mutate(
+      (all) => MemoDoneOps.trashDone(all, ids, DateTime.now()),
+    );
+    if (!ok) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(strings.doneMovedToTrash(ids.length)),
+        // 메모 목록 삭제 알림과 같은 닫힘 규칙(action_snackbar_dismiss_test).
+        persist: keepForScreenReader,
+        duration: const Duration(seconds: 5),
+        showCloseIcon: true,
+        action: SnackBarAction(
+          label: strings.undoSpaced,
+          onPressed: () => _mutate((all) => MemoDoneOps.untrash(all, ids)),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _open(Memo memo) async {
+    Future<void>? saving;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MemoEditScreen(
+          memo: memo,
+          // 편집 화면은 저장을 콜백에 맡긴다(메모 목록·검색과 같은 패턴). 완료 표시는 그대로.
+          onSave: (updated) => saving = _mutate(
+            (all) => [for (final m in all) m.id == updated.id ? updated : m],
+          ),
+        ),
+      ),
+    );
+    // 저장이 끝난 뒤 다시 읽는다 — 먼저 읽으면 고치기 전 내용이 남는다.
+    await saving;
+    if (mounted) await reload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final palette = AppPalette.of(context);
+    final done = MemoDoneOps.done(_all);
+    final now = DateTime.now();
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      // 메모 탭과 같은 높이에 큰 제목이 오도록 같은 빈 AppBar 를 둔다.
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : done.isEmpty
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _ScreenTitle(strings.doneTab),
+                ),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.check_circle_outline,
+                                size: 56,
+                                color: palette.accent,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                strings.doneEmptyHint,
+                                key: const Key('done-empty'),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: palette.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : ListView(
+              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+              children: [
+                _ScreenTitle(strings.doneTab),
+                _DoneHeader(count: done.length, onClear: _clearDone),
+                for (final memo in done)
+                  _DoneRow(
+                    key: ValueKey('done-row-${memo.id}'),
+                    memo: memo,
+                    checked: !_isUnchecking(memo.id),
+                    leaving: _leavingIds.contains(memo.id),
+                    dateLabel: strings.doneDate(memo.doneAt!, now: now),
+                    onToggle: () => _toggle(memo.id),
+                    onTap: () => _open(memo),
+                    onLeft: () => _commitUndone(memo.id),
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
+/// 「완료 N개 ··· 완료 비우기」 머리줄.
+class _DoneHeader extends StatelessWidget {
+  const _DoneHeader({required this.count, required this.onClear});
+
+  final int count;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final palette = AppPalette.of(context);
+    return Padding(
+      key: const Key('done-header'),
+      // 위아래 여백을 같게 해 글자와 「완료 비우기」가 줄 가운데 오게 한다(T-261113-023 과 같은 규칙).
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              strings.doneCount(count),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: palette.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            key: const Key('done-clear'),
+            onPressed: onClear,
+            style: TextButton.styleFrom(foregroundColor: palette.accent),
+            child: Text(strings.clearDone),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 완료 메모 한 줄: 체크된 칸 · 흐린 취소선 첫 줄 · 작은 완료 날짜.
+class _DoneRow extends StatelessWidget {
+  const _DoneRow({
+    super.key,
+    required this.memo,
+    required this.checked,
+    required this.leaving,
+    required this.dateLabel,
+    required this.onToggle,
+    required this.onTap,
+    required this.onLeft,
+  });
+
+  final Memo memo;
+
+  /// 칸 상태. 체크를 푼 뒤 1초 동안은 false(빈 칸·취소선 없음).
+  final bool checked;
+  final bool leaving;
+  final String dateLabel;
+  final VoidCallback onToggle;
+  final VoidCallback onTap;
+  final VoidCallback onLeft;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return CollapseOut(
+      collapsing: leaving,
+      onCollapsed: onLeft,
+      child: TossSurfaceCard(
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 4, right: 14),
+            child: SizedBox(
+              height: 48,
+              // 날짜는 줄 폭의 35% 까지만 — 큰 글씨에서도 제목 자리가 남고 넘치지 않는다.
+              child: LayoutBuilder(
+                builder: (context, constraints) => Row(
+                  children: [
+                    MemoDoneCheckbox(
+                      key: ValueKey('done-check-${memo.id}'),
+                      checked: checked,
+                      onTap: onToggle,
+                      semanticLabel: memo.firstLine,
+                    ),
+                    if (memo.hasImages)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: AttachmentThumbnail(
+                          fileName: memo.imageFiles.first,
+                        ),
+                      ),
+                    Expanded(
+                      // 메모 목록처럼 글자 크기 설정을 따른다(기본 17).
+                      child: ValueListenableBuilder<double>(
+                        valueListenable: SettingsService.instance.bodyFontSize,
+                        builder: (context, bodyFontSize, _) {
+                          final scale =
+                              bodyFontSize /
+                              SettingsService.defaultBodyFontSize;
+                          return Text(
+                            memo.firstLine,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: checked
+                                  ? palette.textSecondary
+                                  : palette.textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 17 * scale,
+                              letterSpacing: -0.2,
+                              decoration: checked
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                              decorationColor: palette.textSecondary,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: constraints.maxWidth * 0.35,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Text(
+                          dateLabel,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
+                          textScaler: MediaQuery.textScalerOf(
+                            context,
+                          ).clamp(maxScaleFactor: 1.5),
+                          style: TextStyle(
+                            color: palette.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 본문 상단의 큰 화면 제목 (메모 탭 제목과 같은 모양).
+class _ScreenTitle extends StatelessWidget {
+  const _ScreenTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 14),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.4,
+          color: palette.textPrimary,
+        ),
+      ),
+    );
+  }
+}

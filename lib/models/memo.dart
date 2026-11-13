@@ -23,6 +23,10 @@ class Memo {
   // 즐겨찾기를 풀면 그 메모 바로 위로 돌아간다 — FavoriteOrder 참조.
   // null = 기록 없음(일반 메모·맨 아래였음·이 키 이전에 즐겨찾기한 옛 데이터).
   final String? favoriteAnchorId;
+  // 체크 칸으로 완료한 시각 (T-261113-024). null = 메모 목록에 보임, 값 있음 = 완료 탭.
+  // 휴지통(deletedAt)과 따로 간다 — 완료한 메모를 지웠다 되살리면 완료 탭으로 돌아간다.
+  // 목록 순서(배열 순서)는 건드리지 않으므로 체크를 풀면 원래 자리로 돌아간다.
+  final DateTime? doneAt;
 
   Memo({
     required this.id,
@@ -36,6 +40,7 @@ class Memo {
     this.semanticEmbeddingSource,
     List<String>? imageFiles,
     this.favoriteAnchorId,
+    this.doneAt,
   }) : semanticEmbedding = semanticEmbedding == null
            ? null
            : List<double>.unmodifiable(semanticEmbedding),
@@ -51,6 +56,8 @@ class Memo {
   String get title => firstLine;
 
   bool get isInTrash => deletedAt != null;
+
+  bool get isDone => doneAt != null;
 
   bool get hasImages => imageFiles.isNotEmpty;
 
@@ -69,6 +76,7 @@ class Memo {
   static const _undefinedSemanticEmbeddingModel = Object();
   static const _undefinedSemanticEmbeddingSource = Object();
   static const _undefinedFavoriteAnchorId = Object();
+  static const _undefinedDoneAt = Object();
 
   // copyWith: 불변 방식으로 필드 변경
   Memo copyWith({
@@ -81,6 +89,7 @@ class Memo {
     Object? semanticEmbeddingSource = _undefinedSemanticEmbeddingSource,
     List<String>? imageFiles,
     Object? favoriteAnchorId = _undefinedFavoriteAnchorId,
+    Object? doneAt = _undefinedDoneAt,
   }) {
     return Memo(
       id: id,
@@ -108,6 +117,9 @@ class Memo {
           identical(favoriteAnchorId, _undefinedFavoriteAnchorId)
           ? this.favoriteAnchorId
           : favoriteAnchorId as String?,
+      doneAt: identical(doneAt, _undefinedDoneAt)
+          ? this.doneAt
+          : doneAt as DateTime?,
     );
   }
 
@@ -141,6 +153,8 @@ class Memo {
     if (imageFiles.isNotEmpty) 'images': imageFiles,
     // 기록이 있을 때만 박음 — 일반 메모·옛 즐겨찾기 JSON 은 이전과 같다. 옛 앱은 모르는 키를 무시한다.
     if (favoriteAnchorId != null) 'favoriteAnchorId': favoriteAnchorId,
+    // 완료한 메모만 박음 — 안 한 메모 JSON 은 예전과 같다. 옛 앱은 모르는 키를 무시한다.
+    if (doneAt != null) 'doneAt': doneAt!.toIso8601String(),
   };
 
   factory Memo.fromJson(Map<String, dynamic> json) {
@@ -160,6 +174,10 @@ class Memo {
       // 키 없음(옛 데이터)·문자열 아님 → null. 이 키 하나로 메모 읽기 전체가 실패하지 않게 한다.
       favoriteAnchorId: json['favoriteAnchorId'] is String
           ? json['favoriteAnchorId'] as String
+          : null,
+      // 키 없음(옛 데이터)·문자열 아님·파싱 실패 → null(안 한 메모, 목록에 보임).
+      doneAt: json['doneAt'] is String
+          ? DateTime.tryParse(json['doneAt'] as String)
           : null,
     );
   }

@@ -4,23 +4,32 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/features/memos/services/memo_backup_archive.dart';
 import 'package:simple_memo_app/features/todos/models/todo.dart';
 import 'package:simple_memo_app/features/todos/services/todo_storage.dart';
+import 'package:simple_memo_app/l10n/app_strings.dart';
+import 'package:simple_memo_app/models/memo.dart';
 import 'package:simple_memo_app/screens/backup_restore_screen.dart';
 import 'package:simple_memo_app/services/drive_backup_service.dart';
 import 'package:simple_memo_app/services/export_import_service.dart';
+import 'package:simple_memo_app/services/memo_storage.dart';
 
-// T-261112-052: 메모 없이 할 일만 쓰는 사람도 백업·복원이 된다.
+// T-261112-052 → T-261113-024: 할 일 탭만 쓰던 사람도 백업·복원이 된다.
+// 할 일은 이제 메모로 옮겨져 메모로 백업된다.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('메모가 없어도 할 일이 있으면 지금 백업이 올린다', (tester) async {
+  testWidgets('옛 할 일만 있는 사람 — 백업 화면이 메모로 옮겨 지금 백업에 싣는다', (tester) async {
     SharedPreferences.setMockInitialValues({});
-    await TodoStorage.save([Todo.create(title: 'a')]);
-    var calls = 0;
+    await TodoStorage.save([
+      Todo.create(title: 'a'),
+      Todo.create(
+        title: 'b',
+      ).copyWith(done: true, doneAt: DateTime(2026, 11, 13)),
+    ]);
+    List<Memo>? uploaded;
     await tester.pumpWidget(
       MaterialApp(
         home: BackupRestoreScreen(
-          uploadBackup: (_) async {
-            calls++;
+          uploadBackup: (memos) async {
+            uploaded = memos;
             return const DriveBackupSuccess('https://x');
           },
         ),
@@ -29,31 +38,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('지금 백업'));
     await tester.pumpAndSettle();
-    expect(calls, 1);
+    expect(uploaded!.map((m) => m.content), ['a', 'b']);
+    expect(uploaded![1].doneAt, DateTime(2026, 11, 13));
     expect(find.text('내보낼 메모가 없습니다'), findsNothing);
   });
 
-  testWidgets('메모가 없어도 할 일이 있으면 파일로 백업한다', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    await TodoStorage.save([Todo.create(title: 'a')]);
-    var calls = 0;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: BackupRestoreScreen(
-          saveBackupFile: (_) async {
-            calls++;
-            return true;
-          },
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('파일로 백업'));
-    await tester.pumpAndSettle();
-    expect(calls, 1);
-  });
-
-  testWidgets('할 일만 든 백업을 가져오면 할 일 안내를 띄운다', (tester) async {
+  testWidgets('할 일만 든 옛 백업을 가져오면 메모 가져오기 안내', (tester) async {
     SharedPreferences.setMockInitialValues({'memos': '[]'});
     final bytes = await MemoBackupArchive.encode(
       [],
@@ -67,10 +57,14 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('파일에서 복원'));
     await tester.tap(find.text('파일에서 복원'));
     await tester.pumpAndSettle();
-    expect(find.text('할 일 1개를 가져왔어요'), findsOneWidget);
     expect(find.text('가져올 메모가 없습니다'), findsNothing);
-    expect((await TodoStorage.load()).todos.single.title, 'x');
+    expect(
+      find.text(AppStrings.fromCode('ko').importedMemos(1, 1)),
+      findsOneWidget,
+    );
+    expect((await MemoStorage.loadMemos()).single.content, 'x');
   });
 }

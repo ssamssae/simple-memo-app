@@ -65,3 +65,25 @@ Keep outside this domain when:
 - Search, semantic indexing, and speech search keep using the raw memo text.
 - The editor measures checklist tap targets again when the window size or the
   system text scale changes. Rotation and split view keep the target on the mark.
+
+## Done checkbox and Done tab (T-261113-024)
+
+- Replaces the separate to-do tab (T-261112-052). Every memo row in the memo list has a
+  checkbox on its left (`widgets/memo_done_checkbox.dart`, 44pt tap target). Tapping it shows
+  the check and strikethrough at once, waits one second (a second tap cancels), collapses the
+  row (`widgets/collapse_out.dart`), and stores `Memo.doneAt` (JSON key `doneAt`, written only
+  when set; old JSON reads as not done).
+- Done memos stay in the stored array at their position. The memo list hides them, so
+  unchecking puts a memo back in its old place. `updatedAt` does not change (same rule as favorites).
+- `screens/done_memos_screen.dart` is the 「완료」 bottom tab: done memos newest `doneAt` first,
+  uncheck with the same one-second delay, tap to edit, 「완료 비우기」 moves them to the trash
+  (`deletedAt`, undo snackbar). A done memo restored from the trash returns to the Done tab.
+- List rules live in `services/memo_done_ops.dart`. Both tabs read storage again before a write
+  (`MemoStorage.loadMemos(throwOnError: true)`) so a delayed write does not overwrite the other tab.
+- `services/todo_memo_migration.dart` converts the old `todos` key once (flag
+  `todos_migrated_to_memos_v1`), keeping the todo id, times, and done time. `MemoStorage.loadMemos`
+  runs it first, so every screen sees migrated memos. The `todos` key is left untouched.
+  Old backups with `todos.json` are converted by `MemoBackupArchive.decode`; exports no longer add it.
+- Legacy imports from the Done tab: `screens/memo_edit_screen.dart`, `services/memo_storage.dart`,
+  `services/settings_service.dart`. They stay shared — the editor and storage are the memo funnels.
+- Search shows done memos with a check mark and strikethrough. The trash screen is unchanged.
