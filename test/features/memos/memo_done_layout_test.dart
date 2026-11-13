@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_memo_app/features/memos/screens/done_memos_screen.dart';
 import 'package:simple_memo_app/models/memo.dart';
 import 'package:simple_memo_app/screens/memo_list_screen.dart';
+import 'package:simple_memo_app/services/settings_service.dart';
 
 final _t = DateTime(2026, 11, 13, 9);
 
@@ -100,6 +101,34 @@ void main() {
       expect(find.byKey(const Key('done-empty')), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    // T-261113-028 — 「편집」 선택 모드(동그라미·전체선택·선택 비우기 (N)).
+    for (final lang in ['ko', 'en']) {
+      testWidgets('$name 화면·글자 2배 — 완료 탭 선택 모드 넘침 없음 ($lang)', (
+        tester,
+      ) async {
+        SettingsService.instance.languageCode.value = lang;
+        addTearDown(() => SettingsService.instance.languageCode.value = 'ko');
+        await _pumpAt(tester, const DoneMemosScreen(), size, 2.0);
+        await tester.tap(find.byKey(const Key('done-edit')));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(
+          find.byKey(const ValueKey('done-select-done2')),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const ValueKey('done-row-done2')));
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.byKey(const Key('done-select-all')));
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        expect(
+          find.byKey(const Key('done-clear-selected')),
+          findsOneWidget,
+        );
+      });
+    }
   }
 
   // T-261113-023 과 같은 규칙: 「완료 N개」 머리줄 글자가 줄 위아래 가운데에 온다.
@@ -119,6 +148,31 @@ void main() {
       expect(tester.getCenter(label).dy, closeTo(headerCenter, 0.5));
       expect(
         tester.getCenter(find.byKey(const Key('done-clear'))).dy,
+        closeTo(headerCenter, 0.5),
+      );
+    });
+
+    testWidgets('선택 모드 머리줄 글자·선택 비우기도 위아래 가운데 (글자 $scale배)', (
+      tester,
+    ) async {
+      await _pumpAt(
+        tester,
+        const DoneMemosScreen(),
+        const Size(400, 800),
+        scale,
+      );
+      await tester.tap(find.byKey(const Key('done-edit')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('done-row-done2')));
+      await tester.pump();
+      final header = find.byKey(const Key('done-header'));
+      final headerCenter = tester.getCenter(header).dy;
+      final label = find
+          .descendant(of: header, matching: find.byType(Text))
+          .first;
+      expect(tester.getCenter(label).dy, closeTo(headerCenter, 0.5));
+      expect(
+        tester.getCenter(find.byKey(const Key('done-clear-selected'))).dy,
         closeTo(headerCenter, 0.5),
       );
     });
