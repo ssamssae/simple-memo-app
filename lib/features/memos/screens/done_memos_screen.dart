@@ -264,8 +264,12 @@ class DoneMemosScreenState extends State<DoneMemosScreen> {
             : null,
         actions: [
           if (selecting)
-            Padding(
+            Container(
               padding: const EdgeInsets.only(right: 20),
+              // 화면 폭 절반 안에서만 — 큰 글씨에서 넘칠 때만 글자를 줄인다.
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.sizeOf(context).width / 2,
+              ),
               child: TextButton(
                 key: const Key('done-select-all'),
                 onPressed: clearable.isEmpty ? null : _toggleSelectAll,
@@ -278,7 +282,7 @@ class DoneMemosScreenState extends State<DoneMemosScreen> {
                   minimumSize: const Size(0, 0),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(
+                child: _FitText(
                   allSelected ? strings.deselectAll : strings.selectAll,
                   style: const TextStyle(fontSize: 16),
                 ),
@@ -424,38 +428,47 @@ class _DoneHeader extends StatelessWidget {
       key: const Key('done-header'),
       // 위아래 여백을 같게 해 글자와 「완료 비우기」가 줄 가운데 오게 한다(T-261113-023 과 같은 규칙).
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              strings.doneCount(count),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: palette.textSecondary,
-                fontWeight: FontWeight.w600,
+      child: LayoutBuilder(
+        builder: (context, constraints) => Row(
+          children: [
+            Expanded(
+              child: Text(
+                strings.doneCount(count),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: palette.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-          if (selecting)
-            TextButton(
-              key: const Key('done-clear-selected'),
-              // 고른 게 없으면 누를 수 없다(메모 목록 「삭제」와 같은 규칙).
-              onPressed: selectedCount == 0 ? null : onClearSelected,
-              style: TextButton.styleFrom(
-                foregroundColor: palette.accent,
-                disabledForegroundColor: palette.accent.withValues(alpha: 0.3),
-              ),
-              child: Text(strings.clearSelected(selectedCount)),
-            )
-          else
-            TextButton(
-              key: const Key('done-clear'),
-              onPressed: onClear,
-              style: TextButton.styleFrom(foregroundColor: palette.accent),
-              child: Text(strings.clearDone),
+            // 큰 글씨·영어에서도 버튼이 줄 폭을 넘지 않게 — 넘칠 때만 글자를 줄인다.
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+              child: selecting
+                  ? TextButton(
+                      key: const Key('done-clear-selected'),
+                      // 고른 게 없으면 누를 수 없다(메모 목록 「삭제」와 같은 규칙).
+                      onPressed: selectedCount == 0 ? null : onClearSelected,
+                      style: TextButton.styleFrom(
+                        foregroundColor: palette.accent,
+                        disabledForegroundColor: palette.accent.withValues(
+                          alpha: 0.3,
+                        ),
+                      ),
+                      child: _FitText(strings.clearSelected(selectedCount)),
+                    )
+                  : TextButton(
+                      key: const Key('done-clear'),
+                      onPressed: onClear,
+                      style: TextButton.styleFrom(
+                        foregroundColor: palette.accent,
+                      ),
+                      child: _FitText(strings.clearDone),
+                    ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -597,6 +610,20 @@ class _DoneRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 한 줄 글자. 자리가 모자랄 때만 줄여서 맞춘다(넘치거나 줄바꿈하지 않음).
+class _FitText extends StatelessWidget {
+  const _FitText(this.text, {this.style});
+
+  final String text;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) => FittedBox(
+    fit: BoxFit.scaleDown,
+    child: Text(text, maxLines: 1, style: style),
+  );
 }
 
 /// 본문 상단의 큰 화면 제목 (메모 탭 제목과 같은 모양).

@@ -338,11 +338,12 @@ void main() {
       await tester.pump();
       expect(find.text('선택 비우기 (2)'), findsOneWidget);
       expect(
-        find.descendant(
-          of: selectMark('a'),
-          matching: find.byIcon(Icons.radio_button_checked),
-        ),
-        findsOneWidget,
+        tester.widget<Icon>(selectMark('a')).icon,
+        Icons.radio_button_checked,
+      );
+      expect(
+        tester.widget<Icon>(selectMark('b')).icon,
+        Icons.radio_button_unchecked,
       );
       expect(find.byIcon(Icons.radio_button_checked), findsNWidgets(2));
 
