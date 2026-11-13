@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../features/memos/services/attachment_store.dart';
+import '../features/memos/services/todo_memo_migration.dart';
 import '../models/memo.dart';
 import 'snapshot_store.dart';
 
@@ -10,6 +11,13 @@ class MemoStorage {
   static const _key = 'memos';
 
   static Future<List<Memo>> loadMemos({bool throwOnError = false}) async {
+    // 옛 할 일 탭의 할 일을 처음 한 번 메모로 옮긴다 (T-261113-024). 모든 화면이
+    // 이 길로 메모를 읽으므로 여기서 하면 어느 화면이 먼저 열려도 빠짐이 없다.
+    try {
+      await TodoMemoMigration.ensureMigrated(memosKey: _key);
+    } catch (e) {
+      debugPrint('[MemoStorage.loadMemos] todo migration: $e');
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       final data = prefs.getString(_key);

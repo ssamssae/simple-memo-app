@@ -156,6 +156,33 @@ class AppStrings {
       : '저장된 할 일을 읽지 못했어요. 바꾼 내용은 저장하지 않아요.';
   String get undoSpaced => isEnglish ? 'Undo' : '실행 취소';
 
+  // T-261113-024 메모 왼쪽 체크 칸 + 완료 탭(할 일 탭 대체)
+  String get doneTab => isEnglish ? 'Done' : '완료';
+  String doneCount(int n) => isEnglish ? 'Completed $n' : '완료 $n개';
+  String get clearDone => isEnglish ? 'Clear completed' : '완료 비우기';
+  String get doneEmptyHint => isEnglish
+      ? 'No completed memos yet.\nTap the box next to a memo to move it here.'
+      : '아직 완료한 메모가 없어요.\n메모 왼쪽 네모를 누르면 여기로 와요.';
+  String doneMovedToTrash(int n) => isEnglish
+      ? 'Moved $n completed ${n == 1 ? 'memo' : 'memos'} to Trash'
+      : '완료 $n개를 휴지통으로 옮겼어요';
+  static const _monthsEn = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  /// 완료 탭 줄 오른쪽의 작은 완료 날짜. 올해면 「11월 13일」, 다른 해면 짧은 숫자.
+  String doneDate(DateTime d, {required DateTime now}) {
+    if (d.year != now.year) {
+      return isEnglish
+          ? '${d.month}/${d.day}/${(d.year % 100).toString().padLeft(2, '0')}'
+          : '${d.year}.${d.month}.${d.day}';
+    }
+    return isEnglish
+        ? '${_monthsEn[d.month - 1]} ${d.day}'
+        : '${d.month}월 ${d.day}일';
+  }
+
   // 백업 & 복원 화면
   String get noMemosToExport => isEnglish ? 'No memos to export' : '내보낼 메모가 없습니다';
   String get driveBackupStarting =>

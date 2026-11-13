@@ -5,7 +5,9 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart' as zip;
 
 import '../../../models/memo.dart';
+import '../../todos/models/todo.dart';
 import 'attachment_store.dart';
+import 'todo_memo_migration.dart';
 
 class BackupPhotoUnavailableException implements Exception {}
 
@@ -24,13 +26,16 @@ class MemoBackupArchive {
   final Map<String, Uint8List> photos;
   final bool isZip;
 
-  /// 할 일 JSON 원문(T-261112-052). 옛 백업·평문 JSON 은 null.
+  /// 할 일 JSON 원문(T-261112-052). 1.0.29~1.0.30 백업에만 있다. 옛 백업·평문 JSON 은 null.
+  /// [decode] 는 이 할 일을 메모로 바꿔 [memos] 뒤에 붙인다(T-261113-024).
   final String? todosJson;
   static const maxBytes = 128 * 1024 * 1024;
   static const maxPhotoBytes = 8 * 1024 * 1024;
   static const maxJsonBytes = 16 * 1024 * 1024;
   static const maxEntries = 4096;
 
+  /// [todosJson] 은 옛 형식(할 일 탭 시절) 백업을 만드는 시험용이다. 앱은 더 넣지 않는다 —
+  /// 할 일은 이제 메모다(T-261113-024).
   static Future<Uint8List> encode(
     List<Memo> memos, {
     AttachmentStore? store,
@@ -155,6 +160,17 @@ class MemoBackupArchive {
         }
       }
       final memos = _memos(json!, strictImages: true);
+      if (todosJson != null) {
+        // 할 일 탭 시절 백업: 할 일을 메모로 바꿔 함께 가져온다(T-261113-024).
+        // 깨진 todos.json 은 FormatException — 아무것도 쓰기 전에 멈춘다.
+        memos.addAll(
+          TodoMemoMigration.memosFromTodos(
+            Todo.decodeList(todosJson),
+            existingIds: {for (final m in memos) m.id},
+            now: DateTime.now(),
+          ),
+        );
+      }
       if (memos
           .expand((m) => m.imageFiles)
           .any((name) => !photos.containsKey(name))) {

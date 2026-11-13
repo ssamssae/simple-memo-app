@@ -1,3 +1,5 @@
+// 할 일 탭 시절(1.0.29~1.0.30) 백업의 todos.json 과 메모 완료 표시(doneAt) 백업.
+// T-261112-052 에서 생긴 todos.json 은 T-261113-024 부터 새로 쓰지 않고, 가져올 때 메모로 바꾼다.
 import 'package:archive/archive.dart' as zip;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,19 +17,22 @@ List<String> entryNames(List<int> bytes) =>
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('할 일이 있으면 todos.json 이 들어가고 decode 로 되읽힌다', () async {
-    final todo = Todo.create(title: '왕새우치킨');
-    final bytes = await MemoBackupArchive.encode(
-      [Memo.create(content: 'm')],
-      todosJson: Todo.encodeList([todo]),
-    );
-    expect(entryNames(bytes), contains('todos.json'));
-    final back = MemoBackupArchive.decode(bytes);
-    expect(Todo.decodeList(back.todosJson!).single.id, todo.id);
-  });
+  final t = DateTime(2026, 11, 12, 22);
+  final doneAt = DateTime(2026, 11, 13, 7, 30);
 
-  test('할 일이 없으면 todos.json 을 넣지 않는다(옛 메모요 호환)', () async {
+  Todo todo(String id, {bool done = false}) => Todo(
+    id: id,
+    title: 'todo $id',
+    note: done ? '' : 'note $id',
+    done: done,
+    doneAt: done ? doneAt : null,
+    createdAt: t,
+    updatedAt: t,
+  );
+
+  test('새 백업에는 todos.json 이 없다 — 저장된 할 일이 있어도', () async {
     SharedPreferences.setMockInitialValues({});
+    await TodoStorage.save([todo('a')]);
     final bytes = await ExportImportService.exportBytes([
       Memo.create(content: 'm'),
     ]);
@@ -35,47 +40,65 @@ void main() {
     expect(MemoBackupArchive.decode(bytes).todosJson, isNull);
   });
 
-  test('exportBytes 는 저장된 할 일을 넣는다', () async {
-    SharedPreferences.setMockInitialValues({});
-    await TodoStorage.save([Todo.create(title: 'a')]);
-    final bytes = await ExportImportService.exportBytes([
-      Memo.create(content: 'm'),
-    ]);
-    expect(MemoBackupArchive.decode(bytes).todosJson, isNotNull);
+  test('옛 백업의 todos.json 은 decode 가 메모로 바꿔 메모 뒤에 붙인다', () async {
+    final memo = Memo(id: 'm', content: 'memo', createdAt: t, updatedAt: t);
+    final bytes = await MemoBackupArchive.encode([
+      memo,
+    ], todosJson: Todo.encodeList([todo('a'), todo('b', done: true)]));
+    final back = MemoBackupArchive.decode(bytes);
+    expect(back.memos.map((m) => m.id), ['m', 'a', 'b']);
+    expect(back.memos[1].content, 'todo a\nnote a');
+    expect(back.memos[1].doneAt, isNull);
+    expect(back.memos[2].content, 'todo b');
+    expect(back.memos[2].doneAt, doneAt);
   });
 
-  test('todos.json 없는 옛 백업을 가져오면 지금 할 일은 그대로', () async {
-    final keep = Todo.create(title: 'keep');
+  test('할 일만 든 옛 백업을 가져오면 메모로 들어온다', () async {
     SharedPreferences.setMockInitialValues({'memos': '[]'});
-    await TodoStorage.save([keep]);
-    final old = await MemoBackupArchive.encode([Memo.create(content: 'm')]);
-    await ExportImportService.importBytes(old);
-    final load = await TodoStorage.load();
-    expect(load.todos.single.id, keep.id);
-  });
-
-  test('메모가 0개인 백업이라도 할 일은 합친다', () async {
-    SharedPreferences.setMockInitialValues({'memos': '[]'});
-    final inc = Todo.create(title: 'from backup');
     final bytes = await MemoBackupArchive.encode(
       [],
-      todosJson: Todo.encodeList([inc]),
+      todosJson: Todo.encodeList([todo('a'), todo('b', done: true)]),
     );
-    await ExportImportService.importBytes(bytes);
-    expect((await TodoStorage.load()).todos.single.id, inc.id);
+    expect(await ExportImportService.importBytes(bytes), (2, 2));
+    final memos = await MemoStorage.loadMemos();
+    expect(memos.map((m) => m.id), ['a', 'b']);
+    expect(memos[1].doneAt, doneAt);
   });
 
-  test('할 일을 합칠 때 같은 id 는 더 새 것이 이긴다', () async {
-    final a = Todo.create(title: 'old', now: DateTime(2026, 11, 1));
-    SharedPreferences.setMockInitialValues({'memos': '[]'});
-    await TodoStorage.save([a]);
-    final newer = a.copyWith(title: 'new', updatedAt: DateTime(2026, 11, 2));
+  test('이미 옮긴 할 일이 든 옛 백업을 다시 가져와도 겹치지 않는다', () async {
+    SharedPreferences.setMockInitialValues({});
+    await TodoStorage.save([todo('a'), todo('b', done: true)]);
+    expect((await MemoStorage.loadMemos()).length, 2); // 옮기기
     final bytes = await MemoBackupArchive.encode(
-      [Memo.create(content: 'm')],
-      todosJson: Todo.encodeList([newer]),
+      [],
+      todosJson: Todo.encodeList([todo('a'), todo('b', done: true)]),
     );
     await ExportImportService.importBytes(bytes);
-    expect((await TodoStorage.load()).todos.single.title, 'new');
+    expect((await MemoStorage.loadMemos()).map((m) => m.id), ['a', 'b']);
+  });
+
+  test('todos.json 없는 백업을 가져와도 todos 키는 그대로', () async {
+    SharedPreferences.setMockInitialValues({'memos': '[]'});
+    await TodoStorage.save([todo('keep')]);
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('todos');
+    final old = await MemoBackupArchive.encode([Memo.create(content: 'm')]);
+    await ExportImportService.importBytes(old);
+    expect(prefs.getString('todos'), raw);
+  });
+
+  test('깨진 todos.json 은 아무것도 쓰기 전에 FormatException', () async {
+    SharedPreferences.setMockInitialValues({'memos': '[]'});
+    final bytes = await MemoBackupArchive.encode([
+      Memo.create(content: 'm'),
+    ], todosJson: '{broken');
+    await expectLater(
+      ExportImportService.importBytes(bytes),
+      throwsFormatException,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('memos'), '[]');
+    expect(prefs.getString('todos'), isNull);
   });
 
   test('메모를 하나도 쓰지 않은 가져오기는 묵은 되돌리기 기록을 지운다', () async {
@@ -86,28 +109,43 @@ void main() {
     final older = m.copyWith(
       updatedAt: m.updatedAt.subtract(const Duration(days: 1)),
     );
-    final bytes = await MemoBackupArchive.encode(
-      [older],
-      todosJson: Todo.encodeList([Todo.create(title: 't')]),
-    );
+    final bytes = await MemoBackupArchive.encode([older]);
     await ExportImportService.importBytes(bytes);
     expect(await SnapshotStore.load(), isNull);
     expect(await ExportImportService.undoImport(), isNull);
     expect((await MemoStorage.loadMemos()).single.id, m.id);
   });
 
-  test('깨진 todos.json 은 아무것도 쓰기 전에 FormatException', () async {
+  test('완료 표시는 파일 백업 → 복원 왕복에서 살아남는다', () async {
+    final open = Memo(id: 'o', content: 'open', createdAt: t, updatedAt: t);
+    final done = Memo(
+      id: 'd',
+      content: 'done',
+      createdAt: t,
+      updatedAt: t,
+      doneAt: doneAt,
+    );
+    SharedPreferences.setMockInitialValues({});
+    final bytes = await ExportImportService.exportBytes([open, done]);
     SharedPreferences.setMockInitialValues({'memos': '[]'});
-    final bytes = await MemoBackupArchive.encode(
-      [Memo.create(content: 'm')],
-      todosJson: '{broken',
-    );
-    await expectLater(
-      ExportImportService.importBytes(bytes),
-      throwsFormatException,
-    );
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('memos'), '[]');
-    expect(prefs.getString('todos'), isNull);
+    expect(await ExportImportService.importBytes(bytes), (2, 2));
+    final restored = {for (final m in await MemoStorage.loadMemos()) m.id: m};
+    expect(restored['o']!.doneAt, isNull);
+    expect(restored['d']!.doneAt, doneAt);
+  });
+
+  test('평문 JSON 가져오기도 완료 표시를 읽는다', () async {
+    SharedPreferences.setMockInitialValues({'memos': '[]'});
+    final source = Memo.encodeList([
+      Memo(
+        id: 'd',
+        content: 'done',
+        createdAt: t,
+        updatedAt: t,
+        doneAt: doneAt,
+      ),
+    ]);
+    await ExportImportService.importFromSource(source);
+    expect((await MemoStorage.loadMemos()).single.doneAt, doneAt);
   });
 }

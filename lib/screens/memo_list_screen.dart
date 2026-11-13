@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../features/memos/services/attachment_store.dart';
 import '../features/memos/services/checklist_text.dart';
 import '../features/memos/services/favorite_order.dart';
+import '../features/memos/services/memo_done_ops.dart';
 import '../features/memos/widgets/attachment_thumbnail.dart';
+import '../features/memos/widgets/collapse_out.dart';
+import '../features/memos/widgets/memo_done_checkbox.dart';
 import '../l10n/app_strings.dart';
 import '../models/memo.dart';
 import '../services/app_review_service.dart';
@@ -17,9 +21,20 @@ import 'memo_edit_screen.dart';
 import 'search_screen.dart';
 
 class MemoListScreen extends StatefulWidget {
-  const MemoListScreen({super.key, this.requestReviewPrompt});
+  const MemoListScreen({
+    super.key,
+    this.requestReviewPrompt,
+    this.doneDelay = const Duration(seconds: 1),
+    this.onDoneChanged,
+  });
 
   final Future<AppReviewPromptResult> Function()? requestReviewPrompt;
+
+  /// 체크 칸을 누른 뒤 줄이 접혀 완료 탭으로 가기까지 기다리는 시간 (T-261113-024).
+  final Duration doneDelay;
+
+  /// 메모를 완료로 저장한 뒤 부른다. HomeShell 이 완료 탭을 다시 읽게 한다.
+  final VoidCallback? onDoneChanged;
 
   @override
   State<MemoListScreen> createState() => MemoListScreenState();
@@ -50,6 +65,11 @@ class MemoListScreenState extends State<MemoListScreen>
 
   bool _isEditMode = false;
   final Set<String> _selectedIds = {};
+
+  // 체크 칸 (T-261113-024). 누르면 1초 동안 그 자리에서 체크·취소선으로 보이고(_doneTimers),
+  // 그 뒤 접히며(_leavingIds) 다 접히면 doneAt 을 저장한다. 1초 안에 다시 누르면 취소.
+  final Map<String, Timer> _doneTimers = {};
+  final Set<String> _leavingIds = {};
 
   // 이동(드래그) 중 휠 스크롤 지원용 활성 드래그 포인터 추적.
   // 드래그를 시작한 마우스 포인터의 id·최근 위치를 기억해 뒀다가,
@@ -148,6 +168,9 @@ class MemoListScreenState extends State<MemoListScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    for (final timer in _doneTimers.values) {
+      timer.cancel();
+    }
     _listScrollController.dispose();
     _closeSwipeNotifier.dispose();
     super.dispose();
@@ -264,8 +287,8 @@ class MemoListScreenState extends State<MemoListScreen>
     setState(() {
       _selectedIds
         ..clear()
-        // 활성 메모만 선택 — 휴지통 항목은 리스트에 안 보이므로 제외.
-        ..addAll(_memos.where((m) => m.deletedAt == null).map((m) => m.id));
+        // 보이는 메모만 선택 — 휴지통·완료 메모는 리스트에 안 보이므로 제외.
+        ..addAll(_memos.where(MemoDoneOps.isOpen).map((m) => m.id));
     });
   }
 
@@ -465,16 +488,64 @@ class MemoListScreenState extends State<MemoListScreen>
     _saveMemos();
   }
 
+  // --- 체크 칸 (T-261113-024) ---
+
+  bool _isChecked(String id) =>
+      _doneTimers.containsKey(id) || _leavingIds.contains(id);
+
+  // 기다리거나 접히는 동안은 끌어 옮기기를 막는다 — 드래그 도중 목록 길이가 바뀌지 않게.
+  bool get _reorderLocked => _doneTimers.isNotEmpty || _leavingIds.isNotEmpty;
+
+  void _toggleDone(String memoId) {
+    if (_leavingIds.contains(memoId)) return; // 이미 접히는 중
+    final pending = _doneTimers.remove(memoId);
+    if (pending != null) {
+      // 1초 안에 다시 누름 — 체크 취소, 목록에 그대로 남는다.
+      pending.cancel();
+      HapticFeedback.selectionClick();
+      setState(() {});
+      return;
+    }
+    HapticFeedback.lightImpact();
+    setState(() {
+      _doneTimers[memoId] = Timer(widget.doneDelay, () {
+        if (!mounted || _doneTimers.remove(memoId) == null) return;
+        setState(() => _leavingIds.add(memoId));
+      });
+    });
+  }
+
+  // 줄이 다 접힌 뒤: 완료 시각을 저장한다. 다른 탭이 그사이 저장했을 수 있어
+  // 저장값을 다시 읽고 이 메모 하나만 고친다. 배열 순서는 그대로 → 체크를 풀면 제자리.
+  Future<void> _commitDone(String memoId) async {
+    List<Memo> base;
+    try {
+      base = await MemoStorage.loadMemos(throwOnError: true);
+    } catch (e) {
+      debugPrint('[_commitDone] $e');
+      if (mounted) setState(() => _leavingIds.remove(memoId));
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _leavingIds.remove(memoId);
+      _memos = MemoDoneOps.setDone(base, memoId, DateTime.now());
+      _ensureGroupOrder();
+    });
+    await _saveMemos();
+    widget.onDoneChanged?.call();
+  }
+
   // [요구사항 7] 각 그룹 내부에서만 reorder.
   // _memos에서 해당 그룹의 원본 인덱스를 찾아 직접 조작.
   void _onReorderFav(int oldIndex, int newIndex) {
     _closeAllSwipes();
 
-    // _memos 내 활성(휴지통 제외) 즐겨찾기 항목들의 원본 인덱스 목록.
-    // 화면에 표시되는 리스트가 deletedAt == null 만이라 인덱스 정합을 맞춘다.
+    // _memos 내 보이는(휴지통·완료 제외) 즐겨찾기 항목들의 원본 인덱스 목록.
+    // 화면에 표시되는 리스트가 MemoDoneOps.isOpen 만이라 인덱스 정합을 맞춘다.
     final favOriginalIndices = <int>[];
     for (int i = 0; i < _memos.length; i++) {
-      if (_memos[i].isFavorite && _memos[i].deletedAt == null) {
+      if (_memos[i].isFavorite && MemoDoneOps.isOpen(_memos[i])) {
         favOriginalIndices.add(i);
       }
     }
@@ -489,10 +560,10 @@ class MemoListScreenState extends State<MemoListScreen>
     final movedMemo = _memos[favOriginalIndices[oldIndex]];
     setState(() {
       _memos.removeAt(favOriginalIndices[oldIndex]);
-      // 삭제 후 인덱스 재계산 (활성 즐겨찾기만)
+      // 삭제 후 인덱스 재계산 (보이는 즐겨찾기만)
       final newOriginalIndices = <int>[];
       for (int i = 0; i < _memos.length; i++) {
-        if (_memos[i].isFavorite && _memos[i].deletedAt == null) {
+        if (_memos[i].isFavorite && MemoDoneOps.isOpen(_memos[i])) {
           newOriginalIndices.add(i);
         }
       }
@@ -511,10 +582,10 @@ class MemoListScreenState extends State<MemoListScreen>
   void _onReorderNormal(int oldIndex, int newIndex) {
     _closeAllSwipes();
 
-    // 활성(휴지통 제외) 일반 항목들의 원본 인덱스 목록.
+    // 보이는(휴지통·완료 제외) 일반 항목들의 원본 인덱스 목록.
     final normalOriginalIndices = <int>[];
     for (int i = 0; i < _memos.length; i++) {
-      if (!_memos[i].isFavorite && _memos[i].deletedAt == null) {
+      if (!_memos[i].isFavorite && MemoDoneOps.isOpen(_memos[i])) {
         normalOriginalIndices.add(i);
       }
     }
@@ -531,7 +602,7 @@ class MemoListScreenState extends State<MemoListScreen>
       _memos.removeAt(normalOriginalIndices[oldIndex]);
       final newOriginalIndices = <int>[];
       for (int i = 0; i < _memos.length; i++) {
-        if (!_memos[i].isFavorite && _memos[i].deletedAt == null) {
+        if (!_memos[i].isFavorite && MemoDoneOps.isOpen(_memos[i])) {
           newOriginalIndices.add(i);
         }
       }
@@ -550,8 +621,8 @@ class MemoListScreenState extends State<MemoListScreen>
   @override
   Widget build(BuildContext context) {
     // [요구사항 3] build 시점에 필터링.
-    // 휴지통(deletedAt != null)은 일반 리스트에서 제외 — 활성 메모만 표시.
-    final active = _memos.where((m) => m.deletedAt == null).toList();
+    // 휴지통(deletedAt)·완료(doneAt) 메모는 제외 — 완료 메모는 완료 탭에 보인다 (T-261113-024).
+    final active = _memos.where(MemoDoneOps.isOpen).toList();
     final favorites = active.where((m) => m.isFavorite).toList();
     final normals = active.where((m) => !m.isFavorite).toList();
     final canEdit = active.isNotEmpty;
@@ -757,6 +828,11 @@ class MemoListScreenState extends State<MemoListScreen>
                                 isEditMode: _isEditMode,
                                 isSelected: _selectedIds.contains(memo.id),
                                 onToggleSelect: () => _toggleSelected(memo.id),
+                                checked: _isChecked(memo.id),
+                                leaving: _leavingIds.contains(memo.id),
+                                reorderLocked: _reorderLocked,
+                                onToggleDone: () => _toggleDone(memo.id),
+                                onLeft: () => _commitDone(memo.id),
                               );
                             },
                           ),
@@ -791,6 +867,11 @@ class MemoListScreenState extends State<MemoListScreen>
                                 isEditMode: _isEditMode,
                                 isSelected: _selectedIds.contains(memo.id),
                                 onToggleSelect: () => _toggleSelected(memo.id),
+                                checked: _isChecked(memo.id),
+                                leaving: _leavingIds.contains(memo.id),
+                                reorderLocked: _reorderLocked,
+                                onToggleDone: () => _toggleDone(memo.id),
+                                onLeft: () => _commitDone(memo.id),
                               );
                             },
                           ),
@@ -822,6 +903,15 @@ class _MemoSwipeItem extends StatefulWidget {
   final bool isSelected;
   final VoidCallback onToggleSelect;
 
+  /// 체크 칸 상태(1초 대기·접히는 중 포함). 체크면 제목에 취소선.
+  final bool checked;
+
+  /// true 면 줄이 접히고, 다 접히면 [onLeft].
+  final bool leaving;
+  final bool reorderLocked;
+  final VoidCallback onToggleDone;
+  final VoidCallback onLeft;
+
   const _MemoSwipeItem({
     super.key,
     required this.memo,
@@ -838,6 +928,11 @@ class _MemoSwipeItem extends StatefulWidget {
     required this.isEditMode,
     required this.isSelected,
     required this.onToggleSelect,
+    required this.checked,
+    required this.leaving,
+    required this.reorderLocked,
+    required this.onToggleDone,
+    required this.onLeft,
   });
 
   @override
@@ -920,6 +1015,15 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
 
   @override
   Widget build(BuildContext context) {
+    // 체크 뒤 1초가 지나면 카드 간격까지 함께 접혀 사라진다 (T-261113-024).
+    return CollapseOut(
+      collapsing: widget.leaving,
+      onCollapsed: widget.onLeft,
+      child: _buildCard(context),
+    );
+  }
+
+  Widget _buildCard(BuildContext context) {
     final palette = AppPalette.of(context);
     // 둥근 카드(T-261028-009): 카드 간격 8, 모서리 16. 스와이프 배경도 같은 모서리로 잘라낸다.
     return Padding(
@@ -1014,11 +1118,23 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 16, right: 12),
+                  // 체크 칸(누르는 범위 44, 그림 22)이 왼쪽 끝에 오므로 왼쪽 여백을 줄여
+                  // 네모 가장자리가 예전 글자 시작(16)과 비슷한 자리에 오게 한다.
+                  padding: EdgeInsets.only(
+                    left: widget.isEditMode ? 16 : 4,
+                    right: 12,
+                  ),
                   child: SizedBox(
                     height: 48,
                     child: Row(
                       children: [
+                        if (!widget.isEditMode)
+                          MemoDoneCheckbox(
+                            key: ValueKey('memo-done-check-${widget.memo.id}'),
+                            checked: widget.checked,
+                            onTap: widget.onToggleDone,
+                            semanticLabel: widget.memo.firstLine,
+                          ),
                         if (widget.isEditMode)
                           Padding(
                             padding: const EdgeInsets.only(right: 12),
@@ -1071,13 +1187,19 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                                   forceStrutHeight: true,
                                 ),
                                 style: TextStyle(
-                                  color: palette.textPrimary,
+                                  color: widget.checked
+                                      ? palette.textSecondary
+                                      : palette.textPrimary,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 17 * scale,
                                   letterSpacing: -0.2,
                                   height: 1.0,
                                   leadingDistribution:
                                       TextLeadingDistribution.even,
+                                  decoration: widget.checked
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  decorationColor: palette.textSecondary,
                                 ),
                               );
                             },
@@ -1103,6 +1225,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                         if (!widget.isEditMode)
                           ReorderableDragStartListener(
                             index: widget.index,
+                            enabled: !widget.reorderLocked,
                             child: Padding(
                               padding: const EdgeInsets.only(left: 8, right: 8),
                               child: Icon(
