@@ -305,6 +305,187 @@ void main() {
     });
   });
 
+  // T-261113-028 — 완료 탭 「편집」으로 골라서 비우기.
+  group('완료 탭 선택 비우기', () {
+    Finder selectMark(String id) => find.byKey(ValueKey('done-select-$id'));
+    Finder clearSelected() => find.byKey(const Key('done-clear-selected'));
+    VoidCallback? onPressedOf(WidgetTester tester, Finder button) =>
+        tester.widget<TextButton>(button).onPressed;
+
+    testWidgets('셋 중 둘 고르기 → 선택 비우기 → 그 둘만 휴지통 · 실행 취소로 돌아옴', (tester) async {
+      seed([
+        memo('a', '하나', doneAt: t),
+        memo('b', '둘', doneAt: t),
+        memo('c', '셋', doneAt: t),
+        memo('d', '열린'),
+      ]);
+      await pumpDone(tester);
+      expect(clearSelected(), findsNothing);
+
+      await tester.tap(find.text('편집'));
+      await tester.pumpAndSettle();
+      expect(find.text('취소'), findsOneWidget);
+      // 체크 칸 대신 선택 동그라미 · 「완료 비우기」 대신 누를 수 없는 「선택 비우기」.
+      expect(doneCheck('a'), findsNothing);
+      expect(find.byIcon(Icons.radio_button_unchecked), findsNWidgets(3));
+      expect(find.byKey(const Key('done-clear')), findsNothing);
+      expect(find.text('선택 비우기'), findsOneWidget);
+      expect(onPressedOf(tester, clearSelected()), isNull);
+
+      await tester.tap(find.text('하나'));
+      await tester.pump();
+      await tester.tap(find.text('셋'));
+      await tester.pump();
+      expect(find.text('선택 비우기 (2)'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: selectMark('a'),
+          matching: find.byIcon(Icons.radio_button_checked),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.radio_button_checked), findsNWidgets(2));
+
+      await tester.tap(clearSelected());
+      await tester.pumpAndSettle();
+      expect(find.text('완료 2개를 휴지통으로 옮겼어요'), findsOneWidget);
+      expect(find.text('하나'), findsNothing);
+      expect(find.text('셋'), findsNothing);
+      expect(find.text('둘'), findsOneWidget);
+      expect(find.text('완료 1개'), findsOneWidget);
+      // 비우면 선택 모드가 끝난다.
+      expect(find.text('편집'), findsOneWidget);
+      expect(doneCheck('b'), findsOneWidget);
+      var saved = {for (final m in await stored()) m.id: m};
+      expect(saved['a']!.deletedAt, isNotNull);
+      expect(saved['a']!.doneAt, t);
+      expect(saved['c']!.deletedAt, isNotNull);
+      expect(saved['b']!.deletedAt, isNull);
+      expect(saved['d']!.deletedAt, isNull);
+      expect(saved.keys, ['a', 'b', 'c', 'd']); // 배열 순서 그대로
+
+      await tester.tap(find.text('실행 취소'));
+      await tester.pumpAndSettle();
+      expect(find.text('하나'), findsOneWidget);
+      expect(find.text('셋'), findsOneWidget);
+      expect(find.text('완료 3개'), findsOneWidget);
+      saved = {for (final m in await stored()) m.id: m};
+      expect(saved['a']!.deletedAt, isNull);
+      expect(saved['c']!.deletedAt, isNull);
+      expect(saved['a']!.doneAt, t);
+    });
+
+    testWidgets('선택 모드에서 줄을 누르면 고르기만 — 편집도 체크 풀기도 없다', (tester) async {
+      seed([memo('a', '끝낸 일', doneAt: t)]);
+      await pumpDone(tester);
+      await tester.tap(find.text('편집'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('끝낸 일'));
+      await tester.pumpAndSettle();
+      expect(find.byType(MemoEditScreen), findsNothing);
+      expect(find.byIcon(Icons.radio_button_checked), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpAndSettle();
+      expect(find.text('끝낸 일'), findsOneWidget);
+      expect(styleOf(tester, '끝낸 일').decoration, TextDecoration.lineThrough);
+      final saved = (await stored()).single;
+      expect(saved.doneAt, t);
+      expect(saved.deletedAt, isNull);
+
+      // 다시 누르면 선택이 풀린다.
+      await tester.tap(find.text('끝낸 일'));
+      await tester.pump();
+      expect(find.byIcon(Icons.radio_button_checked), findsNothing);
+      expect(find.text('선택 비우기'), findsOneWidget);
+    });
+
+    testWidgets('취소를 누르면 고른 것이 풀리고 체크 칸으로 돌아온다', (tester) async {
+      seed([memo('a', '하나', doneAt: t), memo('b', '둘', doneAt: t)]);
+      await pumpDone(tester);
+      await tester.tap(find.text('편집'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('하나'));
+      await tester.pump();
+      expect(find.text('선택 비우기 (1)'), findsOneWidget);
+
+      await tester.tap(find.text('취소'));
+      await tester.pumpAndSettle();
+      expect(find.text('편집'), findsOneWidget);
+      expect(doneCheck('a'), findsOneWidget);
+      expect(find.byIcon(Icons.radio_button_unchecked), findsNothing);
+      expect(find.byKey(const Key('done-clear')), findsOneWidget);
+      expect(clearSelected(), findsNothing);
+
+      await tester.tap(find.text('편집'));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.radio_button_checked), findsNothing);
+      expect(find.text('선택 비우기'), findsOneWidget);
+      expect(onPressedOf(tester, clearSelected()), isNull);
+      final saved = await stored();
+      expect(saved.every((m) => m.deletedAt == null && m.doneAt == t), isTrue);
+    });
+
+    testWidgets('전체선택은 체크를 푸는 중인 메모를 빼고 고른다 · 다시 누르면 선택해제', (tester) async {
+      seed([
+        memo('a', '하나', doneAt: t),
+        memo('b', '둘', doneAt: t),
+        memo('c', '셋', doneAt: t),
+      ]);
+      await pumpDone(tester);
+      await tester.tap(doneCheck('a'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.tap(find.text('편집'));
+      await tester.pump();
+      await tester.tap(find.text('전체선택'));
+      await tester.pump();
+      expect(find.text('선택 비우기 (2)'), findsOneWidget);
+      expect(find.text('선택해제'), findsOneWidget);
+
+      await tester.tap(find.text('선택해제'));
+      await tester.pump();
+      expect(find.text('선택 비우기'), findsOneWidget);
+      expect(find.text('전체선택'), findsOneWidget);
+
+      await tester.tap(find.text('전체선택'));
+      await tester.pump();
+      await tester.tap(clearSelected());
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      final saved = {for (final m in await stored()) m.id: m};
+      expect(saved['a']!.deletedAt, isNull);
+      expect(saved['a']!.doneAt, isNull); // 체크 풀기는 그대로 끝남
+      expect(saved['b']!.deletedAt, isNotNull);
+      expect(saved['c']!.deletedAt, isNotNull);
+      expect(find.byKey(const Key('done-empty')), findsOneWidget);
+      // 완료 메모가 없으면 「편집」도 없다.
+      expect(find.text('편집'), findsNothing);
+    });
+
+    testWidgets('영어 로케일 선택 모드 — 한글 0', (tester) async {
+      SettingsService.instance.languageCode.value = 'en';
+      addTearDown(() => SettingsService.instance.languageCode.value = 'ko');
+      seed([memo('a', 'shipped', doneAt: t), memo('b', 'filed', doneAt: t)]);
+      await pumpDone(tester);
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Select all'), findsOneWidget);
+      expect(find.text('Clear selected'), findsOneWidget);
+      await tester.tap(find.text('shipped'));
+      await tester.pump();
+      expect(find.text('Clear selected (1)'), findsOneWidget);
+      final han = RegExp(r'[가-힣]');
+      expect(
+        find.byWidgetPredicate((w) => w is Text && han.hasMatch(w.data ?? '')),
+        findsNothing,
+      );
+      await tester.tap(clearSelected());
+      await tester.pumpAndSettle();
+      expect(find.text('Moved 1 completed memo to Trash'), findsOneWidget);
+      expect(find.text('filed'), findsOneWidget);
+    });
+  });
+
   testWidgets('검색은 완료 메모도 찾고 완료 표시·취소선으로 보여 준다', (tester) async {
     seed([memo('a', '우유 사기', doneAt: t), memo('b', '우유 마시기')]);
     await tester.pumpWidget(const MaterialApp(home: SearchScreen()));
