@@ -102,37 +102,12 @@ void main() {
     return found!;
   }
 
-  testWidgets('체크리스트 버튼이 커서가 있는 줄에 표기를 넣고 다시 누르면 뺀다', (tester) async {
+  // T-261113-032: 편집 화면 체크리스트 단추는 없앴다(메모 왼쪽 체크 칸과 겹침).
+  testWidgets('편집 화면에 체크리스트 단추가 없고 사진 추가 단추만 있다', (tester) async {
     await pumpEditor(tester, editing: memo('milk\neggs'));
-
-    await tester.tap(find.byKey(const ValueKey<String>('checklist-button')));
-    await tester.pumpAndSettle();
-    expect(fieldText(tester), '${open}milk\neggs');
-
-    await tester.tap(find.byKey(const ValueKey<String>('checklist-button')));
-    await tester.pumpAndSettle();
-    expect(fieldText(tester), 'milk\neggs');
-  });
-
-  testWidgets('여러 줄을 고른 뒤 버튼을 누르면 그 줄들에 표기를 넣는다', (tester) async {
-    await pumpEditor(tester, editing: memo('milk\neggs'));
-    await tester.tap(find.byType(TextField));
-    await tester.pumpAndSettle();
-    final state = tester.state<EditableTextState>(find.byType(EditableText));
-    state.updateEditingValue(
-      state.textEditingValue.copyWith(
-        selection: TextSelection(
-          baseOffset: 0,
-          extentOffset: state.textEditingValue.text.length,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey<String>('checklist-button')));
-    await tester.pumpAndSettle();
-
-    expect(fieldText(tester), '${open}milk\n${open}eggs');
+    expect(find.byKey(const ValueKey<String>('checklist-button')), findsNothing);
+    expect(find.byIcon(Icons.checklist), findsNothing);
+    expect(find.byIcon(Icons.add_photo_alternate_outlined), findsOneWidget);
   });
 
   testWidgets('체크 줄에서 줄바꿈하면 다음 줄이 ☐ 로 시작한다', (tester) async {
