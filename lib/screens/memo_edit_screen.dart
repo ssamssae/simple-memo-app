@@ -42,7 +42,6 @@ class MemoEditScreen extends StatefulWidget {
 class _MemoEditScreenState extends State<MemoEditScreen> {
   late final TextEditingController _contentController;
   final GlobalKey _contentFieldKey = GlobalKey();
-  TextSelection _lastSelection = const TextSelection.collapsed(offset: -1);
   final UndoHistoryController _undoController = UndoHistoryController();
   final ScrollController _contentScrollController = ScrollController();
   // 키보드가 열릴 때만 엔진이 커서를 보이도록 바깥 스크롤을 옮긴다.
@@ -101,8 +100,6 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
     _contentController = TextEditingController(
       text: widget.memo?.content ?? '',
     );
-    _lastSelection = _contentController.selection;
-    _contentController.addListener(_rememberSelection);
     _contentController.addListener(_clampSelectionTrailingNewline);
     if (!kIsWeb && (Platform.isIOS || Platform.isAndroid)) {
       _accelSub = accelerometerEventStream(
@@ -114,37 +111,12 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   @override
   void dispose() {
     _accelSub?.cancel();
-    _contentController.removeListener(_rememberSelection);
     _contentController.removeListener(_clampSelectionTrailingNewline);
     _contentController.dispose();
     _contentScrollController.dispose();
     _contentFocusNode.dispose();
     _undoController.dispose();
     super.dispose();
-  }
-
-  void _rememberSelection() {
-    final sel = _contentController.selection;
-    if (sel.isValid) _lastSelection = sel;
-  }
-
-  void _toggleChecklistPrefixes() {
-    final value = _contentController.value;
-    final sel = value.selection.isValid ? value.selection : _lastSelection;
-    final edit = ChecklistText.togglePrefixes(
-      text: value.text,
-      base: sel.baseOffset,
-      extent: sel.extentOffset,
-      selectionValid: sel.isValid,
-    );
-    _contentController.value = value.copyWith(
-      text: edit.text,
-      selection: TextSelection(
-        baseOffset: edit.base,
-        extentOffset: edit.extent,
-      ),
-      composing: TextRange.empty,
-    );
   }
 
   void _toggleMarker(int offset) {
@@ -942,53 +914,15 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
         // 원래 AppBar actions 에 있었는데 402pt 폭에서 뒤로·취소·공유 + 되돌리기·
         // 다시실행·저장까지 8개가 되자 가운데 제목과 겹쳤다(21:05 스크린샷).
         // 위 바는 PR 이전 배치 그대로 되돌렸다.
-        floatingActionButton: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Tooltip(
-              message: AppStrings.of(context).checklist,
-              child: Material(
-                color: palette.accent,
-                elevation: 6,
-                shadowColor: Colors.black26,
-                borderRadius: BorderRadius.circular(20),
-                child: InkWell(
-                  key: const ValueKey<String>('checklist-button'),
-                  onTap: _toggleChecklistPrefixes,
-                  borderRadius: BorderRadius.circular(20),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.checklist, size: 18, color: palette.onAccent),
-                        const SizedBox(width: 4),
-                        Text(
-                          AppStrings.of(context).checklist,
-                          style: TextStyle(
-                            color: palette.onAccent,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            height: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            FloatingActionButton.small(
-              heroTag: null,
-              backgroundColor: palette.accent,
-              foregroundColor: palette.onAccent,
-              tooltip: AppStrings.of(context).addPhoto,
-              onPressed: _addPhoto,
-              child: const Icon(Icons.add_photo_alternate_outlined, size: 22),
-            ),
-          ],
+        // 체크리스트 단추는 없앴다 — 메모마다 왼쪽 체크 칸이 생겨 겹친다(대종님 2026-11-13
+        // 「체크리스트 버튼은 없애자」, T-261113-032). 옛 메모의 ☐ 줄 표시·누르기는 그대로.
+        floatingActionButton: FloatingActionButton.small(
+          heroTag: null,
+          backgroundColor: palette.accent,
+          foregroundColor: palette.onAccent,
+          tooltip: AppStrings.of(context).addPhoto,
+          onPressed: _addPhoto,
+          child: const Icon(Icons.add_photo_alternate_outlined, size: 22),
         ),
         body: GestureDetector(
           behavior: HitTestBehavior.translucent,
