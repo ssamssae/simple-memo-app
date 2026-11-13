@@ -63,6 +63,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// 다크 — 명시 「다크」와 「시스템」+기기 다크가 같이 쓴다. 순검정 바탕 + 밝은 회색 카드
   /// (대종님 2026-11-02 「보라를 빼고 검은색과 회색어때」 → 후보 2번, T-261102-001).
   /// 본문·보조 글자만 진한 크림 (대종님 2026-11-09 「진한크림」 C, T-261109-019).
+  /// 포인트색은 크림과 같은 계열 호박 골드 (대종님 2026-11-13 「보라색이 좀 언발란스」
+  /// → 후보 1번, T-261113-027). 골드 면 위 글자·아이콘은 진한 갈색.
   static const AppPalette dark = AppPalette(
     background: Color(0xFF000000),
     surface: Color(0xFF2C2C2E),
@@ -70,8 +72,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     navigationBar: Color(0xFF1C1C1E),
     textPrimary: Color(0xFFFDE3A0),
     textSecondary: Color(0xFFCDB884),
-    accent: Color(0xFF9D86FF),
-    onAccent: Color(0xFF15111F),
+    accent: Color(0xFFF2B84B),
+    onAccent: Color(0xFF1F1606),
     danger: Color(0xFFE5534B),
   );
 

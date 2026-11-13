@@ -702,10 +702,10 @@ class MemoListScreenState extends State<MemoListScreen>
                             ? () => setState(_selectedIds.clear)
                             : _selectAll),
                   style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF7C5CFF),
-                    disabledForegroundColor: const Color(
-                      0xFF7C5CFF,
-                    ).withValues(alpha: 0.3),
+                    foregroundColor: AppPalette.of(context).accent,
+                    disabledForegroundColor: AppPalette.of(context).accent.withValues(
+                      alpha: 0.3,
+                    ),
                     padding: EdgeInsets.zero,
                     minimumSize: const Size(0, 0),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -755,10 +755,10 @@ class MemoListScreenState extends State<MemoListScreen>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.sticky_note_2_outlined,
                             size: 56,
-                            color: Color(0xFF7C5CFF),
+                            color: AppPalette.of(context).accent,
                           ),
                           const SizedBox(height: 12),
                           Text(
@@ -1035,7 +1035,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
             if (_dragOffset > 0)
               Positioned.fill(
                 child: Container(
-                  color: const Color(0xFF7C5CFF),
+                  color: AppPalette.of(context).accent,
                   alignment: Alignment.centerLeft,
                   child: Listener(
                     onPointerDown: (_) => widget.onButtonTapped(),
@@ -1052,7 +1052,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                             widget.memo.isFavorite
                                 ? Icons.star_outline
                                 : Icons.star,
-                            color: Colors.white,
+                            color: AppPalette.of(context).onAccent,
                             size: 22,
                           ),
                         ),
@@ -1142,7 +1142,7 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                               widget.isSelected
                                   ? Icons.radio_button_checked
                                   : Icons.radio_button_unchecked,
-                              color: const Color(0xFF7C5CFF),
+                              color: AppPalette.of(context).accent,
                               size: 20,
                             ),
                           ),
@@ -1154,9 +1154,9 @@ class _MemoSwipeItemState extends State<_MemoSwipeItem> {
                                 widget.onButtonTapped();
                                 widget.onTap();
                               },
-                              child: const Icon(
+                              child: Icon(
                                 Icons.star,
-                                color: Color(0xFF7C5CFF),
+                                color: AppPalette.of(context).accent,
                                 size: 18,
                               ),
                             ),

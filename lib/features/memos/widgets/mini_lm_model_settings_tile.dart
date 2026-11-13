@@ -108,9 +108,9 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
             ListTile(
               key: const Key('minilm-model-tile'),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              leading: const Icon(
+              leading: Icon(
                 Icons.offline_bolt_outlined,
-                color: Color(0xFF7C5CFF),
+                color: AppPalette.of(context).accent,
               ),
               title: Text(
                 AppStrings.of(context).miniLmTitle,
@@ -182,9 +182,9 @@ class _MiniLmModelSettingsTileState extends State<MiniLmModelSettingsTile> {
         Icons.chevron_right,
         color: AppPalette.of(context).textSecondary,
       ),
-      MiniLmModelState.absent || MiniLmModelState.error => const Icon(
+      MiniLmModelState.absent || MiniLmModelState.error => Icon(
         Icons.download_outlined,
-        color: Color(0xFF7C5CFF),
+        color: AppPalette.of(context).accent,
       ),
       MiniLmModelState.unsupported => null,
     };
