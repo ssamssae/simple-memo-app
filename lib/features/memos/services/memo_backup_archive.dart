@@ -34,6 +34,9 @@ class MemoBackupArchive {
   static const maxJsonBytes = 16 * 1024 * 1024;
   static const maxEntries = 4096;
 
+  /// 새 버전이 더할 수 있는 최상위 파일 이름(예: settings.json). 풀지 않고 건너뛴다(T-261112-057 M8).
+  static final _skippableTopLevelName = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]*$');
+
   /// [todosJson] 은 옛 형식(할 일 탭 시절) 백업을 만드는 시험용이다. 앱은 더 넣지 않는다 —
   /// 할 일은 이제 메모다(T-261113-024).
   static Future<Uint8List> encode(
@@ -96,6 +99,7 @@ class MemoBackupArchive {
         throw BackupSizeException();
       }
       final names = <String>{};
+      final skipped = <String>{};
       var total = 0;
       // Check headers before decompressing, including duplicate and symlink entries.
       for (final header in directory.fileHeaders) {
@@ -117,11 +121,18 @@ class MemoBackupArchive {
             name != 'attachments/' &&
             !(name.startsWith('attachments/') &&
                 Memo.isValidImageFileName(name.substring(12)))) {
-          throw const FormatException('Invalid backup path');
+          // 모르는 최상위 파일만 건너뛴다. 하위 경로·숨김 이름은 계속 거부(T-261112-057 M8).
+          if (!_skippableTopLevelName.hasMatch(name)) {
+            throw const FormatException('Invalid backup path');
+          }
+          skipped.add(name);
         }
         final size = header.uncompressedSize;
         total += size;
-        final isJson = name == 'memos.json' || name == 'todos.json';
+        final isJson =
+            name == 'memos.json' ||
+            name == 'todos.json' ||
+            skipped.contains(name);
         if (size < 0 ||
             size > (isJson ? maxJsonBytes : maxPhotoBytes) ||
             total > maxBytes) {
@@ -135,6 +146,7 @@ class MemoBackupArchive {
       String? todosJson;
       final photos = <String, Uint8List>{};
       for (final header in directory.fileHeaders) {
+        if (skipped.contains(header.filename)) continue;
         final output = _BoundedBytes(header.uncompressedSize);
         final raw = header.file!.getRawContent();
         if (header.compressionMethod == 8) {
