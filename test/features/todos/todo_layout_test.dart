@@ -43,4 +43,25 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  // T-261113-023: 「완료 N개」 머리줄 글자가 줄 위아래 가운데에 온다(대종님 「완료가 가운데 없네」).
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('완료 머리줄 글자·완료 비우기가 위아래 가운데 (글자 $scale배)', (
+      tester,
+    ) async {
+      await pumpAt(tester, const Size(400, 800), scale);
+      final header = find.byKey(const Key('todo-done-header'));
+      await tester.tap(header);
+      await tester.pumpAndSettle();
+      final headerCenter = tester.getCenter(header).dy;
+      final label = find
+          .descendant(of: header, matching: find.byType(Text))
+          .first;
+      expect(tester.getCenter(label).dy, closeTo(headerCenter, 0.5));
+      expect(
+        tester.getCenter(find.byKey(const Key('todo-clear-done'))).dy,
+        closeTo(headerCenter, 0.5),
+      );
+    });
+  }
 }
