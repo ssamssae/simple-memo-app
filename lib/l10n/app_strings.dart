@@ -223,8 +223,8 @@ class AppStrings {
   String lastBackupAt(String stamp) =>
       isEnglish ? 'Last backup: $stamp' : '마지막 백업: $stamp';
   String get backupIntro => isEnglish
-      ? 'Back up memos safely to Google Drive\nand restore them when needed.'
-      : '메모를 Google Drive 에 안전하게 백업하고,\n필요할 때 다시 복원할 수 있어요.';
+      ? 'Back up memos and photos safely\nand restore them when needed.'
+      : '메모와 사진을 안전하게 백업하고,\n필요할 때 다시 복원할 수 있어요.';
   String backupTarget(int count) => isEnglish
       ? 'Backup target: $count active memos (Trash excluded)'
       : '백업 대상: 활성 메모 $count개 (휴지통 제외)';
@@ -232,6 +232,46 @@ class AppStrings {
   String get backupNow => isEnglish ? 'Back up now' : '지금 백업';
   String get restoring => isEnglish ? 'Restoring…' : '복원 중…';
   String get restore => isEnglish ? 'Restore' : '복원';
+
+  // 백업 기본 = 로그인 없이(아이폰 iCloud·안드로이드 파일), Drive 는 폰을 바꿀 때 추천 (T-261116-041)
+  String get icloudTitle =>
+      isEnglish ? 'Back up to iCloud (no sign-in)' : 'iCloud에 백업 (로그인 없이)';
+  String get icloudNotice => isEnglish
+      ? 'Saves memos and photos to the iCloud account on this device. Restore them on a new iPhone or iPad with the same Apple Account. The latest 5 backups are kept.'
+      : '이 기기에 로그인된 iCloud에 메모와 사진을 저장해요. 같은 Apple 계정의 새 아이폰·아이패드에서 복원할 수 있어요. 최근 백업 5개를 보관해요.';
+  String get backupToICloud => isEnglish ? 'Back up to iCloud' : 'iCloud에 백업';
+  String get restoreFromICloud =>
+      isEnglish ? 'Restore from iCloud' : 'iCloud에서 복원';
+  String get icloudSaved => isEnglish ? 'Backed up to iCloud' : 'iCloud에 백업했어요';
+  String get icloudEmpty =>
+      isEnglish ? 'No Memoyo backup in iCloud' : 'iCloud에 메모요 백업이 없어요';
+  String get icloudUnavailable => isEnglish
+      ? 'iCloud is unavailable. Sign in to your Apple Account in Settings, turn on iCloud Drive, and try again.'
+      : 'iCloud를 쓸 수 없어요. 설정에서 Apple 계정에 로그인하고 iCloud Drive를 켠 뒤 다시 시도해 주세요.';
+  String get icloudFailed => isEnglish
+      ? 'Could not finish the iCloud backup or restore. Check iCloud Drive and storage, then try again.'
+      : 'iCloud 백업·복원을 끝내지 못했어요. iCloud Drive와 저장 공간을 확인한 뒤 다시 시도해 주세요.';
+  String get icloudBackupChoose =>
+      isEnglish ? 'Choose iCloud backup' : 'iCloud 백업 선택';
+  String get fileBackupTitle =>
+      isEnglish ? 'Back up to a file (no sign-in)' : '로그인 없이 파일로 백업';
+  String get fileBackupNotice => isEnglish
+      ? 'Saves memos and photos as one backup file (.zip) without signing in. Keep it on your phone or anywhere you like, and restore from it later.'
+      : '로그인 없이 메모와 사진을 백업 파일(.zip) 하나로 저장해요. 폰이나 원하는 곳에 두면 나중에 이 파일로 복원할 수 있어요.';
+  String get moveDeviceHint => isEnglish
+      ? 'Changing phones or moving between iPhone and Android? We recommend Google Drive below.'
+      : '폰을 바꾸거나 아이폰 ↔ 안드로이드로 옮길 때는 아래 Google Drive를 추천해요.';
+  String get moveDeviceTitle => isEnglish
+      ? 'Recommended when changing phones: Google Drive'
+      : '폰을 바꿀 때 추천: Google Drive';
+  String get moveDeviceNotice => isEnglish
+      ? 'Use this when you change phones or move memos between iPhone and Android. Sign in with the same Google account on both phones.'
+      : '폰을 바꾸거나 아이폰과 안드로이드 사이에서 메모를 옮길 때 쓰세요. 두 폰에서 같은 Google 계정으로 로그인하면 돼요.';
+  String get switchGoogleAccount =>
+      isEnglish ? 'Use a different Google account' : '다른 Google 계정 쓰기';
+  String get googleAccountCleared => isEnglish
+      ? "You'll choose a Google account again on your next Drive backup or restore."
+      : '다음 Drive 백업·복원 때 Google 계정을 다시 골라요.';
 
   // 메모 편집 화면
   String get redo => isEnglish ? 'Redo' : '다시실행';

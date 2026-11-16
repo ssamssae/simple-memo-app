@@ -16,6 +16,7 @@ void main() {
   testWidgets(
     '"복원" 탭 → listBackups 권한 거부 → "Drive 권한이 필요해요" SnackBar',
     (tester) async {
+      _tallView(tester);
       var listCalls = 0;
       await tester.pumpWidget(
         MaterialApp(
@@ -38,4 +39,12 @@ void main() {
       expect(find.text('Drive 권한이 필요해요'), findsOneWidget);
     },
   );
+}
+
+// T-261116-041 — 백업 화면 맨 위에 기본(로그인 없는) 칸이 생겨 Drive 단추가 아래로 내려갔다.
+// 목록은 보이는 곳만 그리므로 화면을 키워 모든 단추를 그려 둔다.
+void _tallView(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 2400);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
 }

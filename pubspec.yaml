@@ -76,6 +76,8 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   mocktail: ^1.0.4
+  # Drive 로그인 기억 시험이 구글 로그인 아래 플랫폼만 가짜로 바꾼다(T-261116-041).
+  google_sign_in_platform_interface: ^3.1.0
   flutter_launcher_icons: ^0.14.1
   flutter_native_splash: ^2.4.0
 

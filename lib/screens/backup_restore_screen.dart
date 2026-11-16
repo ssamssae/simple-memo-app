@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/memo.dart';
+import '../features/memos/services/icloud_memo_backup.dart';
 import '../features/memos/services/memo_backup_archive.dart';
 import '../services/drive_backup_service.dart';
 import '../services/export_import_service.dart';
@@ -21,6 +24,10 @@ import '../l10n/app_strings.dart';
 //
 // Drive 함수는 SettingsScreen 의 openReviewListing 패턴처럼 주입 가능 —
 // 위젯 테스트에서 실제 sign-in 없이 mock 주입.
+//
+// 배치(T-261116-041, 대종님 11/16 — 한줄일기 #149 방식): 기본 백업은 로그인 없이
+// (아이폰 = iCloud, 안드로이드 = 파일)이 맨 위, Google Drive 는 폰을 바꾸거나
+// 아이폰 ↔ 안드로이드로 옮길 때 추천하는 칸으로 그 아래. 아이폰의 파일 백업은 맨 아래에 남긴다.
 class BackupRestoreScreen extends StatefulWidget {
   const BackupRestoreScreen({
     super.key,
@@ -29,6 +36,9 @@ class BackupRestoreScreen extends StatefulWidget {
     this.downloadBackup,
     this.saveBackupFile,
     this.pickBackupFile,
+    this.icloud,
+    this.platform,
+    this.signOutDrive,
   });
 
   final Future<DriveBackupResult> Function(List<Memo> memos)? uploadBackup;
@@ -36,6 +46,15 @@ class BackupRestoreScreen extends StatefulWidget {
   final Future<List<int>> Function(String fileId)? downloadBackup;
   final Future<bool> Function(List<Memo> memos)? saveBackupFile;
   final Future<(int, int)?> Function()? pickBackupFile;
+
+  /// 시험이 iCloud 통로 대신 넣는다. 비우면 기기 구현.
+  final ICloudMemoBackup? icloud;
+
+  /// 시험이 기기 종류 대신 넣는다. 비우면 실제 기기 종류.
+  final TargetPlatform? platform;
+
+  /// 「다른 Google 계정 쓰기」. 비우면 [DriveBackupService.signOut].
+  final Future<void> Function()? signOutDrive;
 
   static const _lastBackupKey = 'memoyo_last_backup_at';
 
@@ -49,7 +68,17 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   bool _isBackupRunning = false;
   bool _isRestoreRunning = false;
   bool _isFileRunning = false;
-  bool get _busy => _isBackupRunning || _isRestoreRunning || _isFileRunning;
+  bool _isICloudBackupRunning = false;
+  bool _isICloudRestoreRunning = false;
+  bool get _busy =>
+      _isBackupRunning ||
+      _isRestoreRunning ||
+      _isFileRunning ||
+      _isICloudBackupRunning ||
+      _isICloudRestoreRunning;
+  late final ICloudMemoBackup _icloud = widget.icloud ?? ICloudMemoBackup();
+  bool get _isIOS =>
+      (widget.platform ?? defaultTargetPlatform) == TargetPlatform.iOS;
   DateTime? _lastBackupAt;
 
   @override
@@ -276,6 +305,138 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     }
   }
 
+  Future<void> _handleICloudBackup() async {
+    if (_busy) return;
+    if (_nothingToBackUp) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.of(context).noMemosToExport)),
+      );
+      return;
+    }
+    setState(() => _isICloudBackupRunning = true);
+    final notices = _Notices.of(context);
+    notices.messenger.hideCurrentSnackBar();
+    try {
+      if (!await _icloud.isAvailable()) {
+        notices.show(notices.strings.icloudUnavailable);
+        return;
+      }
+      // 휴지통 제외 — 활성 메모만(Drive·파일 백업과 같은 zip).
+      final bytes = await ExportImportService.exportBytes(_activeMemos);
+      await _icloud.upload(bytes);
+      await _recordBackupTime();
+      notices.show(notices.strings.icloudSaved);
+    } catch (error) {
+      notices.show(_icloudErrorMessage(error, notices.strings));
+    } finally {
+      if (mounted) setState(() => _isICloudBackupRunning = false);
+    }
+  }
+
+  Future<void> _handleICloudRestore() async {
+    if (_busy) return;
+    setState(() => _isICloudRestoreRunning = true);
+    final notices = _Notices.of(context);
+    notices.messenger.hideCurrentSnackBar();
+    try {
+      if (!await _icloud.isAvailable()) {
+        notices.show(notices.strings.icloudUnavailable);
+        return;
+      }
+      final files = await _icloud.list();
+      if (!mounted) return;
+      if (files.isEmpty) {
+        notices.show(notices.strings.icloudEmpty);
+        return;
+      }
+      var picked = files.length == 1 ? files.single : null;
+      if (picked == null) {
+        // 고르는 동안에는 복원 단추가 돌지 않게 한다. 고른 뒤 받기부터 다시 돈다.
+        setState(() => _isICloudRestoreRunning = false);
+        picked = await _pickICloudBackup(files);
+        if (picked == null || !mounted) return;
+        setState(() => _isICloudRestoreRunning = true);
+      }
+      final bytes = await _icloud.download(picked.name);
+      // Drive 복원과 같이 지금 메모에 합치고, 알림에서 되돌릴 수 있다.
+      await _showImported(await ExportImportService.importBytes(bytes), notices);
+    } catch (error) {
+      notices.show(_icloudErrorMessage(error, notices.strings));
+    } finally {
+      if (mounted) setState(() => _isICloudRestoreRunning = false);
+    }
+  }
+
+  String _icloudErrorMessage(Object error, AppStrings strings) =>
+      switch (error) {
+        PlatformException(code: 'unavailable') => strings.icloudUnavailable,
+        BackupPhotoUnavailableException() => strings.backupPhotoUnavailable,
+        BackupSizeException() => strings.backupTooLarge,
+        FormatException() => strings.invalidBackupFile,
+        _ => strings.icloudFailed,
+      };
+
+  Future<void> _handleSwitchAccount() async {
+    if (_busy) return;
+    final notices = _Notices.of(context);
+    try {
+      await (widget.signOutDrive ?? DriveBackupService.signOut)();
+      notices.show(notices.strings.googleAccountCleared);
+    } catch (error) {
+      _showDriveError(
+        DriveBackupService.mapErrorForTest(error),
+        notices,
+        actionLabel: notices.strings.switchGoogleAccount,
+      );
+    }
+  }
+
+  Future<ICloudBackupFile?> _pickICloudBackup(List<ICloudBackupFile> files) {
+    final palette = AppPalette.of(context);
+    return showModalBottomSheet<ICloudBackupFile>(
+      context: context,
+      backgroundColor: palette.elevatedSurface,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                AppStrings.of(context).icloudBackupChoose,
+                style: TextStyle(
+                  color: palette.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: files.length,
+                itemBuilder: (ctx, index) {
+                  final file = files[index];
+                  return ListTile(
+                    leading: Icon(
+                      Icons.cloud_outlined,
+                      color: palette.textPrimary,
+                    ),
+                    title: Text(
+                      file.label,
+                      style: TextStyle(color: palette.textPrimary),
+                    ),
+                    onTap: () => Navigator.of(ctx).pop(file),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showFileError(Object error, _Notices notices) {
     final strings = notices.strings;
     final message = switch (error) {
@@ -383,6 +544,59 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     return entry.name;
   }
 
+  Widget _spinner(Color color) => SizedBox(
+    width: 20,
+    height: 20,
+    child: CircularProgressIndicator(strokeWidth: 2, color: color),
+  );
+
+  Widget _cardHeader(AppPalette palette, String title, String notice) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: palette.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          notice,
+          style: TextStyle(
+            color: palette.textSecondary,
+            fontSize: 13,
+            height: 1.45,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _defaultCard({
+    required AppPalette palette,
+    required String title,
+    required String notice,
+    required Widget primary,
+    required Widget secondary,
+  }) {
+    return TossSurfaceCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _cardHeader(palette, title, notice),
+          const SizedBox(height: 16),
+          primary,
+          const SizedBox(height: 12),
+          secondary,
+        ],
+      ),
+    );
+  }
+
   String _lastBackupLabel() {
     final at = _lastBackupAt;
     if (at == null) return AppStrings.of(context).neverBackedUp;
@@ -395,8 +609,21 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final strings = AppStrings.of(context);
     final buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(TossSurfaceCard.radius),
+    );
+    final primaryStyle = FilledButton.styleFrom(
+      backgroundColor: palette.accent,
+      foregroundColor: palette.onAccent,
+      minimumSize: const Size.fromHeight(52),
+      shape: buttonShape,
+    );
+    final outlinedStyle = OutlinedButton.styleFrom(
+      foregroundColor: palette.accent,
+      side: BorderSide(color: palette.accent),
+      minimumSize: const Size.fromHeight(52),
+      shape: buttonShape,
     );
     return Scaffold(
       backgroundColor: palette.background,
@@ -474,84 +701,128 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                       ],
                     ),
                   ),
+                  if (_isIOS)
+                    _defaultCard(
+                      palette: palette,
+                      title: strings.icloudTitle,
+                      notice: strings.icloudNotice,
+                      primary: FilledButton.icon(
+                        onPressed: _busy ? null : _handleICloudBackup,
+                        style: primaryStyle,
+                        icon: _isICloudBackupRunning
+                            ? _spinner(palette.onAccent)
+                            : const Icon(Icons.cloud_upload_outlined),
+                        label: Text(strings.backupToICloud),
+                      ),
+                      secondary: OutlinedButton.icon(
+                        onPressed: _busy ? null : _handleICloudRestore,
+                        style: outlinedStyle,
+                        icon: _isICloudRestoreRunning
+                            ? _spinner(palette.accent)
+                            : const Icon(Icons.cloud_download_outlined),
+                        label: Text(strings.restoreFromICloud),
+                      ),
+                    )
+                  else
+                    _defaultCard(
+                      palette: palette,
+                      title: strings.fileBackupTitle,
+                      notice: strings.fileBackupNotice,
+                      primary: FilledButton.icon(
+                        onPressed: _busy ? null : _handleFileBackup,
+                        style: primaryStyle,
+                        icon: const Icon(Icons.save_alt),
+                        label: Text(strings.backupToFile),
+                      ),
+                      secondary: OutlinedButton.icon(
+                        onPressed: _busy ? null : _handleFileRestore,
+                        style: outlinedStyle,
+                        icon: const Icon(Icons.folder_open),
+                        label: Text(strings.restoreFromFile),
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
+                    child: Text(
+                      strings.moveDeviceHint,
+                      style: TextStyle(
+                        color: palette.textSecondary,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
                   TossSurfaceCard(
                     padding: const EdgeInsets.all(16),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        FilledButton.icon(
+                        _cardHeader(
+                          palette,
+                          strings.moveDeviceTitle,
+                          strings.moveDeviceNotice,
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
                           onPressed: _busy ? null : _handleBackup,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: palette.accent,
-                            foregroundColor: palette.onAccent,
-                            minimumSize: const Size.fromHeight(52),
-                            shape: buttonShape,
-                          ),
+                          style: outlinedStyle,
                           icon: _isBackupRunning
-                              ? SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: palette.onAccent,
-                                  ),
-                                )
+                              ? _spinner(palette.accent)
                               : const Icon(Icons.backup_outlined),
                           label: Text(
                             _isBackupRunning
-                                ? AppStrings.of(context).backingUp
-                                : AppStrings.of(context).backupNow,
+                                ? strings.backingUp
+                                : strings.backupNow,
                           ),
                         ),
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
                           onPressed: _busy ? null : _handleRestore,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: palette.accent,
-                            side: BorderSide(color: palette.accent),
-                            minimumSize: const Size.fromHeight(52),
-                            shape: buttonShape,
-                          ),
+                          style: outlinedStyle,
                           icon: _isRestoreRunning
-                              ? SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: palette.accent,
-                                  ),
-                                )
+                              ? _spinner(palette.accent)
                               : const Icon(Icons.restore_outlined),
                           label: Text(
                             _isRestoreRunning
-                                ? AppStrings.of(context).restoring
-                                : AppStrings.of(context).restore,
+                                ? strings.restoring
+                                : strings.restore,
                           ),
+                        ),
+                        const SizedBox(height: 4),
+                        TextButton(
+                          onPressed: _busy ? null : _handleSwitchAccount,
+                          style: TextButton.styleFrom(
+                            foregroundColor: palette.textSecondary,
+                          ),
+                          child: Text(strings.switchGoogleAccount),
                         ),
                       ],
                     ),
                   ),
-                  TossSurfaceCard(
-                    child: Column(
-                      children: [
-                        TextButton.icon(
-                          onPressed: _busy ? null : _handleFileBackup,
-                          style: TextButton.styleFrom(
-                            foregroundColor: palette.textPrimary,
+                  // 아이폰도 파일 백업(이미 출시된 기능)을 맨 아래에 남긴다.
+                  if (_isIOS)
+                    TossSurfaceCard(
+                      child: Column(
+                        children: [
+                          TextButton.icon(
+                            onPressed: _busy ? null : _handleFileBackup,
+                            style: TextButton.styleFrom(
+                              foregroundColor: palette.textPrimary,
+                            ),
+                            icon: const Icon(Icons.save_alt),
+                            label: Text(strings.backupToFile),
                           ),
-                          icon: const Icon(Icons.save_alt),
-                          label: Text(AppStrings.of(context).backupToFile),
-                        ),
-                        TextButton.icon(
-                          onPressed: _busy ? null : _handleFileRestore,
-                          style: TextButton.styleFrom(
-                            foregroundColor: palette.textPrimary,
+                          TextButton.icon(
+                            onPressed: _busy ? null : _handleFileRestore,
+                            style: TextButton.styleFrom(
+                              foregroundColor: palette.textPrimary,
+                            ),
+                            icon: const Icon(Icons.folder_open),
+                            label: Text(strings.restoreFromFile),
                           ),
-                          icon: const Icon(Icons.folder_open),
-                          label: Text(AppStrings.of(context).restoreFromFile),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ),
       ),

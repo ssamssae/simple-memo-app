@@ -87,3 +87,15 @@ Keep outside this domain when:
 - Legacy imports from the Done tab: `screens/memo_edit_screen.dart`, `services/memo_storage.dart`,
   `services/settings_service.dart`. They stay shared — the editor and storage are the memo funnels.
 - Search shows done memos with a check mark and strikethrough. The trash screen is unchanged.
+
+## iCloud backups (T-261116-041)
+
+- `services/icloud_memo_backup.dart` is the Dart side of the no-sign-in iCloud backup that iPhone
+  shows first on the Backup & restore screen (Android shows the file backup first; Google Drive is
+  the "recommended when changing phones" card below — owner decision 11/16, same layout as 한줄일기).
+- It stores the same ZIP as file/Drive backups (`ExportImportService.exportBytes`) under
+  `memoyo-export-<ISO time>.zip` in the app's iCloud Drive folder and keeps the latest 5.
+- The iOS side is `MemoyoICloudBackup` in `ios/Runner/AppDelegate.swift`
+  (channel `memoyo/icloud_backup`, container `iCloud.com.daejongkang.simpleMemoApp`).
+  It imports no legacy top-level service; the screen does the archive encode/import.
+

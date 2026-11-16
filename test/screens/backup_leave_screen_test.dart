@@ -47,6 +47,7 @@ void main() {
 
   testWidgets('백업 중 화면을 나가도 완료 알림이 뜨고 마지막 백업 시각이 남는다',
       (tester) async {
+    _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([memo('a')]),
     });
@@ -81,6 +82,7 @@ void main() {
   });
 
   testWidgets('백업 중 화면을 나가도 실패 알림이 시작 알림을 바꾼다', (tester) async {
+    _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([memo('a')]),
     });
@@ -102,6 +104,7 @@ void main() {
 
   testWidgets('Drive 복원 중 화면을 나가도 결과를 알리고 되돌리기가 동작한다',
       (tester) async {
+    _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([memo('before')]),
     });
@@ -133,6 +136,7 @@ void main() {
 
   testWidgets('복원 직후 화면을 나가서 되돌리기를 눌러도 이전 메모로 돌아간다',
       (tester) async {
+    _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([memo('before')]),
     });
@@ -156,4 +160,12 @@ void main() {
     expect(find.text(strings.restoredPrevious(1)), findsOneWidget);
     expect((await MemoStorage.loadMemos()).map((m) => m.id), ['before']);
   });
+}
+
+// T-261116-041 — 백업 화면 맨 위에 기본(로그인 없는) 칸이 생겨 Drive 단추가 아래로 내려갔다.
+// 목록은 보이는 곳만 그리므로 화면을 키워 모든 단추를 그려 둔다.
+void _tallView(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 2400);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
 }
