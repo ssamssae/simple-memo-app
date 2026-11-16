@@ -98,13 +98,41 @@ class DriveBackupService {
     await _ensureInitialized();
     final GoogleSignInAccount account;
     try {
-      account = await _signIn.authenticate(scopeHint: _scopes);
+      account = _account ??= await _restoredAccount() ??
+          await _signIn.authenticate(scopeHint: _scopes);
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) return null;
       rethrow;
     }
-    return account.authorizationClient.authorizeScopes(_scopes);
+    // 이미 받은 Drive 권한이면 권한 창 없이 쓴다. 아직 없을 때만 권한 창을 띄운다.
+    return await account.authorizationClient.authorizationForScopes(_scopes) ??
+        await account.authorizationClient.authorizeScopes(_scopes);
   }
+
+  // Drive 로그인 기억 (T-261116-041, 한줄일기 #148 방식): 예전에는 Drive 백업·복원을
+  // 누를 때마다 계정 고르기 창이 떴다. 앱이 켜져 있는 동안은 고른 계정을 기억하고,
+  // 앱을 다시 켜면 지난 로그인을 조용히 되살린다.
+  static GoogleSignInAccount? _account;
+
+  static Future<GoogleSignInAccount?> _restoredAccount() async {
+    try {
+      return await _signIn.attemptLightweightAuthentication();
+    } catch (_) {
+      // 조용한 로그인이 실패해도 보통 계정 고르기 창은 막지 않는다.
+      return null;
+    }
+  }
+
+  /// 「다른 Google 계정 쓰기」: 로그인만 지운다(Drive 권한은 그대로).
+  /// 다음 Drive 백업·복원 때 계정을 다시 고른다.
+  static Future<void> signOut() async {
+    _account = null;
+    await _ensureInitialized();
+    await _signIn.signOut();
+  }
+
+  static Future<GoogleSignInClientAuthorization?> authorizeForTest() =>
+      _authorize();
 
   static DriveBackupResult mapErrorForTest(Object e) {
     if (e is BackupPhotoUnavailableException) return const DriveBackupPhotoUnavailable();

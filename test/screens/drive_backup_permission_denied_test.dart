@@ -15,6 +15,7 @@ void main() {
   testWidgets(
     '메모 1개 + "지금 백업" 탭 + upload 권한 거부 → "Drive 권한이 필요해요" SnackBar',
     (tester) async {
+      _tallView(tester);
       final now = DateTime(2026, 5, 29, 1, 55);
       final memo = Memo(
         id: 'perm-1',
@@ -45,6 +46,7 @@ void main() {
   );
 
   testWidgets('"지금 백업" 탭 직후 진행 안내를 먼저 보여준다', (tester) async {
+    _tallView(tester);
     final now = DateTime(2026, 6, 3, 9, 30);
     final memo = Memo(
       id: 'progress-1',
@@ -74,4 +76,12 @@ void main() {
     gate.complete(const DriveBackupPermissionDenied());
     await tester.pumpAndSettle();
   });
+}
+
+// T-261116-041 — 백업 화면 맨 위에 기본(로그인 없는) 칸이 생겨 Drive 단추가 아래로 내려갔다.
+// 목록은 보이는 곳만 그리므로 화면을 키워 모든 단추를 그려 둔다.
+void _tallView(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 2400);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
 }

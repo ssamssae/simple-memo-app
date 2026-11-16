@@ -55,6 +55,7 @@ void main() {
 
   testWidgets('설정 → "백업 & 복원" ListTile 탭 → BackupRestoreScreen 진입',
       (tester) async {
+    _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList(<Memo>[]),
     });
@@ -79,6 +80,7 @@ void main() {
   });
 
   testWidgets('"지금 백업" 탭 → uploadBackup 1회 호출 + 성공 SnackBar', (tester) async {
+    _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([active('a'), active('b')]),
     });
@@ -106,6 +108,7 @@ void main() {
   });
 
   testWidgets('백업 대상은 활성 메모만 — 휴지통 메모는 제외', (tester) async {
+    _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([
         active('a'),
@@ -141,6 +144,7 @@ void main() {
   });
 
   testWidgets('백업 완료 알림은 폴더 버튼을 누르지 않아도 자동으로 닫힌다', (tester) async {
+    _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([active('a')]),
     });
@@ -168,6 +172,7 @@ void main() {
   for (final accessibleNavigation in [false, true]) {
     testWidgets('백업 완료 알림을 직접 닫는다 (접근성: $accessibleNavigation)',
         (tester) async {
+      _tallView(tester);
       SharedPreferences.setMockInitialValues({
         'memos': Memo.encodeList([active('a')]),
       });
@@ -206,6 +211,7 @@ void main() {
   }
 
   testWidgets('설정으로 돌아온 뒤에도 백업 완료 알림이 자동으로 닫힌다', (tester) async {
+    _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([active('a')]),
     });
@@ -232,6 +238,7 @@ void main() {
 
   testWidgets('활성 메모 0개에서 "지금 백업" 탭 → 안내 SnackBar, upload 미호출',
       (tester) async {
+    _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([trashed('t1')]),
     });
@@ -255,4 +262,12 @@ void main() {
     expect(find.text('내보낼 메모가 없습니다'), findsOneWidget);
     expect(calls, 0, reason: '활성 0개면 upload 호출 안 함');
   });
+}
+
+// T-261116-041 — 백업 화면 맨 위에 기본(로그인 없는) 칸이 생겨 Drive 단추가 아래로 내려갔다.
+// 목록은 보이는 곳만 그리므로 화면을 키워 모든 단추를 그려 둔다.
+void _tallView(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 2400);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
 }

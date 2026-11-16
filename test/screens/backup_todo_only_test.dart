@@ -17,6 +17,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('옛 할 일만 있는 사람 — 백업 화면이 메모로 옮겨 지금 백업에 싣는다', (tester) async {
+    _tallView(tester);
     SharedPreferences.setMockInitialValues({});
     await TodoStorage.save([
       Todo.create(title: 'a'),
@@ -44,6 +45,7 @@ void main() {
   });
 
   testWidgets('할 일만 든 옛 백업을 가져오면 메모 가져오기 안내', (tester) async {
+    _tallView(tester);
     SharedPreferences.setMockInitialValues({'memos': '[]'});
     final bytes = await MemoBackupArchive.encode(
       [],
@@ -67,4 +69,12 @@ void main() {
     );
     expect((await MemoStorage.loadMemos()).single.content, 'x');
   });
+}
+
+// T-261116-041 — 백업 화면 맨 위에 기본(로그인 없는) 칸이 생겨 Drive 단추가 아래로 내려갔다.
+// 목록은 보이는 곳만 그리므로 화면을 키워 모든 단추를 그려 둔다.
+void _tallView(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 2400);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
 }

@@ -299,5 +299,18 @@
 			<string>3qcr597p9d.skadnetwork</string>
 		</dict>
 	</array>
+	<!-- 로그인 없는 iCloud 백업 (T-261116-041): 파일 앱의 iCloud Drive 에 「메모요」 폴더로 보인다. -->
+	<key>NSUbiquitousContainers</key>
+	<dict>
+		<key>iCloud.com.daejongkang.simpleMemoApp</key>
+		<dict>
+			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+			<true/>
+			<key>NSUbiquitousContainerName</key>
+			<string>메모요</string>
+			<key>NSUbiquitousContainerSupportedFolderLevels</key>
+			<string>None</string>
+		</dict>
+	</dict>
 </dict>
 </plist>
