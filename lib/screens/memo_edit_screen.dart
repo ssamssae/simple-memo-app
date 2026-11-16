@@ -92,6 +92,11 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
   // 스크롤 끝 여백을 이만큼 줄여 마지막 줄 ~ 스크롤 끝 거리를 _contentEndPadding 그대로 둔다.
   static const double _cardPadding = 16;
 
+  // 입력 칸(RenderEditable)은 글자 줄 폭에서 오른쪽에만 커서 자리(커서 2 + 틈 1)를 뺀다.
+  // 그래서 같은 16 을 주면 글자 오른쪽 끝이 왼쪽보다 3 더 안쪽이다 → 오른쪽 안쪽 여백에서
+  // 그만큼 덜어 좌우 글자 여백을 16 으로 맞춘다(T-261116-034, 대종님 「좌우 여백이 달라」).
+  static const double _caretMargin = 3;
+
   @override
   void initState() {
     super.initState();
@@ -1024,7 +1029,7 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                                   contentPadding: EdgeInsets.fromLTRB(
                                     _cardPadding,
                                     _cardPadding,
-                                    _cardPadding,
+                                    _cardPadding - _caretMargin,
                                     _imageFiles.isEmpty ? _cardPadding : 0,
                                   ),
                                 ),
@@ -1039,6 +1044,10 @@ class _MemoEditScreenState extends State<MemoEditScreen> {
                                   decorationColor: Colors.transparent,
                                   decorationThickness: 0,
                                 ),
+                                // 양쪽 맞춤 — 한글은 줄 끝이 단어 단위로 꺾여 오른쪽 끝이 들쭉날쭉해
+                                // 좌우 여백(16)이 달라 보였다(대종님 11/16 「좌우 여백이 달라 균형 맞춰줘」,
+                                // T-261116-034). 꺾인 줄만 오른쪽 끝까지 맞추고, 문단 마지막 줄은 그대로 왼쪽.
+                                textAlign: TextAlign.justify,
                                 maxLines: null,
                                 autofocus: !_isEditing,
                                 contextMenuBuilder: (context, editableTextState) {

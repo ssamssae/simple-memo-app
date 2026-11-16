@@ -87,7 +87,9 @@ void main() {
       closeTo(inset, 0.5),
       reason: '본문 $b 가 카드 $c 위에 붙어 있다',
     );
-    expect(c.right - b.right, closeTo(inset, 0.5));
+    // 입력 칸 상자는 오른쪽 안에 커서 자리 3 을 품는다 → 상자 끝은 13, 글자 끝은 16
+    // (글자 기준 좌우 16 은 memo_edit_side_margin_test.dart 가 지킨다, T-261116-034).
+    expect(c.right - b.right, closeTo(inset - 3, 0.5));
   });
 
   // T-261110-016 — 대종님 아이폰 스크린샷: 카드 바깥 빈칸이 왼쪽 24·오른쪽 16 으로 달랐다.
