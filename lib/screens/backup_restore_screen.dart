@@ -28,12 +28,15 @@ import '../l10n/app_strings.dart';
 // 배치(T-261116-041, 대종님 11/16 — 한줄일기 #149 방식): 기본 백업은 로그인 없이
 // (아이폰 = iCloud, 안드로이드 = 파일)이 맨 위, Google Drive 는 폰을 바꾸거나
 // 아이폰 ↔ 안드로이드로 옮길 때 추천하는 칸으로 그 아래. 아이폰의 파일 백업은 맨 아래에 남긴다.
+enum _BackupListPhase { loading, ready, failed }
+
 class BackupRestoreScreen extends StatefulWidget {
   const BackupRestoreScreen({
     super.key,
     this.uploadBackup,
     this.listBackups,
     this.downloadBackup,
+    this.deleteBackup,
     this.saveBackupFile,
     this.pickBackupFile,
     this.icloud,
@@ -44,6 +47,9 @@ class BackupRestoreScreen extends StatefulWidget {
   final Future<DriveBackupResult> Function(List<Memo> memos)? uploadBackup;
   final Future<DriveBackupListResult> Function()? listBackups;
   final Future<List<int>> Function(String fileId)? downloadBackup;
+
+  /// Drive 백업 한 건 지우기. 비우면 [DriveBackupService.deleteBackup].
+  final Future<void> Function(String fileId)? deleteBackup;
   final Future<bool> Function(List<Memo> memos)? saveBackupFile;
   final Future<(int, int)?> Function()? pickBackupFile;
 
@@ -70,21 +76,42 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   bool _isFileRunning = false;
   bool _isICloudBackupRunning = false;
   bool _isICloudRestoreRunning = false;
+  bool _isICloudDeleteRunning = false;
+  bool _isDriveDeleteRunning = false;
+  bool _isDriveListLoading = false;
   bool get _busy =>
       _isBackupRunning ||
       _isRestoreRunning ||
       _isFileRunning ||
       _isICloudBackupRunning ||
-      _isICloudRestoreRunning;
+      _isICloudRestoreRunning ||
+      _isICloudDeleteRunning ||
+      _isDriveDeleteRunning ||
+      _isDriveListLoading;
   late final ICloudMemoBackup _icloud = widget.icloud ?? ICloudMemoBackup();
   bool get _isIOS =>
       (widget.platform ?? defaultTargetPlatform) == TargetPlatform.iOS;
   DateTime? _lastBackupAt;
+  static const _listTimeout = Duration(seconds: 15);
+
+  _BackupListPhase _icloudPhase = _BackupListPhase.loading;
+  List<ICloudBackupFile> _icloudFiles = const [];
+  int _icloudEpoch = 0;
+  String? _icloudRestoringName;
+
+  bool _driveListOpen = false;
+  _BackupListPhase _drivePhase = _BackupListPhase.loading;
+  List<DriveBackupEntry> _driveEntries = const [];
+  int _driveEpoch = 0;
+  String? _driveRestoringId;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // 아이폰 iCloud 칸이 이 화면에 있다. 열릴 때 목록을 불러 온다.
+    // Drive 목록은 로그인 창이 뜰 수 있어 여기서 부르지 않는다.
+    if (_isIOS) _loadICloudBackups();
   }
 
   Future<void> _load() async {
@@ -132,6 +159,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       await _recordBackupTime();
     }
     _showBackupResult(result, notices);
+    if (result is DriveBackupSuccess && _driveListOpen) {
+      await _loadDriveBackups(showLoading: true);
+    }
   }
 
   Future<void> _recordBackupTime() async {
@@ -182,39 +212,88 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     }
   }
 
-  Future<void> _handleRestore() async {
-    if (_busy) return;
-    setState(() => _isRestoreRunning = true);
-    final list = widget.listBackups ?? DriveBackupService.listBackups;
-    final listResult = await list();
-    if (!mounted) {
-      return;
+  Future<void> _loadICloudBackups({bool showLoading = false}) async {
+    final epoch = ++_icloudEpoch;
+    if (showLoading && mounted) {
+      setState(() => _icloudPhase = _BackupListPhase.loading);
     }
-    switch (listResult) {
-      case DriveBackupListFailure(:final error):
-        setState(() => _isRestoreRunning = false);
-        _showDriveError(
-          error,
-          _Notices.of(context),
-          actionLabel: AppStrings.of(context).driveImportLabel,
-        );
-      case DriveBackupListSuccess(:final entries):
-        if (entries.isEmpty) {
-          setState(() => _isRestoreRunning = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppStrings.of(context).noBackupFileOnDrive)),
+    try {
+      final files = await _icloud.list().timeout(_listTimeout);
+      if (!mounted || epoch != _icloudEpoch) return;
+      final sorted = [...files]..sort((a, b) => b.name.compareTo(a.name));
+      setState(() {
+        _icloudFiles = sorted;
+        _icloudPhase = _BackupListPhase.ready;
+      });
+    } catch (_) {
+      if (!mounted || epoch != _icloudEpoch) return;
+      setState(() => _icloudPhase = _BackupListPhase.failed);
+    }
+  }
+
+  Future<void> _loadDriveBackups({required bool showLoading}) async {
+    final epoch = ++_driveEpoch;
+    if (mounted) {
+      setState(() {
+        _isDriveListLoading = true;
+        if (showLoading) {
+          _driveListOpen = true;
+          _drivePhase = _BackupListPhase.loading;
+        }
+      });
+    }
+    try {
+      final list = widget.listBackups ?? DriveBackupService.listBackups;
+      // 이 호출은 로그인·권한 창까지 포함한다. 15초로 끊으면 창이 떠 있는 동안
+      // 실패로 처리되고, 로그인 뒤 받은 목록은 버려진다. iCloud 목록만 15초다.
+      final result = await list();
+      if (!mounted || epoch != _driveEpoch) return;
+      switch (result) {
+        case DriveBackupListFailure(:final error):
+          setState(() => _drivePhase = _BackupListPhase.failed);
+          _showDriveError(
+            error,
+            _Notices.of(context),
+            actionLabel: AppStrings.of(context).driveImportLabel,
           );
-          return;
-        }
-        final picked = entries.length == 1
-            ? entries.single
-            : await _pickBackup(entries);
-        if (picked == null || !mounted) {
-          if (mounted) setState(() => _isRestoreRunning = false);
-          return;
-        }
-        await _importBackup(picked);
-        if (mounted) setState(() => _isRestoreRunning = false);
+        case DriveBackupListSuccess(:final entries):
+          setState(() {
+            _driveEntries = _newestDriveFirst(entries);
+            _drivePhase = _BackupListPhase.ready;
+          });
+      }
+    } catch (_) {
+      if (!mounted || epoch != _driveEpoch) return;
+      setState(() => _drivePhase = _BackupListPhase.failed);
+    } finally {
+      if (mounted && epoch == _driveEpoch) {
+        setState(() => _isDriveListLoading = false);
+      }
+    }
+  }
+
+  Future<void> _openDriveList() async {
+    if (_busy) return;
+    await _loadDriveBackups(showLoading: true);
+  }
+
+  Future<void> _restoreDrive(DriveBackupEntry backup) async {
+    if (_busy) return;
+    setState(() {
+      _isRestoreRunning = true;
+      _driveRestoringId = backup.id;
+    });
+    final notices = _Notices.of(context);
+    notices.messenger.hideCurrentSnackBar();
+    try {
+      await _importBackup(backup);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRestoreRunning = false;
+          _driveRestoringId = null;
+        });
+      }
     }
   }
 
@@ -316,6 +395,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     setState(() => _isICloudBackupRunning = true);
     final notices = _Notices.of(context);
     notices.messenger.hideCurrentSnackBar();
+    var savedToICloud = false;
     try {
       if (!await _icloud.isAvailable()) {
         notices.show(notices.strings.icloudUnavailable);
@@ -326,45 +406,109 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       await _icloud.upload(bytes);
       await _recordBackupTime();
       notices.show(notices.strings.icloudSaved);
+      savedToICloud = true;
     } catch (error) {
       notices.show(_icloudErrorMessage(error, notices.strings));
     } finally {
       if (mounted) setState(() => _isICloudBackupRunning = false);
     }
+    if (savedToICloud) await _loadICloudBackups(showLoading: true);
   }
 
-  Future<void> _handleICloudRestore() async {
+  Future<void> _restoreICloud(ICloudBackupFile file) async {
     if (_busy) return;
-    setState(() => _isICloudRestoreRunning = true);
+    setState(() {
+      _isICloudRestoreRunning = true;
+      _icloudRestoringName = file.name;
+    });
     final notices = _Notices.of(context);
     notices.messenger.hideCurrentSnackBar();
     try {
-      if (!await _icloud.isAvailable()) {
-        notices.show(notices.strings.icloudUnavailable);
-        return;
-      }
-      final files = await _icloud.list();
-      if (!mounted) return;
-      if (files.isEmpty) {
-        notices.show(notices.strings.icloudEmpty);
-        return;
-      }
-      var picked = files.length == 1 ? files.single : null;
-      if (picked == null) {
-        // 고르는 동안에는 복원 단추가 돌지 않게 한다. 고른 뒤 받기부터 다시 돈다.
-        setState(() => _isICloudRestoreRunning = false);
-        picked = await _pickICloudBackup(files);
-        if (picked == null || !mounted) return;
-        setState(() => _isICloudRestoreRunning = true);
-      }
-      final bytes = await _icloud.download(picked.name);
+      final bytes = await _icloud.download(file.name);
       // Drive 복원과 같이 지금 메모에 합치고, 알림에서 되돌릴 수 있다.
-      await _showImported(await ExportImportService.importBytes(bytes), notices);
+      await _showImported(
+        await ExportImportService.importBytes(bytes),
+        notices,
+      );
     } catch (error) {
       notices.show(_icloudErrorMessage(error, notices.strings));
     } finally {
-      if (mounted) setState(() => _isICloudRestoreRunning = false);
+      if (mounted) {
+        setState(() {
+          _isICloudRestoreRunning = false;
+          _icloudRestoringName = null;
+        });
+      }
     }
+  }
+
+  Future<void> _deleteICloud(ICloudBackupFile file) async {
+    if (_busy) return;
+    if (!await _askDeleteBackup()) return;
+    if (!mounted) return;
+    setState(() => _isICloudDeleteRunning = true);
+    final notices = _Notices.of(context);
+    try {
+      await _icloud.delete(file.name);
+      await _loadICloudBackups(showLoading: true);
+    } catch (error) {
+      notices.show(_icloudErrorMessage(error, notices.strings));
+    } finally {
+      if (mounted) setState(() => _isICloudDeleteRunning = false);
+    }
+  }
+
+  Future<void> _deleteDrive(DriveBackupEntry entry) async {
+    if (_busy) return;
+    if (!await _askDeleteBackup()) return;
+    if (!mounted) return;
+    setState(() => _isDriveDeleteRunning = true);
+    final notices = _Notices.of(context);
+    try {
+      await (widget.deleteBackup ?? DriveBackupService.deleteBackup)(entry.id);
+      await _loadDriveBackups(showLoading: true);
+    } catch (error) {
+      _showDriveError(
+        DriveBackupService.mapErrorForTest(error),
+        notices,
+        actionLabel: notices.strings.deleteThisBackup,
+      );
+    } finally {
+      if (mounted) setState(() => _isDriveDeleteRunning = false);
+    }
+  }
+
+  Future<bool> _askDeleteBackup() async {
+    final palette = AppPalette.of(context);
+    final strings = AppStrings.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: palette.elevatedSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(TossSurfaceCard.radius),
+        ),
+        content: Text(
+          strings.deleteBackupConfirm,
+          style: TextStyle(color: palette.textPrimary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            key: const Key('backup-delete-cancel'),
+            onPressed: () => Navigator.pop(ctx, false),
+            style: TextButton.styleFrom(foregroundColor: palette.textSecondary),
+            child: Text(strings.cancel),
+          ),
+          TextButton(
+            key: const Key('backup-delete-confirm'),
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: palette.danger),
+            child: Text(strings.deleteThisBackup),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
   }
 
   String _icloudErrorMessage(Object error, AppStrings strings) =>
@@ -389,52 +533,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         actionLabel: notices.strings.switchGoogleAccount,
       );
     }
-  }
-
-  Future<ICloudBackupFile?> _pickICloudBackup(List<ICloudBackupFile> files) {
-    final palette = AppPalette.of(context);
-    return showModalBottomSheet<ICloudBackupFile>(
-      context: context,
-      backgroundColor: palette.elevatedSurface,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                AppStrings.of(context).icloudBackupChoose,
-                style: TextStyle(
-                  color: palette.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: files.length,
-                itemBuilder: (ctx, index) {
-                  final file = files[index];
-                  return ListTile(
-                    leading: Icon(
-                      Icons.cloud_outlined,
-                      color: palette.textPrimary,
-                    ),
-                    title: Text(
-                      file.label,
-                      style: TextStyle(color: palette.textPrimary),
-                    ),
-                    onTap: () => Navigator.of(ctx).pop(file),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _showFileError(Object error, _Notices notices) {
@@ -488,50 +586,12 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     notices.show(message);
   }
 
-  Future<DriveBackupEntry?> _pickBackup(List<DriveBackupEntry> entries) async {
-    final palette = AppPalette.of(context);
-    return showModalBottomSheet<DriveBackupEntry>(
-      context: context,
-      backgroundColor: palette.elevatedSurface,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                AppStrings.of(context).driveBackupChoose,
-                style: TextStyle(
-                  color: palette.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: entries.length,
-                itemBuilder: (ctx, index) {
-                  final entry = entries[index];
-                  return ListTile(
-                    leading: Icon(
-                      Icons.description_outlined,
-                      color: palette.textPrimary,
-                    ),
-                    title: Text(
-                      _backupLabel(entry),
-                      style: TextStyle(color: palette.textPrimary),
-                    ),
-                    onTap: () => Navigator.of(ctx).pop(entry),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  List<DriveBackupEntry> _newestDriveFirst(List<DriveBackupEntry> entries) {
+    final sorted = [...entries];
+    if (sorted.every((entry) => entry.modifiedTime != null)) {
+      sorted.sort((a, b) => b.modifiedTime!.compareTo(a.modifiedTime!));
+    }
+    return sorted;
   }
 
   String _backupLabel(DriveBackupEntry entry) {
@@ -542,6 +602,115 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       return '${match.group(1)} ${match.group(2)}:${match.group(3)}:${match.group(4)}';
     }
     return entry.name;
+  }
+
+  Widget _backupList({
+    required AppPalette palette,
+    required AppStrings strings,
+    required _BackupListPhase phase,
+    required int count,
+    required VoidCallback onRetry,
+    required Key retryKey,
+    required List<Widget> rows,
+  }) {
+    final style = TextStyle(
+      color: palette.textSecondary,
+      fontSize: 13,
+      height: 1.4,
+    );
+    return switch (phase) {
+      _BackupListPhase.loading => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            _spinner(palette.accent),
+            const SizedBox(width: 8),
+            Text(strings.backupListLoading, style: style),
+          ],
+        ),
+      ),
+      _BackupListPhase.failed => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(strings.backupListFailed, style: style),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              key: retryKey,
+              onPressed: _busy ? null : onRetry,
+              style: TextButton.styleFrom(foregroundColor: palette.accent),
+              child: Text(strings.tryAgain),
+            ),
+          ),
+        ],
+      ),
+      _BackupListPhase.ready when count == 0 => Text(
+        strings.noBackupsYet,
+        style: style,
+      ),
+      _BackupListPhase.ready => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: rows,
+      ),
+    };
+  }
+
+  Widget _backupActions({
+    required AppPalette palette,
+    required AppStrings strings,
+    required String label,
+    required String? sizeLabel,
+    required bool restoring,
+    required VoidCallback onRestore,
+    required VoidCallback onDelete,
+    required Key restoreKey,
+    required Key deleteKey,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: palette.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (sizeLabel != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              sizeLabel,
+              style: TextStyle(color: palette.textSecondary, fontSize: 12),
+            ),
+          ],
+          Row(
+            children: [
+              TextButton(
+                key: restoreKey,
+                onPressed: _busy ? null : onRestore,
+                style: TextButton.styleFrom(
+                  foregroundColor: palette.accent,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: Text(restoring ? strings.restoring : strings.restore),
+              ),
+              TextButton(
+                key: deleteKey,
+                onPressed: _busy ? null : onDelete,
+                style: TextButton.styleFrom(
+                  foregroundColor: palette.danger,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: Text(strings.deleteThisBackup),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _spinner(Color color) => SizedBox(
@@ -670,9 +839,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          AppStrings.of(
-                            context,
-                          ).backupTarget(_activeMemos.length),
+                          AppStrings.of(context)
+                              .backupTarget(_activeMemos.length),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: palette.textPrimary,
@@ -702,25 +870,52 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     ),
                   ),
                   if (_isIOS)
-                    _defaultCard(
-                      palette: palette,
-                      title: strings.icloudTitle,
-                      notice: strings.icloudNotice,
-                      primary: FilledButton.icon(
-                        onPressed: _busy ? null : _handleICloudBackup,
-                        style: primaryStyle,
-                        icon: _isICloudBackupRunning
-                            ? _spinner(palette.onAccent)
-                            : const Icon(Icons.cloud_upload_outlined),
-                        label: Text(strings.backupToICloud),
-                      ),
-                      secondary: OutlinedButton.icon(
-                        onPressed: _busy ? null : _handleICloudRestore,
-                        style: outlinedStyle,
-                        icon: _isICloudRestoreRunning
-                            ? _spinner(palette.accent)
-                            : const Icon(Icons.cloud_download_outlined),
-                        label: Text(strings.restoreFromICloud),
+                    TossSurfaceCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _cardHeader(
+                            palette,
+                            strings.icloudTitle,
+                            strings.icloudNotice,
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: _busy ? null : _handleICloudBackup,
+                            style: primaryStyle,
+                            icon: _isICloudBackupRunning
+                                ? _spinner(palette.onAccent)
+                                : const Icon(Icons.cloud_upload_outlined),
+                            label: Text(strings.backupToICloud),
+                          ),
+                          const SizedBox(height: 12),
+                          _backupList(
+                            palette: palette,
+                            strings: strings,
+                            phase: _icloudPhase,
+                            count: _icloudFiles.length,
+                            onRetry: () =>
+                                _loadICloudBackups(showLoading: true),
+                            retryKey: const Key('icloud-list-retry'),
+                            rows: [
+                              for (final file in _icloudFiles)
+                                _backupActions(
+                                  palette: palette,
+                                  strings: strings,
+                                  label: file.label,
+                                  sizeLabel: strings.backupFileSize(file.size),
+                                  restoring: _icloudRestoringName == file.name,
+                                  onRestore: () => _restoreICloud(file),
+                                  onDelete: () => _deleteICloud(file),
+                                  restoreKey: Key(
+                                    'icloud-restore-${file.name}',
+                                  ),
+                                  deleteKey: Key('icloud-delete-${file.name}'),
+                                ),
+                            ],
+                          ),
+                        ],
                       ),
                     )
                   else
@@ -777,17 +972,38 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                         ),
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
-                          onPressed: _busy ? null : _handleRestore,
+                          onPressed: _busy ? null : _openDriveList,
                           style: outlinedStyle,
-                          icon: _isRestoreRunning
-                              ? _spinner(palette.accent)
-                              : const Icon(Icons.restore_outlined),
-                          label: Text(
-                            _isRestoreRunning
-                                ? strings.restoring
-                                : strings.restore,
-                          ),
+                          icon: const Icon(Icons.list_alt),
+                          label: Text(strings.showDriveBackupList),
                         ),
+                        if (_driveListOpen) ...[
+                          const SizedBox(height: 12),
+                          _backupList(
+                            palette: palette,
+                            strings: strings,
+                            phase: _drivePhase,
+                            count: _driveEntries.length,
+                            onRetry: () => _loadDriveBackups(showLoading: true),
+                            retryKey: const Key('drive-list-retry'),
+                            rows: [
+                              for (final entry in _driveEntries)
+                                _backupActions(
+                                  palette: palette,
+                                  strings: strings,
+                                  label: _backupLabel(entry),
+                                  sizeLabel: entry.size == null
+                                      ? null
+                                      : strings.backupFileSize(entry.size!),
+                                  restoring: _driveRestoringId == entry.id,
+                                  onRestore: () => _restoreDrive(entry),
+                                  onDelete: () => _deleteDrive(entry),
+                                  restoreKey: Key('drive-restore-${entry.id}'),
+                                  deleteKey: Key('drive-delete-${entry.id}'),
+                                ),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 4),
                         TextButton(
                           onPressed: _busy ? null : _handleSwitchAccount,

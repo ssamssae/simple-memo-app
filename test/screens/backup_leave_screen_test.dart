@@ -27,10 +27,12 @@ void main() {
     BackupRestoreScreen screen,
   ) async {
     final navigator = GlobalKey<NavigatorState>();
-    await tester.pumpWidget(MaterialApp(
-      navigatorKey: navigator,
-      home: const Scaffold(body: Text('설정 화면')),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: navigator,
+        home: const Scaffold(body: Text('설정 화면')),
+      ),
+    );
     navigator.currentState!.push(
       MaterialPageRoute<void>(builder: (_) => screen),
     );
@@ -45,8 +47,7 @@ void main() {
     expect(find.byType(BackupRestoreScreen), findsNothing);
   }
 
-  testWidgets('백업 중 화면을 나가도 완료 알림이 뜨고 마지막 백업 시각이 남는다',
-      (tester) async {
+  testWidgets('백업 중 화면을 나가도 완료 알림이 뜨고 마지막 백업 시각이 남는다', (tester) async {
     _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([memo('a')]),
@@ -73,9 +74,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(strings.driveSaved), findsNothing);
 
-    navigator.push(MaterialPageRoute<void>(
-      builder: (_) => const BackupRestoreScreen(),
-    ));
+    navigator.push(
+      MaterialPageRoute<void>(builder: (_) => const BackupRestoreScreen()),
+    );
     await tester.pumpAndSettle();
     expect(find.text(strings.neverBackedUp), findsNothing);
     expect(find.textContaining(strings.lastBackupAt('')), findsOneWidget);
@@ -102,8 +103,7 @@ void main() {
     expect(find.text(strings.checkInternet), findsOneWidget);
   });
 
-  testWidgets('Drive 복원 중 화면을 나가도 결과를 알리고 되돌리기가 동작한다',
-      (tester) async {
+  testWidgets('Drive 복원 중 화면을 나가도 결과를 알리고 되돌리기가 동작한다', (tester) async {
     _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([memo('before')]),
@@ -113,20 +113,28 @@ void main() {
       tester,
       BackupRestoreScreen(
         listBackups: () async => const DriveBackupListSuccess([
-          DriveBackupEntry(id: 'f1', name: 'memoyo-export-2026-10-21T09-00-00.zip'),
+          DriveBackupEntry(
+            id: 'f1',
+            name: 'memoyo-export-2026-10-21T09-00-00.zip',
+          ),
         ]),
         downloadBackup: (_) => download.future,
       ),
     );
 
-    await tester.tap(find.text(strings.restore));
+    await tester.tap(find.text(strings.showDriveBackupList));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('drive-restore-f1')));
     await tester.pump();
     await leave(tester, navigator);
 
     download.complete(utf8.encode(Memo.encodeList([memo('after')])));
     await tester.pumpAndSettle();
     expect(find.text(strings.importedMemos(1, 2)), findsOneWidget);
-    expect((await MemoStorage.loadMemos()).map((m) => m.id), ['before', 'after']);
+    expect((await MemoStorage.loadMemos()).map((m) => m.id), [
+      'before',
+      'after',
+    ]);
 
     await tester.tap(find.text(strings.undo));
     await tester.pumpAndSettle();
@@ -134,8 +142,7 @@ void main() {
     expect((await MemoStorage.loadMemos()).map((m) => m.id), ['before']);
   });
 
-  testWidgets('복원 직후 화면을 나가서 되돌리기를 눌러도 이전 메모로 돌아간다',
-      (tester) async {
+  testWidgets('복원 직후 화면을 나가서 되돌리기를 눌러도 이전 메모로 돌아간다', (tester) async {
     _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([memo('before')]),

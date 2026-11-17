@@ -68,7 +68,7 @@ void main() {
       _hint,
       '폰을 바꿀 때 추천: Google Drive',
       '지금 백업',
-      '복원',
+      'Drive 백업 목록 보기',
       '다른 Google 계정 쓰기',
     ]);
     expect(find.text('iCloud에 백업'), findsNothing);
@@ -81,10 +81,11 @@ void main() {
     expectTopToBottom(tester, [
       'iCloud에 백업 (로그인 없이)',
       'iCloud에 백업',
-      'iCloud에서 복원',
+      '아직 백업이 없어요',
       _hint,
       '폰을 바꿀 때 추천: Google Drive',
       '지금 백업',
+      'Drive 백업 목록 보기',
       '다른 Google 계정 쓰기',
       '파일로 백업',
       '파일에서 복원',
@@ -123,12 +124,12 @@ void main() {
     expect(icloud.uploadCount, 0);
   });
 
-  testWidgets('iCloud 복원은 최신 백업부터 고르고 지금 메모에 합친다', (tester) async {
+  testWidgets('iCloud 목록은 최신이 위이고 고른 줄을 지금 메모에 합친다', (tester) async {
     await MemoStorage.saveMemos([memo('a', '장보기')]);
     const newer = 'memoyo-export-2026-11-16T19-05-00.zip';
     const older = 'memoyo-export-2026-11-15T09-00-00.zip';
     final icloud = _FakeICloud(
-      files: [_file(newer), _file(older)],
+      files: [_file(older, size: 1500), _file(newer, size: 2500000)],
       payloads: {
         newer: await ExportImportService.exportBytes([memo('b', '새 메모')]),
         older: await ExportImportService.exportBytes([memo('z', '옛 메모')]),
@@ -136,15 +137,18 @@ void main() {
     );
     await pump(tester, platform: TargetPlatform.iOS, icloud: icloud);
 
-    await tester.tap(find.text('iCloud에서 복원'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('iCloud 백업 선택'), findsOneWidget);
+    expect(find.text('iCloud 백업 선택'), findsNothing);
+    expect(find.text('iCloud에서 복원'), findsNothing);
+    expect(find.text('2026-11-16 19:05:00'), findsOneWidget);
+    expect(find.text('2.5 MB'), findsOneWidget);
+    expect(find.text('2026-11-15 09:00:00'), findsOneWidget);
+    expect(find.text('1.5 KB'), findsOneWidget);
     expect(
       top(tester, '2026-11-16 19:05:00'),
       lessThan(top(tester, '2026-11-15 09:00:00')),
     );
-    await tester.tap(find.text('2026-11-16 19:05:00'));
+
+    await tester.tap(find.byKey(const Key('icloud-restore-$newer')));
     await tester.pumpAndSettle();
 
     expect(icloud.downloaded, newer);
@@ -153,23 +157,27 @@ void main() {
     expect(find.textContaining('되돌리기'), findsOneWidget);
   });
 
-  testWidgets('iCloud 에 백업이 없으면 알려 준다', (tester) async {
+  testWidgets('iCloud 에 백업이 없으면 목록에 알려 준다', (tester) async {
     await pump(tester, platform: TargetPlatform.iOS);
 
-    await tester.tap(find.text('iCloud에서 복원'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('iCloud에 메모요 백업이 없어요'), findsOneWidget);
+    expect(find.text('아직 백업이 없어요'), findsOneWidget);
+    expect(find.text('iCloud에 메모요 백업이 없어요'), findsNothing);
   });
 
-  testWidgets('iCloud 목록을 못 받으면 실패 안내를 보여 준다', (tester) async {
+  testWidgets('iCloud 목록을 못 받으면 다시 시도할 수 있다', (tester) async {
     final icloud = _FakeICloud(listError: PlatformException(code: 'failed'));
     await pump(tester, platform: TargetPlatform.iOS, icloud: icloud);
 
-    await tester.tap(find.text('iCloud에서 복원'));
+    expect(find.text('목록을 불러오지 못했어요'), findsOneWidget);
+    expect(find.text(_failed), findsNothing);
+
+    icloud.listError = null;
+    icloud.files = [_file('memoyo-export-2026-11-16T19-05-00.zip', size: 2000)];
+    await tester.tap(find.byKey(const Key('icloud-list-retry')));
     await tester.pumpAndSettle();
 
-    expect(find.text(_failed), findsOneWidget);
+    expect(find.text('2026-11-16 19:05:00'), findsOneWidget);
+    expect(find.text('2 KB'), findsOneWidget);
   });
 
   testWidgets('다른 Google 계정 쓰기는 Drive 로그인만 지우고 알려 준다', (tester) async {
@@ -192,21 +200,21 @@ const _unavailable =
 const _failed =
     'iCloud 백업·복원을 끝내지 못했어요. iCloud Drive와 저장 공간을 확인한 뒤 다시 시도해 주세요.';
 
-ICloudBackupFile _file(String name) =>
-    ICloudBackupFile(name: name, modified: DateTime(2026), size: 1);
+ICloudBackupFile _file(String name, {int size = 1}) =>
+    ICloudBackupFile(name: name, modified: DateTime(2026), size: size);
 
 class _FakeICloud extends ICloudMemoBackup {
   _FakeICloud({
     this.available = true,
-    this.files = const [],
+    List<ICloudBackupFile> files = const [],
     this.payloads = const {},
     this.listError,
-  });
+  }) : files = [...files];
 
   final bool available;
-  final List<ICloudBackupFile> files;
+  List<ICloudBackupFile> files;
   final Map<String, Uint8List> payloads;
-  final Object? listError;
+  Object? listError;
   int uploadCount = 0;
   Uint8List? uploaded;
   String? downloaded;

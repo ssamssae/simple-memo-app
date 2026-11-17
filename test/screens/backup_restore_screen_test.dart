@@ -53,8 +53,9 @@ void main() {
     );
   }
 
-  testWidgets('설정 → "백업 & 복원" ListTile 탭 → BackupRestoreScreen 진입',
-      (tester) async {
+  testWidgets('설정 → "백업 & 복원" ListTile 탭 → BackupRestoreScreen 진입', (
+    tester,
+  ) async {
     _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList(<Memo>[]),
@@ -76,7 +77,8 @@ void main() {
 
     // BackupRestoreScreen 고유 버튼.
     expect(find.text('지금 백업'), findsOneWidget);
-    expect(find.text('복원'), findsOneWidget);
+    expect(find.text('Drive 백업 목록 보기'), findsOneWidget);
+    expect(find.text('복원'), findsNothing);
   });
 
   testWidgets('"지금 백업" 탭 → uploadBackup 1회 호출 + 성공 SnackBar', (tester) async {
@@ -170,8 +172,9 @@ void main() {
   });
 
   for (final accessibleNavigation in [false, true]) {
-    testWidgets('백업 완료 알림을 직접 닫는다 (접근성: $accessibleNavigation)',
-        (tester) async {
+    testWidgets('백업 완료 알림을 직접 닫는다 (접근성: $accessibleNavigation)', (
+      tester,
+    ) async {
       _tallView(tester);
       SharedPreferences.setMockInitialValues({
         'memos': Memo.encodeList([active('a')]),
@@ -179,9 +182,8 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              accessibleNavigation: accessibleNavigation,
-            ),
+            data: MediaQuery.of(context)
+                .copyWith(accessibleNavigation: accessibleNavigation),
             child: child!,
           ),
           home: BackupRestoreScreen(
@@ -216,15 +218,19 @@ void main() {
       'memos': Memo.encodeList([active('a')]),
     });
     final navigator = GlobalKey<NavigatorState>();
-    await tester.pumpWidget(MaterialApp(
-      navigatorKey: navigator,
-      home: const Scaffold(body: Text('설정 화면')),
-    ));
-    navigator.currentState!.push(MaterialPageRoute<void>(
-      builder: (_) => BackupRestoreScreen(
-        uploadBackup: (_) async => const DriveBackupSuccess('https://x'),
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: navigator,
+        home: const Scaffold(body: Text('설정 화면')),
       ),
-    ));
+    );
+    navigator.currentState!.push(
+      MaterialPageRoute<void>(
+        builder: (_) => BackupRestoreScreen(
+          uploadBackup: (_) async => const DriveBackupSuccess('https://x'),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('지금 백업'));
     await tester.pumpAndSettle();
@@ -236,8 +242,7 @@ void main() {
     expect(find.text('Drive 에 저장됐어요'), findsNothing);
   });
 
-  testWidgets('활성 메모 0개에서 "지금 백업" 탭 → 안내 SnackBar, upload 미호출',
-      (tester) async {
+  testWidgets('활성 메모 0개에서 "지금 백업" 탭 → 안내 SnackBar, upload 미호출', (tester) async {
     _tallView(tester);
     SharedPreferences.setMockInitialValues({
       'memos': Memo.encodeList([trashed('t1')]),
