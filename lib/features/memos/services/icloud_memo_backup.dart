@@ -27,9 +27,9 @@ String memoyoBackupFileName(DateTime now) =>
     'memoyo-export-${now.toIso8601String().replaceAll(':', '-').split('.').first}.zip';
 
 /// [memoyoBackupFileName] 이 만든 이름인지. iCloud 폴더에서 메모요 백업만 고를 때 쓴다.
-bool isMemoyoBackupFileName(String name) => RegExp(
-  r'^memoyo-export-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.zip$',
-).hasMatch(name);
+bool isMemoyoBackupFileName(String name) =>
+    RegExp(r'^memoyo-export-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.zip$')
+        .hasMatch(name);
 
 /// 아이폰 기본 백업 — 로그인 없는 iCloud (T-261116-041, 한줄일기 방식).
 ///
@@ -101,10 +101,15 @@ class ICloudMemoBackup {
     return bytes;
   }
 
+  /// 백업 파일 하나를 지운다. 보관 개수를 넘는 정리는 이 메서드를 쓴다.
+  Future<void> delete(String name) async {
+    await _channel.invokeMethod<void>('delete', {'name': name});
+  }
+
   Future<void> _prune() async {
     final files = await list();
     for (final old in files.skip(keep)) {
-      await _channel.invokeMethod<void>('delete', {'name': old.name});
+      await delete(old.name);
     }
   }
 }

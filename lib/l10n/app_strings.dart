@@ -172,8 +172,18 @@ class AppStrings {
       ? (n == 0 ? 'Clear selected' : 'Clear selected ($n)')
       : (n == 0 ? '선택 비우기' : '선택 비우기 ($n)');
   static const _monthsEn = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   /// 완료 탭 줄 오른쪽의 작은 완료 날짜. 올해면 「11월 13일」, 다른 해면 짧은 숫자.
@@ -189,11 +199,13 @@ class AppStrings {
   }
 
   // 백업 & 복원 화면
-  String get noMemosToExport => isEnglish ? 'No memos to export' : '내보낼 메모가 없습니다';
+  String get noMemosToExport =>
+      isEnglish ? 'No memos to export' : '내보낼 메모가 없습니다';
   String get driveBackupStarting =>
       isEnglish ? 'Starting Drive backup' : 'Drive 백업을 시작합니다';
   String get driveSaved => isEnglish ? 'Saved to Drive' : 'Drive 에 저장됐어요';
-  String get openMemoyoFolder => isEnglish ? 'Open Memoyo folder' : 'Memoyo 폴더 열기';
+  String get openMemoyoFolder =>
+      isEnglish ? 'Open Memoyo folder' : 'Memoyo 폴더 열기';
   String get checkInternet =>
       isEnglish ? 'Check your internet connection' : '인터넷 연결을 확인해주세요';
   String get drivePermissionNeeded =>
@@ -209,16 +221,17 @@ class AppStrings {
   String actionDone(String label) => isEnglish ? '$label done' : '$label 완료';
   String get noBackupFileOnDrive =>
       isEnglish ? 'No backup file on Drive' : 'Drive 에 백업 파일이 없어요';
-  String get noMemosToImport => isEnglish ? 'No memos to import' : '가져올 메모가 없습니다';
+  String get noMemosToImport =>
+      isEnglish ? 'No memos to import' : '가져올 메모가 없습니다';
   String importedMemos(int incoming, int total) => isEnglish
       ? 'Imported $incoming memos (total $total)'
       : '메모 $incoming개 가져왔습니다 (전체 $total개)';
   String get invalidBackupFile =>
       isEnglish ? 'Not a valid Memoyo backup file' : '올바른 메모요 백업 파일이 아닙니다';
-  String restoredPrevious(int count) => isEnglish
-      ? 'Restored previous $count memos'
-      : '이전 메모 $count개로 되돌렸습니다';
-  String get driveBackupChoose => isEnglish ? 'Choose Drive backup' : 'Drive 백업 선택';
+  String restoredPrevious(int count) =>
+      isEnglish ? 'Restored previous $count memos' : '이전 메모 $count개로 되돌렸습니다';
+  String get driveBackupChoose =>
+      isEnglish ? 'Choose Drive backup' : 'Drive 백업 선택';
   String get neverBackedUp => isEnglish ? 'No backup yet' : '아직 백업한 적 없어요';
   String lastBackupAt(String stamp) =>
       isEnglish ? 'Last backup: $stamp' : '마지막 백업: $stamp';
@@ -253,6 +266,35 @@ class AppStrings {
       : 'iCloud 백업·복원을 끝내지 못했어요. iCloud Drive와 저장 공간을 확인한 뒤 다시 시도해 주세요.';
   String get icloudBackupChoose =>
       isEnglish ? 'Choose iCloud backup' : 'iCloud 백업 선택';
+  String get backupListLoading => isEnglish ? 'Loading…' : '불러오는 중';
+  String get backupListFailed =>
+      isEnglish ? "Couldn't load the backup list" : '목록을 불러오지 못했어요';
+  String get tryAgain => isEnglish ? 'Try again' : '다시 시도';
+  String get noBackupsYet => isEnglish ? 'No backups yet' : '아직 백업이 없어요';
+  String get deleteBackupConfirm => isEnglish
+      ? 'Delete this backup? This cannot be undone.'
+      : '이 백업을 지울까요? 지우면 되돌릴 수 없어요.';
+  String get deleteThisBackup => isEnglish ? 'Delete' : '지우기';
+  String get showDriveBackupList =>
+      isEnglish ? 'Show Drive backups' : 'Drive 백업 목록 보기';
+
+  /// 백업 파일 크기. KB = 1000, MB = 1000² (모델 용량 문구와 같은 십진).
+  String backupFileSize(int bytes) {
+    if (bytes < 0) bytes = 0;
+    const kb = 1000;
+    const mb = 1000 * 1000;
+    String number(double value) {
+      if (value >= 10) return value.round().toString();
+      final text = value.toStringAsFixed(1);
+      return text.endsWith('.0') ? text.substring(0, text.length - 2) : text;
+    }
+
+    if (bytes >= mb) return '${number(bytes / mb)} MB';
+    final value = bytes / kb;
+    if (bytes > 0 && value < 0.1) return '0.1 KB';
+    return '${number(value)} KB';
+  }
+
   String get fileBackupTitle =>
       isEnglish ? 'Back up to a file (no sign-in)' : '로그인 없이 파일로 백업';
   String get fileBackupNotice => isEnglish
@@ -276,12 +318,16 @@ class AppStrings {
   // 메모 편집 화면
   String get redo => isEnglish ? 'Redo' : '다시실행';
   String get undoAction => isEnglish ? 'Undo' : '실행취소';
-  String get whichAction => isEnglish ? 'Which action would you like?' : '어떤 작업을 할까요?';
-  String get enterContent => isEnglish ? 'Please enter some content.' : '내용을 입력해주세요.';
-  String get nothingToShare => isEnglish ? 'Nothing to share.' : '공유할 내용이 없습니다.';
+  String get whichAction =>
+      isEnglish ? 'Which action would you like?' : '어떤 작업을 할까요?';
+  String get enterContent =>
+      isEnglish ? 'Please enter some content.' : '내용을 입력해주세요.';
+  String get nothingToShare =>
+      isEnglish ? 'Nothing to share.' : '공유할 내용이 없습니다.';
   String shareFailed(Object error) =>
       isEnglish ? 'Share failed: $error' : '공유 실패: $error';
-  String get discardConfirmTitle => isEnglish ? 'Discard changes?' : '취소하시겠습니까?';
+  String get discardConfirmTitle =>
+      isEnglish ? 'Discard changes?' : '취소하시겠습니까?';
   String get discardConfirmBody =>
       isEnglish ? 'Your edits will not be saved.' : '수정한 내용이 저장되지 않습니다.';
   String get keepEditing => isEnglish ? 'Keep editing' : '계속수정';
@@ -293,13 +339,11 @@ class AppStrings {
   String checklistProgress(int done, int total) => '$done/$total';
 
   // 기기 내 뜻 검색 모델 (MiniLM) 행·다이얼로그
-  String get miniLmTitle =>
-      isEnglish ? 'Semantic search' : '뜻 검색';
+  String get miniLmTitle => isEnglish ? 'Semantic search' : '뜻 검색';
   String get miniLmChecking =>
       isEnglish ? 'Checking install status' : '설치 상태 확인 중';
-  String get miniLmUnsupported => isEnglish
-      ? 'This device uses Gemini search'
-      : '이 기기에서는 Gemini 검색을 사용합니다';
+  String get miniLmUnsupported =>
+      isEnglish ? 'This device uses Gemini search' : '이 기기에서는 Gemini 검색을 사용합니다';
   // T-260811-015: 용량 표기 기준을 여기 한 곳에 고정한다 — MB = 10^6(십진), 올림.
   //   근거 ①다운로드 용량은 스토어·통신사 관행이 십진이다 ②올림이라 실제보다 작게
   //   안내하는 일이 없다. 종전 문구의 '124MB' 는 하드코딩이었고 매니페스트 합계
@@ -324,34 +368,33 @@ class AppStrings {
   String get miniLmReady => isEnglish
       ? 'Offline search ready · $_downloadSizeLabel'
       : '오프라인 검색 가능 · $_downloadSizeLabel';
-  String get miniLmInsufficientSpace => isEnglish
-      ? 'Not enough storage · try again'
-      : '저장 공간이 부족합니다 · 다시 시도';
+  String get miniLmInsufficientSpace =>
+      isEnglish ? 'Not enough storage · try again' : '저장 공간이 부족합니다 · 다시 시도';
   String get miniLmManifestInvalid =>
       isEnglish ? 'Model verification failed · try again' : '모델 검증 실패 · 다시 시도';
-  String get miniLmInstallFailed => isEnglish ? 'Install failed · try again' : '설치 실패 · 다시 시도';
+  String get miniLmInstallFailed =>
+      isEnglish ? 'Install failed · try again' : '설치 실패 · 다시 시도';
   String get miniLmDeleteTooltip => isEnglish ? 'Delete model' : '모델 삭제';
   String get miniLmInstallTitle =>
       isEnglish ? 'Install semantic search model' : '뜻 검색 모델 설치';
   String get miniLmInstallBody => isEnglish
       ? 'Downloads the MiniLM model and tokenizer (about $_downloadSizeLabel). '
-          'Wi-Fi is recommended, and you can delete it anytime in Settings. '
-          'Files must pass the SHA-256 verification pinned in the app to be installed.'
+            'Wi-Fi is recommended, and you can delete it anytime in Settings. '
+            'Files must pass the SHA-256 verification pinned in the app to be installed.'
       : 'MiniLM 모델과 토크나이저 약 $_downloadSizeLabel를 다운로드합니다. '
-          'Wi-Fi 사용을 권장하며 설정에서 언제든 삭제할 수 있습니다. '
-          '파일은 앱에 고정된 SHA-256 검증을 통과해야 설치됩니다.';
+            'Wi-Fi 사용을 권장하며 설정에서 언제든 삭제할 수 있습니다. '
+            '파일은 앱에 고정된 SHA-256 검증을 통과해야 설치됩니다.';
   String get miniLmDeleteTitle =>
       isEnglish ? 'Delete semantic search model' : '뜻 검색 모델 삭제';
   String get miniLmDeleteBody => isEnglish
       ? 'Deletes the model used for offline semantic search. '
-          'Your memos are not deleted. You can reinstall the model anytime.'
+            'Your memos are not deleted. You can reinstall the model anytime.'
       : '오프라인 뜻 검색에 사용하는 모델을 삭제합니다. '
-          '기존 메모는 삭제되지 않습니다. 모델은 언제든 다시 설치할 수 있습니다.';
+            '기존 메모는 삭제되지 않습니다. 모델은 언제든 다시 설치할 수 있습니다.';
 
   // T-260811-015: 설치된 모델 상세. 서브타이틀 한 줄에 해시·revision 까지 넣으면
   //   읽을 수 없으므로 탭했을 때만 편다. 값은 전부 매니페스트 상수에서 온다.
-  String get miniLmDetailsTitle =>
-      isEnglish ? 'Installed model' : '설치된 모델 정보';
+  String get miniLmDetailsTitle => isEnglish ? 'Installed model' : '설치된 모델 정보';
   String get miniLmDetailsClose => isEnglish ? 'Close' : '닫기';
 
   /// sha256·revision 은 앞 12자·8자만 — 대조에는 충분하고 한 줄을 넘기지 않는다.
@@ -391,9 +434,8 @@ class AppStrings {
   String get memoDeleted => isEnglish ? 'Memo deleted' : '메모를 삭제했습니다';
   String memosDeleted(int count) =>
       isEnglish ? 'Deleted $count memos' : '메모 $count개를 삭제했습니다';
-  String deleteMemoConfirm(String firstLine) => isEnglish
-      ? 'Delete memo "$firstLine"?'
-      : '"$firstLine" 메모를 삭제하시겠습니까?';
+  String deleteMemoConfirm(String firstLine) =>
+      isEnglish ? 'Delete memo "$firstLine"?' : '"$firstLine" 메모를 삭제하시겠습니까?';
   String get deselectAll => isEnglish ? 'Deselect all' : '선택해제';
   String get selectAll => isEnglish ? 'Select all' : '전체선택';
   String deleteWithCount(int count) =>
@@ -404,9 +446,8 @@ class AppStrings {
 
   // 휴지통 화면
   String get memoRestored => isEnglish ? 'Memo restored' : '메모를 복구했습니다';
-  String get keptInTrashHint => isEnglish
-      ? 'Kept until you empty Trash'
-      : '비울 때까지 보관';
+  String get keptInTrashHint =>
+      isEnglish ? 'Kept until you empty Trash' : '비울 때까지 보관';
   String get restoreAction => isEnglish ? 'Restore' : '복구';
   String get purgeNow => isEnglish ? 'Delete permanently now' : '즉시 영구삭제';
   String get emptyTrashTitle => isEnglish ? 'Empty Trash' : '휴지통 비우기';
@@ -431,8 +472,7 @@ class AppStrings {
   String get semanticFallbackNotice => isEnglish
       ? 'Semantic search is unavailable — showing keyword results.'
       : '뜻 검색을 사용할 수 없어 일반 검색으로 표시 중입니다.';
-  String memoResults(int count) =>
-      isEnglish ? 'Memos ($count)' : '메모 $count개';
+  String memoResults(int count) => isEnglish ? 'Memos ($count)' : '메모 $count개';
 
   // 설정 화면 (테마·폰트 미리보기)
   String get fontSample => isEnglish ? 'A' : '가';
@@ -480,8 +520,7 @@ class AppStrings {
   String get shareTextOnly => isEnglish ? 'Text only' : '글만';
   String get sharePhotosOnly => isEnglish ? 'Photos only' : '사진만';
   String get saveToGallery => isEnglish ? 'Save to gallery' : '갤러리에 저장';
-  String get savedToGallery =>
-      isEnglish ? 'Saved to gallery' : '갤러리에 저장했어요';
+  String get savedToGallery => isEnglish ? 'Saved to gallery' : '갤러리에 저장했어요';
   String get saveToGalleryDenied => isEnglish
       ? 'Allow photo access in Settings to save'
       : '저장하려면 설정에서 사진 권한을 허용해 주세요';
@@ -495,7 +534,8 @@ class AppStrings {
       : '메모와 사진을 함께 백업합니다. 이전 JSON 백업도 복원할 수 있어요.';
   String get backupToFile => isEnglish ? 'Back up to file' : '파일로 백업';
   String get restoreFromFile => isEnglish ? 'Restore from file' : '파일에서 복원';
-  String get backupFileSaved => isEnglish ? 'Backup file saved' : '백업 파일을 저장했어요';
+  String get backupFileSaved =>
+      isEnglish ? 'Backup file saved' : '백업 파일을 저장했어요';
   String get backupPhotoUnavailable => isEnglish
       ? 'Some photos are missing or cannot be read. Check the attached photos and try again.'
       : '일부 사진을 찾거나 읽을 수 없어요. 첨부 사진을 확인한 뒤 다시 시도해 주세요.';

@@ -48,11 +48,20 @@ class DriveBackupEntry {
   final String name;
   final DateTime? modifiedTime;
 
+  /// 바이트. 목록에 크기가 없으면 null.
+  final int? size;
+
   const DriveBackupEntry({
     required this.id,
     required this.name,
     this.modifiedTime,
+    this.size,
   });
+}
+
+int? _driveFileSize(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  return int.tryParse(raw);
 }
 
 sealed class DriveBackupListResult {
@@ -98,7 +107,8 @@ class DriveBackupService {
     await _ensureInitialized();
     final GoogleSignInAccount account;
     try {
-      account = _account ??= await _restoredAccount() ??
+      account = _account ??=
+          await _restoredAccount() ??
           await _signIn.authenticate(scopeHint: _scopes);
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) return null;
@@ -135,7 +145,9 @@ class DriveBackupService {
       _authorize();
 
   static DriveBackupResult mapErrorForTest(Object e) {
-    if (e is BackupPhotoUnavailableException) return const DriveBackupPhotoUnavailable();
+    if (e is BackupPhotoUnavailableException) {
+      return const DriveBackupPhotoUnavailable();
+    }
     if (e is BackupSizeException) return const DriveBackupTooLarge();
     if (e is SocketException) return const DriveBackupNetworkError();
     if (e is DriveBackupDownloadAuthException) {
@@ -187,7 +199,7 @@ class DriveBackupService {
       api,
       folderId: folderId,
       orderBy: 'createdTime desc',
-      fileFields: 'id, name, modifiedTime',
+      fileFields: 'id, name, modifiedTime, size',
     );
     return [
       for (final f in files)
@@ -196,8 +208,23 @@ class DriveBackupService {
             id: f.id!,
             name: f.name ?? f.id!,
             modifiedTime: f.modifiedTime,
+            size: _driveFileSize(f.size),
           ),
     ];
+  }
+
+  /// Drive 백업 파일 하나를 지운다. 보관 개수 정리는 [rotateForTest] 가 그대로 한다.
+  static Future<void> deleteBackup(String fileId) async {
+    final authz = await _authorize();
+    if (authz == null) {
+      throw const DriveBackupDownloadAuthException();
+    }
+    final api = drive.DriveApi(authz.authClient(scopes: _scopes));
+    await deleteBackupForTest(api, fileId);
+  }
+
+  static Future<void> deleteBackupForTest(drive.DriveApi api, String fileId) {
+    return api.files.delete(fileId);
   }
 
   static Future<List<drive.File>> _listBackupFiles(
@@ -243,7 +270,9 @@ class DriveBackupService {
     ) as drive.Media;
     final bytes = BytesBuilder(copy: false);
     await for (final chunk in media.stream) {
-      if (bytes.length + chunk.length > MemoBackupArchive.maxBytes) throw BackupSizeException();
+      if (bytes.length + chunk.length > MemoBackupArchive.maxBytes) {
+        throw BackupSizeException();
+      }
       bytes.add(chunk);
     }
     return bytes.takeBytes();
@@ -299,8 +328,13 @@ class DriveBackupService {
     required String filename,
     required List<int> jsonBytes,
   }) async {
-    return uploadBackupFileForTest(api, folderId: folderId, filename: filename,
-      bytes: jsonBytes, contentType: 'application/json');
+    return uploadBackupFileForTest(
+      api,
+      folderId: folderId,
+      filename: filename,
+      bytes: jsonBytes,
+      contentType: 'application/json',
+    );
   }
 
   static Future<String> uploadBackupFileForTest(

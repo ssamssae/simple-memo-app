@@ -81,7 +81,11 @@ void main() {
   test('최근 5개만 남기고 오래된 백업은 지운다', () async {
     files = [
       for (var day = 10; day <= 15; day++)
-        {'name': 'memoyo-export-2026-11-${day}T09-00-00.zip', 'modified': 0, 'size': 1},
+        {
+          'name': 'memoyo-export-2026-11-${day}T09-00-00.zip',
+          'modified': 0,
+          'size': 1,
+        },
     ];
 
     await ICloudMemoBackup().upload(
@@ -91,14 +95,19 @@ void main() {
 
     final names = files.map((file) => file['name']).toList()..sort();
     expect(names, [
-      for (var day = 12; day <= 16; day++) 'memoyo-export-2026-11-${day}T09-00-00.zip',
+      for (var day = 12; day <= 16; day++)
+        'memoyo-export-2026-11-${day}T09-00-00.zip',
     ]);
   });
 
   test('오래된 백업 지우기가 실패해도 새 백업은 성공으로 본다', () async {
     files = [
       for (var day = 10; day <= 15; day++)
-        {'name': 'memoyo-export-2026-11-${day}T09-00-00.zip', 'modified': 0, 'size': 1},
+        {
+          'name': 'memoyo-export-2026-11-${day}T09-00-00.zip',
+          'modified': 0,
+          'size': 1,
+        },
     ];
     failOn = 'delete';
 
@@ -115,10 +124,22 @@ void main() {
 
   test('목록은 최신 백업부터, 메모요 백업 이름만 보여 준다', () async {
     files = [
-      {'name': 'memoyo-export-2026-11-01T09-00-00.zip', 'modified': 1000, 'size': 10},
+      {
+        'name': 'memoyo-export-2026-11-01T09-00-00.zip',
+        'modified': 1000,
+        'size': 10,
+      },
       {'name': 'notes.txt', 'modified': 2000, 'size': 1},
-      {'name': 'yakmukja-backup-20261116-1905.json', 'modified': 2500, 'size': 1},
-      {'name': 'memoyo-export-2026-11-16T19-05-00.zip', 'modified': 3000, 'size': 20},
+      {
+        'name': 'yakmukja-backup-20261116-1905.json',
+        'modified': 2500,
+        'size': 1,
+      },
+      {
+        'name': 'memoyo-export-2026-11-16T19-05-00.zip',
+        'modified': 3000,
+        'size': 20,
+      },
     ];
 
     final list = await ICloudMemoBackup().list();
@@ -139,6 +160,16 @@ void main() {
     );
 
     expect(file.label, '2026-11-16 19:05:00');
+  });
+
+  test('delete 는 그 이름으로 기기 delete 채널을 부른다', () async {
+    const name = 'memoyo-export-2026-11-16T19-05-00.zip';
+
+    await ICloudMemoBackup().delete(name);
+
+    expect(calls, hasLength(1));
+    expect(calls.single.method, 'delete');
+    expect((calls.single.arguments as Map)['name'], name);
   });
 
   test('복원은 고른 백업 파일의 내용을 기기에서 받아 온다', () async {
