@@ -78,6 +78,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   bool _isICloudRestoreRunning = false;
   bool _isICloudDeleteRunning = false;
   bool _isDriveDeleteRunning = false;
+  bool _isDriveListLoading = false;
   bool get _busy =>
       _isBackupRunning ||
       _isRestoreRunning ||
@@ -85,7 +86,8 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       _isICloudBackupRunning ||
       _isICloudRestoreRunning ||
       _isICloudDeleteRunning ||
-      _isDriveDeleteRunning;
+      _isDriveDeleteRunning ||
+      _isDriveListLoading;
   late final ICloudMemoBackup _icloud = widget.icloud ?? ICloudMemoBackup();
   bool get _isIOS =>
       (widget.platform ?? defaultTargetPlatform) == TargetPlatform.iOS;
@@ -231,15 +233,20 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
   Future<void> _loadDriveBackups({required bool showLoading}) async {
     final epoch = ++_driveEpoch;
-    if (showLoading && mounted) {
+    if (mounted) {
       setState(() {
-        _driveListOpen = true;
-        _drivePhase = _BackupListPhase.loading;
+        _isDriveListLoading = true;
+        if (showLoading) {
+          _driveListOpen = true;
+          _drivePhase = _BackupListPhase.loading;
+        }
       });
     }
     try {
       final list = widget.listBackups ?? DriveBackupService.listBackups;
-      final result = await list().timeout(_listTimeout);
+      // 이 호출은 로그인·권한 창까지 포함한다. 15초로 끊으면 창이 떠 있는 동안
+      // 실패로 처리되고, 로그인 뒤 받은 목록은 버려진다. iCloud 목록만 15초다.
+      final result = await list();
       if (!mounted || epoch != _driveEpoch) return;
       switch (result) {
         case DriveBackupListFailure(:final error):
@@ -258,6 +265,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     } catch (_) {
       if (!mounted || epoch != _driveEpoch) return;
       setState(() => _drivePhase = _BackupListPhase.failed);
+    } finally {
+      if (mounted && epoch == _driveEpoch) {
+        setState(() => _isDriveListLoading = false);
+      }
     }
   }
 

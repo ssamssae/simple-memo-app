@@ -350,6 +350,106 @@ void main() {
     expect(lists, 2);
     expect(find.text('2026-11-16 19:05:00'), findsOneWidget);
   });
+
+  testWidgets('Drive 목록은 20초 뒤에 성공해도 실패 문구 없이 줄을 보여 준다', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      listBackups: () async {
+        await Future<void>.delayed(const Duration(seconds: 20));
+        return DriveBackupListSuccess([
+          DriveBackupEntry(
+            id: 'slow',
+            name: newer,
+            modifiedTime: DateTime(2026, 11, 16, 19, 5),
+            size: 2000,
+          ),
+        ]);
+      },
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Drive 백업 목록 보기'));
+    await tester.pump();
+    expect(find.text('불러오는 중'), findsOneWidget);
+    expect(find.text('목록을 불러오지 못했어요'), findsNothing);
+
+    await tester.pump(const Duration(seconds: 20));
+    await tester.pump();
+
+    expect(find.text('목록을 불러오지 못했어요'), findsNothing);
+    expect(find.text('2026-11-16 19:05:00'), findsOneWidget);
+    expect(find.text('2 KB'), findsOneWidget);
+  });
+
+  testWidgets('Drive 목록 로딩 중에는 지금 백업과 계정 바꾸기 단추가 눌리지 않는다', (
+    tester,
+  ) async {
+    final gate = Completer<DriveBackupListResult>();
+    await pump(tester, listBackups: () => gate.future);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '지금 백업'),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    // 계정 바꾸기 = signOut. 화면 문구는 「다른 Google 계정 쓰기」.
+    expect(
+      tester
+          .widget<TextButton>(
+            find.widgetWithText(TextButton, '다른 Google 계정 쓰기'),
+          )
+          .onPressed,
+      isNotNull,
+    );
+
+    await tester.tap(find.text('Drive 백업 목록 보기'));
+    await tester.pump();
+
+    expect(find.text('불러오는 중'), findsOneWidget);
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '지금 백업'),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<TextButton>(
+            find.widgetWithText(TextButton, '다른 Google 계정 쓰기'),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    gate.complete(
+      DriveBackupListSuccess([
+        DriveBackupEntry(
+          id: 'slow',
+          name: newer,
+          modifiedTime: DateTime(2026, 11, 16, 19, 5),
+          size: 2000,
+        ),
+      ]),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('2026-11-16 19:05:00'), findsOneWidget);
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '지금 백업'),
+          )
+          .onPressed,
+      isNotNull,
+    );
+  });
 }
 
 ICloudBackupFile _file(String name, int size) =>
